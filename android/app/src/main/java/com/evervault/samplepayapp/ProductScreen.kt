@@ -1,4 +1,5 @@
 package com.evervault.samplepayapp
+import androidx.activity.result.ActivityResultLauncher
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -20,7 +21,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.google.pay.button.PayButton
+import com.evervault.evpay.EvervaultPaymentButton
+import com.evervault.evpay.PaymentUiState
+import com.evervault.evpay.Transaction
+import com.google.android.gms.tasks.Task
+import com.google.android.gms.wallet.PaymentData
+import com.google.android.gms.wallet.PaymentsClient
 
 @Composable
 fun ProductScreen(
@@ -28,8 +34,10 @@ fun ProductScreen(
     description: String,
     price: String,
     image: Int,
-    onGooglePayButtonClick: () -> Unit,
+    transaction: Transaction,
+    paymentsClient: PaymentsClient,
     payUiState: PaymentUiState = PaymentUiState.NotStarted,
+    onResult: ActivityResultLauncher<Task<PaymentData>>
 ) {
     val padding = 20.dp
     val black = Color(0xff000000.toInt())
@@ -95,12 +103,13 @@ fun ProductScreen(
                 color = black
             )
             if (payUiState !is PaymentUiState.NotStarted) {
-                PayButton(
+                EvervaultPaymentButton(
                     modifier = Modifier
                         .testTag("payButton")
                         .fillMaxWidth(),
-                    onClick = onGooglePayButtonClick,
-                    allowedPaymentMethods = PaymentsUtil.allowedPaymentMethods.toString()
+                    transaction,
+                    paymentsClient,
+                    onResult
                 )
             }
         }

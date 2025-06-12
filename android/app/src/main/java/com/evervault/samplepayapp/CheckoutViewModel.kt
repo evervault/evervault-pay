@@ -4,6 +4,7 @@ import android.app.Application
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.evervault.evpay.PaymentUiState
 import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.common.api.CommonStatusCodes
 import com.google.android.gms.tasks.Task
@@ -22,12 +23,11 @@ import org.json.JSONObject
 
 class CheckoutViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val _paymentUiState: MutableStateFlow<PaymentUiState> =
-        MutableStateFlow(PaymentUiState.NotStarted)
+    private val _paymentUiState: MutableStateFlow<PaymentUiState> = MutableStateFlow(PaymentUiState.NotStarted)
     val paymentUiState: StateFlow<PaymentUiState> = _paymentUiState.asStateFlow()
 
     // A client for interacting with the Google Pay API.
-    private val paymentsClient: PaymentsClient = PaymentsUtil.createPaymentsClient(application)
+    val paymentsClient: PaymentsClient = PaymentsUtil.createPaymentsClient(application)
 
     init {
         viewModelScope.launch {
@@ -59,18 +59,6 @@ class CheckoutViewModel(application: Application) : AndroidViewModel(application
     private suspend fun fetchCanUseGooglePay(): Boolean {
         val request = IsReadyToPayRequest.fromJson(PaymentsUtil.isReadyToPayRequest().toString())
         return paymentsClient.isReadyToPay(request).await()
-    }
-
-    /**
-     * Creates a [Task] that starts the payment process with the transaction details included.
-     *
-     * @return a [Task] with the payment information.
-     * @see [PaymentDataRequest](https://developers.google.com/android/reference/com/google/android/gms/wallet/PaymentsClient#loadPaymentData(com.google.android.gms.wallet.PaymentDataRequest)
-    ) */
-    fun getLoadPaymentDataTask(priceLabel: String): Task<PaymentData> {
-        val paymentDataRequestJson = PaymentsUtil.getPaymentDataRequest(priceLabel)
-        val request = PaymentDataRequest.fromJson(paymentDataRequestJson.toString())
-        return paymentsClient.loadPaymentData(request)
     }
 
     /**
@@ -119,11 +107,4 @@ class CheckoutViewModel(application: Application) : AndroidViewModel(application
 
         return null
     }
-}
-
-abstract class PaymentUiState internal constructor() {
-    object NotStarted : PaymentUiState()
-    object Available : PaymentUiState()
-    class PaymentCompleted(val payerName: String) : PaymentUiState()
-    class Error(val code: Int, val message: String? = null) : PaymentUiState()
 }

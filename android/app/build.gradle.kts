@@ -42,6 +42,8 @@ android {
 }
 
 dependencies {
+    implementation(project(":evpay"))
+
     val lifecycleVersion = "2.7.0"
 
     implementation("com.google.android.gms:play-services-wallet:19.4.0")
