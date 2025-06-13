@@ -5,12 +5,12 @@ import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.evervault.evpay.PaymentUiState
+import com.evervault.evpay.createPaymentsClient
+import com.evervault.evpay.isReadyToPayRequest
 import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.common.api.CommonStatusCodes
-import com.google.android.gms.tasks.Task
 import com.google.android.gms.wallet.IsReadyToPayRequest
 import com.google.android.gms.wallet.PaymentData
-import com.google.android.gms.wallet.PaymentDataRequest
 import com.google.android.gms.wallet.PaymentsClient
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -27,7 +27,7 @@ class CheckoutViewModel(application: Application) : AndroidViewModel(application
     val paymentUiState: StateFlow<PaymentUiState> = _paymentUiState.asStateFlow()
 
     // A client for interacting with the Google Pay API.
-    val paymentsClient: PaymentsClient = PaymentsUtil.createPaymentsClient(application)
+    val paymentsClient: PaymentsClient = createPaymentsClient(application)
 
     init {
         viewModelScope.launch {
@@ -57,7 +57,7 @@ class CheckoutViewModel(application: Application) : AndroidViewModel(application
      * Determine the user's ability to pay with a payment method supported by your app.
     ) */
     private suspend fun fetchCanUseGooglePay(): Boolean {
-        val request = IsReadyToPayRequest.fromJson(PaymentsUtil.isReadyToPayRequest().toString())
+        val request = IsReadyToPayRequest.fromJson(isReadyToPayRequest().toString())
         return paymentsClient.isReadyToPay(request).await()
     }
 
