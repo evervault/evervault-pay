@@ -30,6 +30,7 @@ public enum EvervaultError: Error, LocalizedError {
 
 /// A UIView that wraps Apple Pay button and handles full payment flow.
 public class EvervaultPaymentView: UIView {
+    public var appUuid: String
     public var merchantIdentifier: String
     public let transaction: Transaction
     public let supportedNetworks: [Network]
@@ -46,10 +47,12 @@ public class EvervaultPaymentView: UIView {
 
     /// Designated initializer
     public init(
+        appUuid: String,
         merchantIdentifier: String,
         transaction: Transaction,
         supportedNetworks: [Network]
     ) {
+        self.appUuid = appUuid
         self.merchantIdentifier = merchantIdentifier
         self.transaction = transaction
         self.supportedNetworks = supportedNetworks
@@ -60,7 +63,11 @@ public class EvervaultPaymentView: UIView {
             return
         }
         super.init(frame: .zero)
+        print(payButton.intrinsicContentSize)
         setupLayout()
+        print(payButton.intrinsicContentSize)
+        setContentHuggingPriority(.required, for: .horizontal)
+        setContentHuggingPriority(.required, for: .vertical)
     }
     
     required init?(coder: NSCoder) {
@@ -79,11 +86,16 @@ public class EvervaultPaymentView: UIView {
         addSubview(payButton)
         payButton.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
-            payButton.topAnchor.constraint(equalTo: topAnchor),
-            payButton.bottomAnchor.constraint(equalTo: bottomAnchor),
-            payButton.leadingAnchor.constraint(equalTo: leadingAnchor),
-            payButton.trailingAnchor.constraint(equalTo: trailingAnchor)
+            payButton.topAnchor.constraint(equalTo: layoutMarginsGuide.topAnchor),
+            payButton.bottomAnchor.constraint(equalTo: layoutMarginsGuide.bottomAnchor),
+            payButton.leadingAnchor.constraint(equalTo: layoutMarginsGuide.leadingAnchor),
+            payButton.trailingAnchor.constraint(equalTo: layoutMarginsGuide.trailingAnchor)
         ])
+    }
+    
+    // Default size for the button
+    public override var intrinsicContentSize: CGSize {
+        return CGSize(width: 200, height: 44)
     }
     
     // MARK: Actions
@@ -136,7 +148,7 @@ extension EvervaultPaymentView : PKPaymentAuthorizationViewControllerDelegate {
     nonisolated public func paymentAuthorizationViewController(_ controller: PKPaymentAuthorizationViewController, didAuthorizePayment payment: PKPayment) async -> PKPaymentAuthorizationResult {
         do {
             // Send the token to the Evervault backend for decryption and re-encryption with Evervault Encryption
-            let decoded = try await EvervaultApi.sendPaymentToken(payment)
+            let decoded = try await EvervaultApi.sendPaymentToken(appUuid, payment)
             await MainActor.run {
                 // Notify the delegate on the main actor
                 self.delegate?.evervaultPaymentView(self, didAuthorizePayment: decoded)

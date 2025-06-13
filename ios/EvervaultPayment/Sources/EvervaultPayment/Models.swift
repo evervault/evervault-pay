@@ -20,7 +20,9 @@ public struct ApplePayNetworkToken: Codable, Sendable {
     public let tokenServiceProvider: String
     
     public init() {
-        self.number = "numberValue"
+        let uuid = NSUUID().uuidString
+        let encoded = uuid.data(using: .utf8)?.base64EncodedString()
+        self.number = "ev:\(encoded ?? "encodedStringFailedToEncode"):$"
         self.expiry = ApplePayNetworkTokenExpiry()
         self.rawExpiry = "rawExpiryValue"
         self.tokenServiceProvider = "tokenServiceProviderValue"
@@ -56,9 +58,12 @@ public struct ApplePayResponse: Codable, Sendable  {
     
     // TODO: remove
     public init() {
+        let uuid = NSUUID().uuidString
+        let encoded = uuid.data(using: .utf8)?.base64EncodedString()
+        
         self.networkToken = ApplePayNetworkToken()
         self.card = ApplePayCard()
-        self.cryptogram = "cryptogramValue"
+        self.cryptogram = encoded!
         self.eci = "eciValue"
         self.paymentDataType = "paymentDataTypeValue"
         self.deviceManufacturerIdentifier = "deviceManufacturerIdentifierValue"
