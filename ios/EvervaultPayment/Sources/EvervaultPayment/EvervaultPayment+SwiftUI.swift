@@ -12,17 +12,20 @@ import PassKit
 public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
   
     // MARK: Inputs
+    let appUuid: String
     let merchantIdentifier: String
     let transaction: Transaction
     let supportedNetworks: [Network]
     
     public init(
+        appUuid: String,
         merchantIdentifier: String,
         transaction: Transaction,
         supportedNetworks: [Network],
         authorizedResponse: Binding<ApplePayResponse?>,
         onFinish: @escaping () -> Void
     ) {
+        self.appUuid = appUuid
         self.merchantIdentifier = merchantIdentifier
         self.transaction = transaction
         self.supportedNetworks = supportedNetworks
@@ -42,6 +45,7 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
     public func makeUIView(context: Context) -> EvervaultPaymentView {
         // 1. Create the UIKit view
         let view = EvervaultPaymentView(
+            appUuid: appUuid,
             merchantIdentifier: merchantIdentifier,
             transaction: transaction,
             supportedNetworks: supportedNetworks

@@ -29,33 +29,91 @@ struct ContentView: View {
     let transaction = buildTransaction()
     
     var body: some View {
-        VStack(alignment: .center, spacing: 10) {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
-            Spacer()
-            EvervaultPaymentViewRepresentable(
-                merchantIdentifier: "merchant.com.example",
-                transaction: try! Transaction(
-                  country: "US",
-                  currency: "USD",
-                  paymentSummaryItems: [
-                    SummaryItem(label: "Test", amount: Amount("1.00"))
-                  ]
-                ),
-                supportedNetworks: [EvervaultPayment.Network.visa, .masterCard, .amex],
-                authorizedResponse: $pwResponse,
-                onFinish: {
-                  print("Payment sheet dismissed")
+        ZStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 10) {
+                    AsyncImage(
+                        url: URL(string: "https://c8.alamy.com/comp/BRH3DN/a-young-man-playing-a-trumpet-BRH3DN.jpg"),
+                        content: { img in
+                            img.resizable()
+                                .aspectRatio(contentMode: .fill)
+                        },
+                        placeholder: {
+                            ProgressView()
+                        }
+                    )
+                    .frame(maxWidth: .infinity)
+                    .clipShape(Rectangle())
+                    .cornerRadius(8)
+                    
+                    // 2. Title
+                    Text("Evil Trumpet (man not included)")
+                        .font(.title)
+                        .bold()
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    
+                    // 3. Description
+                    Text("A very annoying instrument")
+                        .font(.body)
+                        .multilineTextAlignment(.leading)
+                    
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Specifications")
+                            .font(.headline)
+                        HStack {
+                            Text("Overall Length:")
+                            Spacer()
+                            Text("48 cm")
+                        }
+                        HStack {
+                            Text("Weight:")
+                            Spacer()
+                            Text("2.5 lb / 1.13 kg")
+                        }
+                        HStack {
+                            Text("Can play:")
+                            Spacer()
+                            Text("Tequila")
+                        }
+                    }
+                    .padding()
+                    .background(Color(.systemGroupedBackground))
+                    .cornerRadius(8)
+                    
+                    if let resp = pwResponse {
+                        Text("Token: \(resp.networkToken.number)")
+                        Text("Cryptogram: \(resp.cryptogram)")
+                    }
                 }
-            )
-
-            if let resp = pwResponse {
-                Text("Auth cryptogram: \(resp.cryptogram)")
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-    }
-        .padding()
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            
+            VStack {
+                Spacer()
+                EvervaultPaymentViewRepresentable(
+                    appUuid: "app_1234567890",
+                    merchantIdentifier: "merchant.com.example",
+                    transaction: try! Transaction(
+                        country: "US",
+                        currency: "USD",
+                        paymentSummaryItems: [
+                            SummaryItem(label: "Evil Trumpet", amount: Amount("90.00")),
+                            SummaryItem(label: "Trumpet Case", amount: Amount("10.00")),
+                            SummaryItem(label: "Total", amount: Amount("100.00"))
+                        ]
+                    ),
+                    supportedNetworks: [EvervaultPayment.Network.visa, .masterCard, .amex],
+                    authorizedResponse: $pwResponse,
+                    onFinish: {
+                        print("Payment sheet dismissed")
+                    }
+                )
+                .frame(width: 200, height: 100)
+            }
+            .frame(maxWidth: .infinity)
+        }
     }
 }
 
