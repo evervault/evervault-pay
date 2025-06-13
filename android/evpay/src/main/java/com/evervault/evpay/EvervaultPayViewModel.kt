@@ -1,17 +1,15 @@
-package com.evervault.samplepayapp
+package com.evervault.evpay
 
 import android.app.Application
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.evervault.evpay.PaymentUiState
-import com.evervault.evpay.createPaymentsClient
-import com.evervault.evpay.isReadyToPayRequest
 import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.common.api.CommonStatusCodes
 import com.google.android.gms.wallet.IsReadyToPayRequest
 import com.google.android.gms.wallet.PaymentData
 import com.google.android.gms.wallet.PaymentsClient
+import com.google.android.gms.wallet.contract.ApiTaskResult
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -21,17 +19,32 @@ import kotlinx.coroutines.tasks.await
 import org.json.JSONException
 import org.json.JSONObject
 
-class CheckoutViewModel(application: Application) : AndroidViewModel(application) {
-
+class EvervaultPayViewModel(application: Application) : AndroidViewModel(application) {
     private val _paymentUiState: MutableStateFlow<PaymentUiState> = MutableStateFlow(PaymentUiState.NotStarted)
     val paymentUiState: StateFlow<PaymentUiState> = _paymentUiState.asStateFlow()
 
     // A client for interacting with the Google Pay API.
-    val paymentsClient: PaymentsClient = createPaymentsClient(application)
+    internal val paymentsClient: PaymentsClient = createPaymentsClient(application)
 
     init {
         viewModelScope.launch {
             verifyGooglePayReadiness()
+        }
+    }
+
+    private val apiClient = EvervaultPayAPI()
+
+    fun handlePaymentData(taskResult: ApiTaskResult<PaymentData>) {
+        when (taskResult.status.statusCode) {
+            CommonStatusCodes.SUCCESS -> {
+                taskResult.result!!.let {
+                    Log.i("Google Pay result:", it.toJson())
+                    this.setPaymentData(it)
+                }
+            }
+            //CommonStatusCodes.CANCELED -> The user canceled
+            //CommonStatusCodes.DEVELOPER_ERROR -> The API returned an error (it.status: Status)
+            //else -> Handle internal and other unexpected errors
         }
     }
 
@@ -74,7 +87,7 @@ class CheckoutViewModel(application: Application) : AndroidViewModel(application
         Log.e("Google Pay API error", "Error code: $statusCode, Message: $message")
     }
 
-    fun setPaymentData(paymentData: PaymentData) {
+    internal fun setPaymentData(paymentData: PaymentData) {
         val payState = extractPaymentBillingName(paymentData)?.let {
             PaymentUiState.PaymentCompleted(payerName = it)
         } ?: PaymentUiState.Error(CommonStatusCodes.INTERNAL_ERROR)
@@ -99,6 +112,8 @@ class CheckoutViewModel(application: Application) : AndroidViewModel(application
                     .getJSONObject("tokenizationData")
                     .getString("token")
             )
+
+            this.apiClient.fetchCryptogram()
 
             return billingName
         } catch (error: JSONException) {

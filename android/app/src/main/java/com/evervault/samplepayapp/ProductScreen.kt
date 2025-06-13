@@ -22,11 +22,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.evervault.evpay.EvervaultPaymentButton
+import com.evervault.evpay.EvervaultPayViewModel
 import com.evervault.evpay.PaymentUiState
 import com.evervault.evpay.Transaction
 import com.google.android.gms.tasks.Task
 import com.google.android.gms.wallet.PaymentData
-import com.google.android.gms.wallet.PaymentsClient
 
 @Composable
 fun ProductScreen(
@@ -35,9 +35,9 @@ fun ProductScreen(
     price: String,
     image: Int,
     transaction: Transaction,
-    paymentsClient: PaymentsClient,
+    model: EvervaultPayViewModel,
     payUiState: PaymentUiState = PaymentUiState.NotStarted,
-    onResult: ActivityResultLauncher<Task<PaymentData>>
+    displayPaymentModalLauncher: ActivityResultLauncher<Task<PaymentData>>
 ) {
     val padding = 20.dp
     val black = Color(0xff000000.toInt())
@@ -108,8 +108,8 @@ fun ProductScreen(
                         .testTag("payButton")
                         .fillMaxWidth(),
                     transaction,
-                    paymentsClient,
-                    onResult
+                    model,
+                    displayPaymentModalLauncher
                 )
             }
         }

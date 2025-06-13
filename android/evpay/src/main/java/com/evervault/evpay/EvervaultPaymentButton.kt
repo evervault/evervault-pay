@@ -228,7 +228,7 @@ fun getPaymentDataRequest(priceLabel: String, country: String, currency: String)
 private val PAYMENTS_ENVIRONMENT = WalletConstants.ENVIRONMENT_TEST
 
 @Composable
-fun EvervaultPaymentButton(modifier: Modifier, paymentRequest: Transaction, paymentsClient: PaymentsClient, onResult: ActivityResultLauncher<Task<PaymentData>>) {
+fun EvervaultPaymentButton(modifier: Modifier, paymentRequest: Transaction, model: EvervaultPayViewModel, displayPaymentModalLauncher: ActivityResultLauncher<Task<PaymentData>>) {
     val onClickHandler: () -> Unit = {
         // https://developers.google.com/pay/api/web/reference/request-objects#TransactionInfo
         val paymentDataRequestJson = baseRequest
@@ -249,8 +249,8 @@ fun EvervaultPaymentButton(modifier: Modifier, paymentRequest: Transaction, paym
             .put("merchantInfo", JSONObject().put("merchantName", "Example Merchant"))
         val request = PaymentDataRequest.fromJson(paymentDataRequestJson.toString())
 
-        val task = paymentsClient.loadPaymentData(request)
-        task.addOnCompleteListener(onResult::launch)
+        val task = model.paymentsClient.loadPaymentData(request)
+        task.addOnCompleteListener(displayPaymentModalLauncher::launch)
     }
 
     // TODO: Pass in button customizations
