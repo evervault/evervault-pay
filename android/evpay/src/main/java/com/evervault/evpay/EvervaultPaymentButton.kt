@@ -9,12 +9,9 @@ import com.google.android.gms.wallet.PaymentData
 import com.google.android.gms.wallet.PaymentDataRequest
 import com.google.android.gms.wallet.PaymentsClient
 import org.json.JSONArray
+import org.json.JSONException
 import org.json.JSONObject
 import kotlin.enums.enumEntries
-
-inline fun <reified T : Enum<T>> printAllValues() {
-    println(enumEntries<T>().joinToString { it.name })
-}
 
 abstract class PaymentUiState internal constructor() {
     object NotStarted : PaymentUiState()
@@ -25,6 +22,14 @@ abstract class PaymentUiState internal constructor() {
 
 private val SUPPORTED_METHODS = listOf("CRYPTOGRAM_3DS")
 private val PAYMENT_GATEWAY_TOKENIZATION_NAME = "example"
+val SUPPORTED_NETWORKS = listOf(
+        "AMEX",
+        "DISCOVER",
+        "JCB",
+        "MASTERCARD",
+        "VISA")
+
+val allowedCardNetworks = JSONArray(SUPPORTED_NETWORKS)
 
 private val baseRequest = JSONObject()
     .put("apiVersion", 2)
@@ -39,16 +44,36 @@ private val gatewayTokenizationSpecification: JSONObject =
             "gatewayMerchantId" to "exampleGatewayMerchantId"
         )))
 
+private val allowedCardAuthMethods = JSONArray(SUPPORTED_METHODS)
+
+// TODO: The card networks here is outside of the state for the button.
+// Either the user has to pass it in twice, or a factory function or other.
+fun baseCardPaymentMethod(): JSONObject = JSONObject()
+    .put("type", "CARD")
+    .put("parameters", JSONObject()
+        .put("allowedAuthMethods", allowedCardAuthMethods)
+        .put("allowedCardNetworks", allowedCardNetworks)
+        .put("billingAddressRequired", true)
+        .put("billingAddressParameters", JSONObject()
+            .put("format", "FULL")
+        )
+    )
+
+fun isReadyToPayRequest(): JSONObject? = try {
+    baseRequest
+        .put("allowedPaymentMethods", JSONArray().put(baseCardPaymentMethod()))
+} catch (e: JSONException) {
+    null
+}
+
 @Composable
 fun EvervaultPaymentButton(modifier: Modifier, paymentRequest: Transaction, paymentsClient: PaymentsClient, onResult: ActivityResultLauncher<Task<PaymentData>>) {
-    val SUPPORTED_NETWORKS = listOf(
-        "AMEX",
-        "DISCOVER",
-        "JCB",
-        "MASTERCARD",
-        "VISA")
+    EvervaultPaymentButton(modifier, paymentRequest, enumEntries<CardNetwork>().toTypedArray(), paymentsClient, onResult)
+}
 
-    val allowedCardNetworks = JSONArray(SUPPORTED_NETWORKS)
+@Composable
+fun EvervaultPaymentButton(modifier: Modifier, paymentRequest: Transaction, supportedCardNetworks: Array<CardNetwork>, paymentsClient: PaymentsClient, onResult: ActivityResultLauncher<Task<PaymentData>>) {
+    val allowedCardNetworks = JSONArray(supportedCardNetworks.map { it.name })
     val allowedCardAuthMethods = JSONArray(SUPPORTED_METHODS)
 
     val allowedPaymentMethods: JSONArray = JSONArray().put(JSONObject()
