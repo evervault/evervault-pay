@@ -22,14 +22,35 @@ abstract class PaymentUiState internal constructor() {
 }
 
 /**
- * Create a Google Pay API base request object with properties used in all requests.
+ * Gateway Integration: Identify your gateway and your app's gateway merchant identifier.
  *
- * @return Google Pay API base request object.
+ *
+ * The Google Pay API response will return an encrypted payment method capable of being charged
+ * by a supported gateway after payer authorization.
+ *
+ * @return Payment data tokenization for the CARD payment method.
  * @throws JSONException
+ * See [PaymentMethodTokenizationSpecification](https://developers.google.com/pay/api/android/reference/object.PaymentMethodTokenizationSpecification)
  */
-private val baseRequest = JSONObject()
-    .put("apiVersion", 2)
-    .put("apiVersionMinor", 0)
+private fun gatewayTokenizationSpecification(model: EvervaultPayViewModel) = JSONObject()
+        .put("type", "PAYMENT_GATEWAY")
+        .put("parameters", JSONObject(model.PAYMENT_GATEWAY_TOKENIZATION_PARAMETERS))
+
+/**
+ * Card networks supported by your app and your gateway.
+ *
+ * @return Allowed card networks
+ * See [CardParameters](https://developers.google.com/pay/api/android/reference/object.CardParameters)
+ */
+private fun allowedCardNetworks(model: EvervaultPayViewModel) = JSONArray(model.SUPPORTED_NETWORKS)
+
+/**
+ * Card authentication methods supported by your app and your gateway.
+ *
+ * @return Allowed card authentication methods.
+ * See [CardParameters](https://developers.google.com/pay/api/android/reference/object.CardParameters)
+ */
+private fun allowedCardAuthMethods(model: EvervaultPayViewModel) = JSONArray(model.SUPPORTED_METHODS)
 
 /**
  * Describe your app's support for the CARD payment method.
@@ -47,18 +68,35 @@ private fun baseCardPaymentMethod(model: EvervaultPayViewModel): JSONObject =
     JSONObject()
         .put("type", "CARD")
         .put("parameters", JSONObject()
-            .put("allowedAuthMethods", JSONArray(model.SUPPORTED_METHODS))
-            .put("allowedCardNetworks", JSONArray(model.SUPPORTED_NETWORKS))
+            .put("allowedAuthMethods", allowedCardAuthMethods(model))
+            .put("allowedCardNetworks", allowedCardNetworks(model))
             .put("billingAddressRequired", true)
             .put("billingAddressParameters", JSONObject()
                 .put("format", "FULL")
             )
         )
 
-private fun allowedPaymentMethods(model: EvervaultPayViewModel) = JSONArray().put(baseCardPaymentMethod(model)
-    .put("tokenizationSpecification", JSONObject()
-        .put("type", "PAYMENT_GATEWAY")
-        .put("parameters", JSONObject(model.PAYMENT_GATEWAY_TOKENIZATION_PARAMETERS))))
+/**
+ * Describe the expected returned payment data for the CARD payment method
+ *
+ * @return A CARD PaymentMethod describing accepted cards and optional fields.
+ * @throws JSONException
+ * See [PaymentMethod](https://developers.google.com/pay/api/android/reference/object.PaymentMethod)
+ */
+private fun cardPaymentMethod(model: EvervaultPayViewModel) = baseCardPaymentMethod(model)
+    .put("tokenizationSpecification", gatewayTokenizationSpecification(model))
+
+private fun allowedPaymentMethods(model: EvervaultPayViewModel) = JSONArray().put(cardPaymentMethod(model))
+
+/**
+ * Create a Google Pay API base request object with properties used in all requests.
+ *
+ * @return Google Pay API base request object.
+ * @throws JSONException
+ */
+private val baseRequest = JSONObject()
+    .put("apiVersion", 2)
+    .put("apiVersionMinor", 0)
 
 /**
  * An object describing accepted forms of payment by your app, used to determine a viewer's
