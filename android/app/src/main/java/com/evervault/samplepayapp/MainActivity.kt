@@ -11,6 +11,7 @@ import com.evervault.evpay.EvervaultPayViewModel
 import com.evervault.evpay.LineItem
 import com.evervault.evpay.PaymentUiState
 import com.evervault.evpay.Transaction
+import com.google.android.gms.wallet.WalletConstants
 import com.google.android.gms.wallet.contract.TaskResultContracts.GetPaymentDataResult
 
 class MainActivity : AppCompatActivity() {
@@ -22,6 +23,10 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Set values and call start
+        this.model.environment = WalletConstants.ENVIRONMENT_TEST
+        this.model.start()
 
         val transaction = Transaction("GB", "GBP", arrayOf(
             LineItem("Men's Tech Shell Full Zip", Amount("50.20"))
