@@ -1,5 +1,5 @@
 import PassKit
-import Foundation
+//import Foundation
 
 public typealias Network = PKPaymentNetwork
 
