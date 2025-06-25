@@ -6,22 +6,6 @@ data class CardExpiry(
     val year: Int
 )
 
-data class FpanCardDetails(
-    val number: String,
-    val expiry: CardExpiry,
-    // GooglePayCard flattened
-    val brand: String?,
-    val funding: String?,
-    val segment: String?,
-    val country: String?,
-    val currency: String?,
-    val issuer: String?
-)
-
-data class FpanResponse(
-    val card: FpanCardDetails
-)
-
 data class PaymentToken(
     val number: String,
     val expiry: CardExpiry,
