@@ -21,7 +21,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private val model: EvervaultPayViewModel by viewModels {
-        EvervaultPayViewModelFactory(application, "app_c7c594325ed9", "merchant_3ca5d6aec6ca")
+        EvervaultPayViewModelFactory(application, "app_1234567890", "merchant_123456790")
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {

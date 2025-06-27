@@ -85,7 +85,7 @@ struct ContentView: View {
                 }
                 
                 EvervaultPaymentViewRepresentable(
-                    appUuid: "app_c7c594325ed9",
+                    appUuid: "app_1234567890",
                     merchantIdentifier: "merchant.com.example",
                     transaction: try! Transaction(
                         country: "US",
