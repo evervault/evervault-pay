@@ -8,6 +8,7 @@ import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.evervault.evpay.Amount
 import com.evervault.evpay.EvervaultPayViewModel
+import com.evervault.evpay.EvervaultPayViewModelFactory
 import com.evervault.evpay.LineItem
 import com.evervault.evpay.PaymentUiState
 import com.evervault.evpay.Transaction
@@ -19,7 +20,9 @@ class MainActivity : AppCompatActivity() {
         this.model.handlePaymentData(taskResult)
     }
 
-    private val model: EvervaultPayViewModel by viewModels()
+    private val model: EvervaultPayViewModel by viewModels {
+        EvervaultPayViewModelFactory(application, "app_c7c594325ed9", "merchant_3ca5d6aec6ca")
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

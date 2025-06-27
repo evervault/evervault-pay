@@ -25,5 +25,6 @@ data class DpanResponse(
     val card: GooglePayCard,
     val token: PaymentToken,
     val cryptogram: String,
-    val eci: String
+    val eci: String,
+    var billingAddress: BillingAddress?,
 )

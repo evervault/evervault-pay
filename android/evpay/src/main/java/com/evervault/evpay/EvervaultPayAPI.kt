@@ -20,7 +20,7 @@ interface EvervaultPayAPICallback {
     fun onResponse(response: DpanResponse)
 }
 
-class EvervaultPayAPI {
+class EvervaultPayAPI(private val appUuid: String) {
     private val client = OkHttpClient()
 
     /**
@@ -28,29 +28,31 @@ class EvervaultPayAPI {
      * @param environment WalletConstants.ENVIRONMENT_TEST or WalletConstants.ENVIRONMENT_PRODUCTION
      * @param callback Callback to handle the response from the Evervault server
      */
-    fun fetchCryptogram(paymentData: PaymentData, merchant_id: String, environment: Int, callback: EvervaultPayAPICallback) {
+    fun fetchCryptogram(paymentData: PaymentData, merchantId: String, environment: Int, callback: EvervaultPayAPICallback) {
         // https://developers.google.com/pay/api/android/guides/resources/payment-data-cryptography#payment-method-token-structure
 
         val paymentInformation = paymentData.toJson()
         // Token will be null if PaymentDataRequest was not constructed using fromJson(String).
         val paymentMethodData = JSONObject(paymentInformation).getJSONObject("paymentMethodData")
 
-        val evervault_route = when (environment) {
+        val evervaultRoute = when (environment) {
             WalletConstants.ENVIRONMENT_PRODUCTION -> "https://api.evervault.com"
-            WalletConstants.ENVIRONMENT_TEST -> "https://evervault.io"
+            WalletConstants.ENVIRONMENT_TEST -> "https://api.evervault.io"
             else -> return callback.onFailure(IOException("Invalid environment"))
         }
 
         // This is the same as the web version.
-        val google_pay_credentials_request = JSONObject()
-            .put("merchant_id", merchant_id)
-            .put("token", paymentMethodData.getJSONObject("tokenizationData"))
-
-        val body = google_pay_credentials_request.toString()
+        val tokenizationData = paymentMethodData.getJSONObject("tokenizationData")
+        val token = JSONObject(tokenizationData.getString("token"))
+        val googlePayCredentialsRequest = JSONObject()
+            .put("merchantId", merchantId)
+            .put("token", token)
+        val body = googlePayCredentialsRequest.toString()
             .toRequestBody("application/json".toMediaTypeOrNull())
         val request = Request.Builder()
-            .url("${evervault_route}/frontend/google-pay/credentials")
+            .url("${evervaultRoute}/frontend/google-pay/credentials")
             .post(body)
+            .addHeader("x-evervault-app-id", this.appUuid)
             .build()
 
         client.newCall(request).enqueue(object : Callback {
