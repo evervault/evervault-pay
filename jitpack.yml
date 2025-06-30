@@ -9,5 +9,3 @@ install:
       echo "This is not an Android tag – aborting build."
       exit 1
     fi
-  # Run the Gradle build for the evpay module
-  - ./gradlew :evpay:assembleRelease
