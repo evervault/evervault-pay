@@ -14,7 +14,7 @@ android {
 
     defaultConfig {
         minSdk = 26
-        targetSdk = 33
+        // targetSdk = 33
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles("consumer-rules.pro")
     }
@@ -60,13 +60,13 @@ android {
 
 publishing {
     publications {
-        release(MavenPublication) {
+        create<MavenPublication>("release")  {
             groupId    = project.group.toString()
             artifactId = "evervault-google-pay-evpay"
             version    = project.version.toString()
 
             afterEvaluate {
-                from components.release
+                from(components["release"])
             }
         }
     }

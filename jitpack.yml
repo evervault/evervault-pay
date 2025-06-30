@@ -1,3 +1,6 @@
+jdk:
+  - openjdk18
+
 install:
   # Navigate into android/ and install into the local Maven repo
   - cd android && ./gradlew publishToMavenLocal
