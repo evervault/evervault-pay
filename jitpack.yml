@@ -1,2 +1,3 @@
-before_install::
-  - cd android
+install:
+  # Navigate into android/ and install into the local Maven repo
+  - cd android && ./gradlew publishToMavenLocal
