@@ -35,15 +35,9 @@ class EvervaultPayAPI {
         // Token will be null if PaymentDataRequest was not constructed using fromJson(String).
         val paymentMethodData = JSONObject(paymentInformation).getJSONObject("paymentMethodData")
 
-<<<<<<< Updated upstream
-        val evervault_route = when (environment) {
-            WalletConstants.ENVIRONMENT_PRODUCTION -> "https://api.evervault.com"
-            WalletConstants.ENVIRONMENT_TEST -> "https://evervault.io"
-=======
         val evervaultRoute = when (environment) {
             WalletConstants.ENVIRONMENT_PRODUCTION -> Constants.API_BASE_URL_PRODUCTION
             WalletConstants.ENVIRONMENT_TEST -> Constants.API_BASE_URL_TEST
->>>>>>> Stashed changes
             else -> return callback.onFailure(IOException("Invalid environment"))
         }
 
