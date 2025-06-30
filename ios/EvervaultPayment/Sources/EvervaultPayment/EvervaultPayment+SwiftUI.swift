@@ -8,6 +8,10 @@
 import SwiftUI
 import PassKit
 
+public typealias ButtonType = PKPaymentButtonType
+public typealias ButtonStyle = PKPaymentButtonStyle
+
+
 /// A SwiftUI‐friendly wrapper around your UIKit EvervaultPaymentView.
 public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
   
@@ -17,20 +21,30 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
     let transaction: Transaction
     let supportedNetworks: [Network]
     
+    let buttonType: ButtonType
+    let buttonStyle: ButtonStyle
+    
     public init(
         appUuid: String,
         merchantIdentifier: String,
         transaction: Transaction,
         supportedNetworks: [Network],
+        buttonStyle: ButtonStyle = .automatic,
+        buttonType: ButtonType = .buy,
         authorizedResponse: Binding<ApplePayResponse?>,
-        onFinish: @escaping () -> Void
+        onFinish: @escaping () -> Void,
+        onError: @escaping (_ error: Error?) -> Void
     ) {
         self.appUuid = appUuid
         self.merchantIdentifier = merchantIdentifier
         self.transaction = transaction
         self.supportedNetworks = supportedNetworks
+        self.buttonStyle = buttonStyle
+        self.buttonType = buttonType
+
         self._authorizedResponse = authorizedResponse
         self.onFinish = onFinish
+        self.onError = onError
     }
   
     /// Called when Apple Pay authorizes the payment
@@ -38,6 +52,8 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
 
     /// Called when the sheet is dismissed
     public var onFinish: () -> Void
+    
+    public var onError: (_ error: Error?) -> Void
   
   
     // MARK: UIViewRepresentable
@@ -48,7 +64,9 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
             appUuid: appUuid,
             merchantIdentifier: merchantIdentifier,
             transaction: transaction,
-            supportedNetworks: supportedNetworks
+            supportedNetworks: supportedNetworks,
+            buttonStyle: buttonStyle,
+            buttonType: buttonType
         )
         // 2. Wire up our coordinator as its delegate
         view.delegate = context.coordinator
@@ -91,6 +109,16 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
             let parent = self.parent
             DispatchQueue.main.async {
                 parent.onFinish()
+            }
+        }
+        
+        nonisolated public func evervaultPaymentView(
+            _ view: EvervaultPaymentView,
+            didFinishWithError error: Error?
+        ) {
+            let parent = self.parent
+            DispatchQueue.main.async {
+                parent.onError(error)
             }
         }
     }

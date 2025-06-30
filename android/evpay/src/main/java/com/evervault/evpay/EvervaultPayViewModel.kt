@@ -11,6 +11,7 @@ import com.google.android.gms.wallet.PaymentData
 import com.google.android.gms.wallet.PaymentsClient
 import com.google.android.gms.wallet.WalletConstants
 import com.google.android.gms.wallet.contract.ApiTaskResult
+import com.google.gson.Gson
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -28,11 +29,10 @@ import java.io.IOException
  *
  * @value #PAYMENTS_ENVIRONMENT
  */
-class EvervaultPayViewModel(application: Application) : AndroidViewModel(application) {
+class EvervaultPayViewModel(application: Application, private val appId: String, private val merchantId: String) : AndroidViewModel(application) {
     // use WalletConstants.ENVIRONMENT_PRODUCTION or WalletConstants.ENVIRONMENT_TEST
     var environment: Int = WalletConstants.ENVIRONMENT_TEST
 
-    val MERCHANT_ID = "test_merchant_id"
     val MERCHANT_NAME = "Evervault"
 
     /**
@@ -48,7 +48,7 @@ class EvervaultPayViewModel(application: Application) : AndroidViewModel(applica
      */
     val PAYMENT_GATEWAY_TOKENIZATION_PARAMETERS = mapOf(
         "gateway" to PAYMENT_GATEWAY_TOKENIZATION_NAME,
-        "gatewayMerchantId" to "exampleGatewayMerchantId"
+        "gatewayMerchantId" to merchantId
     )
 
     /**
@@ -93,7 +93,7 @@ class EvervaultPayViewModel(application: Application) : AndroidViewModel(applica
         }
     }
 
-    private val apiClient = EvervaultPayAPI()
+    private val apiClient = EvervaultPayAPI(this.appId)
 
     fun handlePaymentData(taskResult: ApiTaskResult<PaymentData>) {
         when (taskResult.status.statusCode) {
@@ -156,7 +156,7 @@ class EvervaultPayViewModel(application: Application) : AndroidViewModel(applica
     }
 
     internal fun setPaymentData(paymentData: PaymentData) {
-        this.apiClient.fetchCryptogram(paymentData, this.MERCHANT_ID, this.environment, object : EvervaultPayAPICallback {
+        this.apiClient.fetchCryptogram(paymentData, merchantId, this.environment, object : EvervaultPayAPICallback {
             override fun onFailure(e: IOException) {
                 Log.e(LOG_TAG, "An exception occured while fetching the cryptogram", e)
                 _paymentUiState.update { PaymentUiState.Error(CommonStatusCodes.INTERNAL_ERROR) }
@@ -164,24 +164,24 @@ class EvervaultPayViewModel(application: Application) : AndroidViewModel(applica
 
             override fun onResponse(response: DpanResponse) {
                 val payState = extractPaymentBillingName(paymentData)?.let {
-                    PaymentUiState.PaymentCompleted(payerName = it)
+                    response.billingAddress = it
+                    PaymentUiState.PaymentCompleted(response = response)
                 } ?: PaymentUiState.Error(CommonStatusCodes.INTERNAL_ERROR)
                 _paymentUiState.update { payState }
             }
         })
     }
 
-    private fun extractPaymentBillingName(paymentData: PaymentData): String? {
+    private fun extractPaymentBillingName(paymentData: PaymentData): BillingAddress? {
         val paymentInformation = paymentData.toJson()
 
         try {
             // Token will be null if PaymentDataRequest was not constructed using fromJson(String).
             val paymentMethodData = JSONObject(paymentInformation).getJSONObject("paymentMethodData")
-            val billingName = paymentMethodData
+            val billingAddress = paymentMethodData
                 .getJSONObject("info")
                 .getJSONObject("billingAddress")
-                .getString("name")
-            return billingName
+            return Gson().fromJson(billingAddress.toString(), BillingAddress::class.java)
         } catch (error: JSONException) {
             Log.e(LOG_TAG, "Error: $error")
         }

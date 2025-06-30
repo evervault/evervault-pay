@@ -34,11 +34,13 @@ public class EvervaultPaymentView: UIView {
     public var merchantIdentifier: String
     public let transaction: Transaction
     public let supportedNetworks: [Network]
+    public let buttonType: ButtonType
+    public let buttonStyle: ButtonStyle
     public weak var delegate: EvervaultPaymentViewDelegate?
 
     /// The Apple Pay button
     private lazy var payButton: PKPaymentButton = {
-        let button = PKPaymentButton(paymentButtonType: .buy, paymentButtonStyle: .black)
+        let button = PKPaymentButton(paymentButtonType: buttonType, paymentButtonStyle: buttonStyle)
         button.addTarget(self, action: #selector(didTapPay), for: .touchUpInside)
         return button
     }()
@@ -50,12 +52,17 @@ public class EvervaultPaymentView: UIView {
         appUuid: String,
         merchantIdentifier: String,
         transaction: Transaction,
-        supportedNetworks: [Network]
+        supportedNetworks: [Network],
+        buttonStyle: ButtonStyle,
+        buttonType: ButtonType,
     ) {
         self.appUuid = appUuid
         self.merchantIdentifier = merchantIdentifier
         self.transaction = transaction
         self.supportedNetworks = supportedNetworks
+        self.buttonStyle = buttonStyle
+        self.buttonType = buttonType
+
         // Verify Apple Pay is available on device
         guard PKPaymentAuthorizationViewController.canMakePayments() else {
             print("Error")
@@ -63,9 +70,7 @@ public class EvervaultPaymentView: UIView {
             return
         }
         super.init(frame: .zero)
-        print(payButton.intrinsicContentSize)
         setupLayout()
-        print(payButton.intrinsicContentSize)
         setContentHuggingPriority(.required, for: .horizontal)
         setContentHuggingPriority(.required, for: .vertical)
     }
@@ -80,22 +85,21 @@ public class EvervaultPaymentView: UIView {
     }
     
     // MARK: Layout
+    
+    /// Set the intrinsic size of this component to the underlying button size
+    override public var intrinsicContentSize: CGSize {
+        return payButton.intrinsicContentSize
+    }
 
-    /// Adds and constraints the pay button to fill the view
+    /// Set the subview layout
+    override public func layoutSubviews() {
+        super.layoutSubviews()
+        payButton.frame = bounds
+    }
+
+    /// Set up the layout
     private func setupLayout() {
         addSubview(payButton)
-        payButton.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            payButton.topAnchor.constraint(equalTo: layoutMarginsGuide.topAnchor),
-            payButton.bottomAnchor.constraint(equalTo: layoutMarginsGuide.bottomAnchor),
-            payButton.leadingAnchor.constraint(equalTo: layoutMarginsGuide.leadingAnchor),
-            payButton.trailingAnchor.constraint(equalTo: layoutMarginsGuide.trailingAnchor)
-        ])
-    }
-    
-    // Default size for the button
-    public override var intrinsicContentSize: CGSize {
-        return CGSize(width: 200, height: 44)
     }
     
     // MARK: Actions
@@ -126,6 +130,7 @@ public class EvervaultPaymentView: UIView {
         paymentRequest.supportedNetworks = self.supportedNetworks
         paymentRequest.countryCode = self.transaction.country
         paymentRequest.currencyCode = self.transaction.currency
+
         // Map our SummaryItem model to PKPaymentSummaryItem
         paymentRequest.paymentSummaryItems = paymentSummaryItemsForSummaryItems()
         paymentRequest.merchantCapabilities = .threeDSecure
@@ -157,8 +162,12 @@ extension EvervaultPaymentView : PKPaymentAuthorizationViewControllerDelegate {
             // Tell Apple Pay the payment was successful
             return PKPaymentAuthorizationResult(status: .success, errors: nil)
         } catch {
+            await MainActor.run {
+                // Notify the delegate on the main actor
+                self.delegate?.evervaultPaymentView(self, didFinishWithError: error)
+            }
             // On error, surface back to Apple Pay
-            return PKPaymentAuthorizationResult(status: .success, errors: [error])
+            return PKPaymentAuthorizationResult(status: .failure, errors: [error])
         }
     }
 
@@ -179,4 +188,5 @@ public protocol EvervaultPaymentViewDelegate : AnyObject {
     func evervaultPaymentView(_ view: EvervaultPaymentView, didAuthorizePayment result: ApplePayResponse?)
     /// Fired when the payment sheet is fully dismissed
     func evervaultPaymentView(_ view: EvervaultPaymentView, didFinishWithResult result: String?)
+    func evervaultPaymentView(_ view: EvervaultPaymentView, didFinishWithError error: Error?)
 }

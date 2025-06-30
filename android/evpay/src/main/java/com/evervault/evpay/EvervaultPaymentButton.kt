@@ -10,6 +10,7 @@ import com.google.android.gms.wallet.PaymentData
 import com.google.android.gms.wallet.PaymentDataRequest
 import com.google.android.gms.wallet.PaymentsClient
 import com.google.android.gms.wallet.Wallet
+import com.google.android.gms.wallet.WalletConstants.BillingAddressFormat
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
@@ -17,7 +18,7 @@ import org.json.JSONObject
 abstract class PaymentUiState internal constructor() {
     object NotStarted : PaymentUiState()
     object Available : PaymentUiState()
-    class PaymentCompleted(val payerName: String) : PaymentUiState()
+    class PaymentCompleted(val response: DpanResponse) : PaymentUiState()
     class Error(val code: Int, val message: String? = null) : PaymentUiState()
 }
 

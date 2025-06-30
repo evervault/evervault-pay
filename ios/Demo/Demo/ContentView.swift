@@ -29,69 +29,61 @@ struct ContentView: View {
     let transaction = buildTransaction()
     
     var body: some View {
-        ZStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 10) {
-                    AsyncImage(
-                        url: URL(string: "https://c8.alamy.com/comp/BRH3DN/a-young-man-playing-a-trumpet-BRH3DN.jpg"),
-                        content: { img in
-                            img.resizable()
-                                .aspectRatio(contentMode: .fill)
-                        },
-                        placeholder: {
-                            ProgressView()
-                        }
-                    )
-                    .frame(maxWidth: .infinity)
-                    .clipShape(Rectangle())
-                    .cornerRadius(8)
-                    
-                    // 2. Title
-                    Text("Evil Trumpet (man not included)")
-                        .font(.title)
-                        .bold()
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    
-                    // 3. Description
-                    Text("A very annoying instrument")
-                        .font(.body)
-                        .multilineTextAlignment(.leading)
-                    
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Specifications")
-                            .font(.headline)
-                        HStack {
-                            Text("Overall Length:")
-                            Spacer()
-                            Text("48 cm")
-                        }
-                        HStack {
-                            Text("Weight:")
-                            Spacer()
-                            Text("2.5 lb / 1.13 kg")
-                        }
-                        HStack {
-                            Text("Can play:")
-                            Spacer()
-                            Text("Tequila")
-                        }
+        ScrollView {
+            VStack(alignment: .leading, spacing: 10) {
+                AsyncImage(
+                    url: URL(string: "https://c8.alamy.com/comp/BRH3DN/a-young-man-playing-a-trumpet-BRH3DN.jpg"),
+                    content: { img in
+                        img.resizable()
+                            .aspectRatio(contentMode: .fill)
+                    },
+                    placeholder: {
+                        ProgressView()
                     }
-                    .padding()
-                    .background(Color(.systemGroupedBackground))
-                    .cornerRadius(8)
-                    
-                    if let resp = pwResponse {
-                        Text("Token: \(resp.networkToken.number)")
-                        Text("Cryptogram: \(resp.cryptogram)")
+                )
+                .frame(maxWidth: .infinity)
+                .clipShape(Rectangle())
+                .cornerRadius(8)
+                
+                // 2. Title
+                Text("Evil Trumpet (man not included)")
+                    .font(.title)
+                    .bold()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                
+                // 3. Description
+                Text("A very annoying instrument")
+                    .font(.body)
+                    .multilineTextAlignment(.leading)
+                
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Specifications")
+                        .font(.headline)
+                    HStack {
+                        Text("Overall Length:")
+                        Spacer()
+                        Text("48 cm")
+                    }
+                    HStack {
+                        Text("Weight:")
+                        Spacer()
+                        Text("2.5 lb / 1.13 kg")
+                    }
+                    HStack {
+                        Text("Can play:")
+                        Spacer()
+                        Text("Tequila")
                     }
                 }
                 .padding()
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            
-            VStack {
-                Spacer()
+                .background(Color(.systemGroupedBackground))
+                .cornerRadius(8)
+                
+                if let resp = pwResponse {
+                    Text("Token: \(resp.networkToken.number)")
+                    Text("Cryptogram: \(resp.cryptogram)")
+                }
+                
                 EvervaultPaymentViewRepresentable(
                     appUuid: "app_1234567890",
                     merchantIdentifier: "merchant.com.example",
@@ -105,15 +97,21 @@ struct ContentView: View {
                         ]
                     ),
                     supportedNetworks: [EvervaultPayment.Network.visa, .masterCard, .amex],
+                    // buttonStyle: .whiteOutline,
+                    // buttonType: .checkout,
                     authorizedResponse: $pwResponse,
                     onFinish: {
                         print("Payment sheet dismissed")
+                    },
+                    onError: { error in
+                        print("Payment sheet error: \(String(describing: error))")
                     }
                 )
-                .frame(width: 200, height: 100)
             }
-            .frame(maxWidth: .infinity)
+            .padding()
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 }
 
