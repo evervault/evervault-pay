@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "com.evervault.payments" // Maven group ID
-version = "1.0.0" // Bump per release
+version = "android-v0.0.5" // Bump per release
 
 android {
     namespace = "com.evervault.payments"
@@ -72,6 +72,10 @@ publishing {
                 classifier = "sources"
             }
         }
+    }
+    repositories {
+        // publish to the local maven repo
+        mavenLocal()
     }
 }
 
