@@ -1,5 +1,5 @@
 jdk:
-  - openjdk18
+  - openjdk17
 
 install:
   # Navigate into android/ and install into the local Maven repo
