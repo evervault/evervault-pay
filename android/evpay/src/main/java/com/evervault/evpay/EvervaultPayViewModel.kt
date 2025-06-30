@@ -38,7 +38,7 @@ class EvervaultPayViewModel(application: Application) : AndroidViewModel(applica
     /**
      * The name of the payment processor/gateway.
      **/
-    val PAYMENT_GATEWAY_TOKENIZATION_NAME = "evervault"
+    val PAYMENT_GATEWAY_TOKENIZATION_NAME = Constants.GATEWAY_TOKENIZATION_NAME
 
     /**
      * Custom parameters required by the processor/gateway.

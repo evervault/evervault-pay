@@ -19,6 +19,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "SamplePayApp"
-include(":app")
+rootProject.name = "evervault-google-pay"
 include(":evpay")
