@@ -3,9 +3,9 @@ root: android
 
 # Enforce only android-* tags for builds
 install:
-  - echo "Building tag $JITPACK_TAG"
+  - echo "Building tag $VERSION"
   - |
-    if [[ "$JITPACK_TAG" != android-* ]]; then
+    if [[ "$VERSION" != android-* ]]; then
       echo "This is not an Android tag – aborting build."
       exit 1
     fi
