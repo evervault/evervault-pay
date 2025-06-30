@@ -63,7 +63,20 @@ fun ProductScreen(
             )
             Spacer(modifier = Modifier.height(10.dp))
             Text(
-                text = "${payUiState.payerName} completed a payment.\nWe are preparing your order.",
+                text = "${payUiState.response.billingAddress?.name} completed a payment.\nWe are preparing your order for shipping to ${payUiState.response.billingAddress?.address1} ${payUiState.response.billingAddress?.administrativeArea} ${payUiState.response.billingAddress?.countryCode}.",
+                fontSize = 17.sp,
+                color = Color.DarkGray,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+            Text(
+                text = "PAN: ${payUiState.response.token.number}",
+                fontSize = 17.sp,
+                color = Color.DarkGray,
+                textAlign = TextAlign.Center
+            )
+            Text(
+                text = "Cryptogram: ${payUiState.response.cryptogram}",
                 fontSize = 17.sp,
                 color = Color.DarkGray,
                 textAlign = TextAlign.Center

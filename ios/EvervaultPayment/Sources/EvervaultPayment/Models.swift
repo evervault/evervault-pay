@@ -108,3 +108,8 @@ public struct Transaction {
         self.paymentSummaryItems = paymentSummaryItems
     }
 }
+
+struct ApplePayPayload: Codable {
+  let isNative: Bool
+  let paymentData: Data
+}
