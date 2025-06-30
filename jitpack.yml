@@ -1,2 +1,2 @@
-install:
-  - cd android && ./gradlew publishToMavenLocal
+before_install::
+  - cd android
