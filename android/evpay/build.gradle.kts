@@ -8,6 +8,7 @@ group = "com.evervault.payments" // Maven group ID
 version = "1.0.0" // Bump per release
 
 android {
+    namespace = "com.evervault.payments"
     compileSdk = 33
 
     defaultConfig {
