@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "com.evervault.payments" // Maven group ID
-version = "android-v0.0.5" // Bump per release
+version = "android-v0.0.8" // Bump per release
 
 android {
     namespace = "com.evervault.payments"
@@ -60,22 +60,15 @@ android {
 
 publishing {
     publications {
-        create<MavenPublication>("release") {
+        release(MavenPublication) {
             groupId    = project.group.toString()
             artifactId = "evervault-google-pay-evpay"
             version    = project.version.toString()
-            // Point directly at the AAR you built
-            artifact("$buildDir/outputs/aar/evpay-release.aar")
 
-            // Point at the sources JAR AGP created
-            artifact("$buildDir/outputs/aar/evpay-release-sources.jar") {
-                classifier = "sources"
+            afterEvaluate {
+                from components.release
             }
         }
-    }
-    repositories {
-        // publish to the local maven repo
-        mavenLocal()
     }
 }
 
