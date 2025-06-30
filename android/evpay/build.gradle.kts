@@ -4,13 +4,16 @@ plugins {
     alias(libs.plugins.compose.compiler)
 }
 
+group = "com.evervault.payments" // Maven group ID
+version = "1.0.0" // Bump per release
+
 android {
-    namespace = "com.evervault.evpay"
-    compileSdk = 35
+    namespace = "com.evervault.payments"
+    compileSdk = 33
 
     defaultConfig {
-        minSdk = 23
-
+        minSdk = 26
+        targetSdk = 33
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles("consumer-rules.pro")
     }
@@ -30,6 +33,27 @@ android {
     }
     kotlinOptions {
         jvmTarget = "11"
+    }
+    buildFeatures {
+        compose = true
+    }
+    composeOptions {
+        kotlinCompilerExtensionVersion = "1.4.7"
+    }
+    packaging {
+        resources {
+            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        }
+    }
+    defaultConfig {
+        aarMetadata {
+            minCompileSdk = 26
+        }
+    }
+    publishing {
+        singleVariant("release") {
+            withSourcesJar()
+        }
     }
 }
 

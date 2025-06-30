@@ -36,8 +36,8 @@ class EvervaultPayAPI(private val appUuid: String) {
         val paymentMethodData = JSONObject(paymentInformation).getJSONObject("paymentMethodData")
 
         val evervaultRoute = when (environment) {
-            WalletConstants.ENVIRONMENT_PRODUCTION -> "https://api.evervault.com"
-            WalletConstants.ENVIRONMENT_TEST -> "https://api.evervault.io"
+            WalletConstants.ENVIRONMENT_PRODUCTION -> Constants.API_BASE_URL_PRODUCTION
+            WalletConstants.ENVIRONMENT_TEST -> Constants.API_BASE_URL_TEST
             else -> return callback.onFailure(IOException("Invalid environment"))
         }
 
