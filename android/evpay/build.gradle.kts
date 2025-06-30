@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.compose.compiler)
+    id("maven-publish")
 }
 
 group = "com.evervault.payments" // Maven group ID
@@ -53,6 +54,23 @@ android {
     publishing {
         singleVariant("release") {
             withSourcesJar()
+        }
+    }
+}
+
+publishing {
+    publications {
+        create<MavenPublication>("release") {
+            groupId    = project.group.toString()
+            artifactId = "evervault-google-pay-evpay"
+            version    = project.version.toString()
+            // Point directly at the AAR you built
+            artifact("$buildDir/outputs/aar/evpay-release.aar")
+
+            // Point at the sources JAR AGP created
+            artifact("$buildDir/outputs/aar/evpay-release-sources.jar") {
+                classifier = "sources"
+            }
         }
     }
 }
