@@ -1,16 +1,17 @@
 package com.evervault.evpay
 
+import android.app.Activity
 import android.content.Context
-import androidx.activity.result.ActivityResultLauncher
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import com.google.pay.button.PayButton
 import com.google.android.gms.tasks.Task
+import com.google.android.gms.wallet.AutoResolveHelper
 import com.google.android.gms.wallet.PaymentData
 import com.google.android.gms.wallet.PaymentDataRequest
 import com.google.android.gms.wallet.PaymentsClient
 import com.google.android.gms.wallet.Wallet
-import com.google.android.gms.wallet.WalletConstants.BillingAddressFormat
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
@@ -21,6 +22,7 @@ abstract class PaymentUiState internal constructor() {
     class PaymentCompleted(val response: DpanResponse) : PaymentUiState()
     class Error(val code: Int, val message: String? = null) : PaymentUiState()
 }
+
 
 /**
  * Gateway Integration: Identify your gateway and your app's gateway merchant identifier.
@@ -129,7 +131,13 @@ fun createPaymentsClient(context: Context, environment: Int): PaymentsClient {
 }
 
 @Composable
-fun EvervaultPaymentButton(modifier: Modifier, paymentRequest: Transaction, model: EvervaultPayViewModel, displayPaymentModalLauncher: ActivityResultLauncher<Task<PaymentData>>) {
+fun EvervaultPaymentButton(
+    modifier: Modifier,
+    paymentRequest: Transaction,
+    model: EvervaultPayViewModel,
+) {
+    val activity = LocalContext.current as Activity
+
     val onClickHandler: () -> Unit = {
         // https://developers.google.com/pay/api/web/reference/request-objects#TransactionInfo
         val paymentDataRequestJson = baseRequest
@@ -150,8 +158,12 @@ fun EvervaultPaymentButton(modifier: Modifier, paymentRequest: Transaction, mode
             .put("merchantInfo", JSONObject().put("merchantName", model.MERCHANT_NAME))
         val request = PaymentDataRequest.fromJson(paymentDataRequestJson.toString())
 
-        val task = model.paymentsClient.loadPaymentData(request)
-        task.addOnCompleteListener(displayPaymentModalLauncher::launch)
+        val task: Task<PaymentData> = model.paymentsClient.loadPaymentData(request)
+        AutoResolveHelper.resolveTask(
+            task,
+            activity,
+            EvervaultPayViewModel.LOAD_PAYMENT_DATA_REQUEST_CODE
+        )
     }
 
     // TODO: Pass in button customizations

@@ -1,5 +1,6 @@
 package com.evervault.samplepayapp
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.compose.setContent
@@ -13,12 +14,8 @@ import com.evervault.evpay.LineItem
 import com.evervault.evpay.PaymentUiState
 import com.evervault.evpay.Transaction
 import com.google.android.gms.wallet.WalletConstants
-import com.google.android.gms.wallet.contract.TaskResultContracts.GetPaymentDataResult
 
 class MainActivity : AppCompatActivity() {
-    private val paymentDataLauncher = registerForActivityResult(GetPaymentDataResult()) { taskResult ->
-        this.model.handlePaymentData(taskResult)
-    }
 
     private val model: EvervaultPayViewModel by viewModels {
         EvervaultPayViewModelFactory(application, "app_1234567890", "merchant_123456790")
@@ -46,8 +43,12 @@ class MainActivity : AppCompatActivity() {
                 payUiState = payState,
                 transaction = transaction,
                 model = this.model,
-                displayPaymentModalLauncher = this.paymentDataLauncher
             )
         }
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        model.handlePaymentDataIntent(requestCode, resultCode, data)
     }
 }

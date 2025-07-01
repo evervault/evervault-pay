@@ -1,16 +1,18 @@
 package com.evervault.evpay
 
+import android.app.Activity
 import android.app.Application
+import android.content.Intent
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.common.api.CommonStatusCodes
+import com.google.android.gms.wallet.AutoResolveHelper
 import com.google.android.gms.wallet.IsReadyToPayRequest
 import com.google.android.gms.wallet.PaymentData
 import com.google.android.gms.wallet.PaymentsClient
 import com.google.android.gms.wallet.WalletConstants
-import com.google.android.gms.wallet.contract.ApiTaskResult
 import com.google.gson.Gson
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -68,6 +70,7 @@ class EvervaultPayViewModel(application: Application, private val appId: String,
     val SUPPORTED_METHODS = listOf("CRYPTOGRAM_3DS")
 
     companion object {
+        const val LOAD_PAYMENT_DATA_REQUEST_CODE = 991
         val LOG_TAG = "EvervaultPayViewModel"
     }
 
@@ -95,21 +98,27 @@ class EvervaultPayViewModel(application: Application, private val appId: String,
 
     private val apiClient = EvervaultPayAPI(this.appId)
 
-    fun handlePaymentData(taskResult: ApiTaskResult<PaymentData>) {
-        when (taskResult.status.statusCode) {
-            CommonStatusCodes.SUCCESS -> {
-                taskResult.result!!.let {
-                    this.setPaymentData(it)
+    fun handlePaymentDataIntent(requestCode: Int, resultCode: Int, data: Intent?) {
+        if (requestCode != LOAD_PAYMENT_DATA_REQUEST_CODE) return
+        when (resultCode) {
+            Activity.RESULT_OK -> {
+                val paymentData = PaymentData.getFromIntent(data!!)
+                if (paymentData != null) {
+                    setPaymentData(paymentData)
+                    } else {
+                        handleError(CommonStatusCodes.INTERNAL_ERROR, "No payment data")
+                    }
+                }
+            Activity.RESULT_CANCELED -> {
+                Log.w(LOG_TAG, "Payment cancelled by user")
+                }
+            AutoResolveHelper.RESULT_ERROR -> {
+                val status = AutoResolveHelper.getStatusFromIntent(data!!)
+                handleError(status?.statusCode ?: CommonStatusCodes.INTERNAL_ERROR,
+                    status?.statusMessage)
                 }
             }
-            CommonStatusCodes.CANCELED -> {
-                Log.w(LOG_TAG, "Payment task canceled")
-            }
-            else -> {
-                this.handleError(taskResult.status.statusCode, "Unknown error occured")
-            }
         }
-    }
 
     /**
      * Determine the user's ability to pay with a payment method supported by your app and display

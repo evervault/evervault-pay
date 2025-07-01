@@ -1,5 +1,4 @@
 package com.evervault.samplepayapp
-import androidx.activity.result.ActivityResultLauncher
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -25,8 +24,6 @@ import com.evervault.evpay.EvervaultPaymentButton
 import com.evervault.evpay.EvervaultPayViewModel
 import com.evervault.evpay.PaymentUiState
 import com.evervault.evpay.Transaction
-import com.google.android.gms.tasks.Task
-import com.google.android.gms.wallet.PaymentData
 
 @Composable
 fun ProductScreen(
@@ -37,7 +34,6 @@ fun ProductScreen(
     transaction: Transaction,
     model: EvervaultPayViewModel,
     payUiState: PaymentUiState = PaymentUiState.NotStarted,
-    displayPaymentModalLauncher: ActivityResultLauncher<Task<PaymentData>>
 ) {
     val padding = 20.dp
     val black = Color(0xff000000.toInt())
@@ -122,7 +118,6 @@ fun ProductScreen(
                         .fillMaxWidth(),
                     transaction,
                     model,
-                    displayPaymentModalLauncher
                 )
             }
         }
