@@ -20,10 +20,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.evervault.evpay.EvervaultPaymentButton
-import com.evervault.evpay.EvervaultPayViewModel
-import com.evervault.evpay.PaymentUiState
-import com.evervault.evpay.Transaction
+import com.evervault.googlepay.EvervaultPaymentButton
+import com.evervault.googlepay.EvervaultPayViewModel
+import com.evervault.googlepay.PaymentUiState
+import com.evervault.googlepay.Transaction
 
 @Composable
 fun ProductScreen(

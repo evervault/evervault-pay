@@ -1,4 +1,4 @@
-package com.evervault.evpay
+package com.evervault.googlepay
 
 // https://github.com/evervault/oxide/blob/700a4d667047cd249f81434fde5e02ef8a23981c/crates/customer-api/src/routers/frontend/google_wallet.rs#L55
 data class CardExpiry(

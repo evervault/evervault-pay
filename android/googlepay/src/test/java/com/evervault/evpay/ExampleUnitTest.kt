@@ -1,4 +1,4 @@
-package com.evervault.evpay
+package com.evervault.googlepay
 
 import org.junit.Test
 

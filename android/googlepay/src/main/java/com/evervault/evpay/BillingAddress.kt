@@ -1,4 +1,4 @@
-package com.evervault.evpay
+package com.evervault.googlepay
 
 data class BillingAddress(
     val name: String?,

@@ -1,4 +1,4 @@
-package com.evervault.evpay
+package com.evervault.googlepay
 
 import com.google.android.gms.wallet.PaymentData
 import com.google.android.gms.wallet.WalletConstants

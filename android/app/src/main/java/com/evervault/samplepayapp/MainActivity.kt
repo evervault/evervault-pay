@@ -7,12 +7,12 @@ import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.evervault.evpay.Amount
-import com.evervault.evpay.EvervaultPayViewModel
-import com.evervault.evpay.EvervaultPayViewModelFactory
-import com.evervault.evpay.LineItem
-import com.evervault.evpay.PaymentUiState
-import com.evervault.evpay.Transaction
+import com.evervault.googlepay.Amount
+import com.evervault.googlepay.EvervaultPayViewModel
+import com.evervault.googlepay.EvervaultPayViewModelFactory
+import com.evervault.googlepay.LineItem
+import com.evervault.googlepay.PaymentUiState
+import com.evervault.googlepay.Transaction
 import com.google.android.gms.wallet.WalletConstants
 
 class MainActivity : AppCompatActivity() {

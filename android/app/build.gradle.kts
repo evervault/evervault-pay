@@ -52,7 +52,7 @@ android {
 }
 
 dependencies {
-    implementation(project(":evpay"))
+    implementation(project(":googlepay"))
 
     val lifecycleVersion = "2.5.1"
 

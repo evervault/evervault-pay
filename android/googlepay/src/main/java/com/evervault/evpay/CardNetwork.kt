@@ -1,4 +1,4 @@
-package com.evervault.evpay
+package com.evervault.googlepay
 
 enum class CardNetwork {
     AMEX,

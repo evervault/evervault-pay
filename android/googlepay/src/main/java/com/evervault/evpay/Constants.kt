@@ -1,4 +1,4 @@
-package com.evervault.evpay
+package com.evervault.googlepay
 
 object Constants {
     const val API_BASE_URL_PRODUCTION = "https://api.evervault.com"

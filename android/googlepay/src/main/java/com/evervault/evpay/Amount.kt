@@ -1,3 +1,3 @@
-package com.evervault.evpay
+package com.evervault.googlepay
 
 class Amount(val amount: String)

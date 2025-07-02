@@ -70,7 +70,7 @@ publishing {
     publications {
         create<MavenPublication>("release")  {
             groupId    = project.group.toString()
-            artifactId = "evervault-google-pay-evpay"
+            artifactId = "evervault-google-pay-googlepay"
             version    = project.version.toString()
 
             afterEvaluate {

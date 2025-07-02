@@ -1,4 +1,4 @@
-package com.evervault.evpay
+package com.evervault.googlepay
 
 data class Transaction(val country: String, val currency: String, val lineItems: Array<LineItem>) {
     override fun equals(other: Any?): Boolean {

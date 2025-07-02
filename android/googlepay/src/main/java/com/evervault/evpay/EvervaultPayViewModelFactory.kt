@@ -1,4 +1,4 @@
-package com.evervault.evpay
+package com.evervault.googlepay
 
 import android.app.Application
 import androidx.lifecycle.ViewModel
