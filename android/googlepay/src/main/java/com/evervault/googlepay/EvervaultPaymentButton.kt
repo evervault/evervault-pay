@@ -2,7 +2,6 @@ package com.evervault.googlepay
 
 import android.app.Activity
 import android.content.Context
-import android.widget.Button
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -126,8 +125,8 @@ fun createPaymentsClient(context: Context, environment: Int): PaymentsClient {
     return Wallet.getPaymentsClient(context, walletOptions)
 }
 
-public typealias ButtonTheme = ButtonTheme
-public typealias ButtonType = ButtonType
+typealias ButtonTheme = com.google.pay.button.ButtonTheme
+typealias ButtonType = com.google.pay.button.ButtonType
 
 @Composable
 fun EvervaultPaymentButton(
