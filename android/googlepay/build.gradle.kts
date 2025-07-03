@@ -86,7 +86,7 @@ dependencies {
     implementation("com.google.code.gson:gson:2.10.1")
 
     implementation("com.google.android.gms:play-services-wallet:18.1.3")
-    implementation("com.google.pay.button:compose-pay-button:0.1.3")
+    api("com.google.pay.button:compose-pay-button:0.1.3")
 
     val composeBom = platform("androidx.compose:compose-bom:2023.03.00")
     implementation(composeBom)
