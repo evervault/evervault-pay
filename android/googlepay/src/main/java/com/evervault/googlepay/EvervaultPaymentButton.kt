@@ -2,6 +2,7 @@ package com.evervault.googlepay
 
 import android.app.Activity
 import android.content.Context
+import android.widget.Button
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -12,15 +13,18 @@ import com.google.android.gms.wallet.PaymentData
 import com.google.android.gms.wallet.PaymentDataRequest
 import com.google.android.gms.wallet.PaymentsClient
 import com.google.android.gms.wallet.Wallet
+import com.google.pay.button.ButtonTheme
+import com.google.pay.button.ButtonType
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
 
-abstract class PaymentUiState internal constructor() {
-    object NotStarted : PaymentUiState()
-    object Available : PaymentUiState()
-    class PaymentCompleted(val response: DpanResponse) : PaymentUiState()
-    class Error(val code: Int, val message: String? = null) : PaymentUiState()
+abstract class PaymentState internal constructor() {
+    object NotStarted : PaymentState()
+    object Available : PaymentState()
+    object Unavailable: PaymentState()
+    class PaymentCompleted(val response: DpanResponse) : PaymentState()
+    class Error(val code: Int, val message: String? = null) : PaymentState()
 }
 
 
@@ -45,15 +49,7 @@ private fun gatewayTokenizationSpecification(model: EvervaultPayViewModel) = JSO
  * @return Allowed card networks
  * See [CardParameters](https://developers.google.com/pay/api/android/reference/object.CardParameters)
  */
-private fun allowedCardNetworks(model: EvervaultPayViewModel) = JSONArray(model.SUPPORTED_NETWORKS)
-
-/**
- * Card authentication methods supported by your app and your gateway.
- *
- * @return Allowed card authentication methods.
- * See [CardParameters](https://developers.google.com/pay/api/android/reference/object.CardParameters)
- */
-private fun allowedCardAuthMethods(model: EvervaultPayViewModel) = JSONArray(model.SUPPORTED_METHODS)
+private fun allowedCardNetworks(config: Config) = JSONArray(config.supportedNetworks.map { it.name })
 
 /**
  * Describe your app's support for the CARD payment method.
@@ -71,8 +67,8 @@ private fun baseCardPaymentMethod(model: EvervaultPayViewModel): JSONObject =
     JSONObject()
         .put("type", "CARD")
         .put("parameters", JSONObject()
-            .put("allowedAuthMethods", allowedCardAuthMethods(model))
-            .put("allowedCardNetworks", allowedCardNetworks(model))
+            .put("allowedAuthMethods", JSONArray(model.config.supportedMethods))
+            .put("allowedCardNetworks", allowedCardNetworks(model.config))
             .put("billingAddressRequired", true)
             .put("billingAddressParameters", JSONObject()
                 .put("format", "FULL")
@@ -130,11 +126,16 @@ fun createPaymentsClient(context: Context, environment: Int): PaymentsClient {
     return Wallet.getPaymentsClient(context, walletOptions)
 }
 
+public typealias ButtonTheme = ButtonTheme
+public typealias ButtonType = ButtonType
+
 @Composable
 fun EvervaultPaymentButton(
     modifier: Modifier,
     paymentRequest: Transaction,
     model: EvervaultPayViewModel,
+    theme: ButtonTheme = ButtonTheme.Dark,
+    type: ButtonType = ButtonType.Pay,
 ) {
     val activity = LocalContext.current as Activity
 
@@ -151,7 +152,7 @@ fun EvervaultPaymentButton(
                         .put("status", "FINAL")
                 }))
                 .put("totalPriceLabel", "Total")
-                .put("totalPrice", paymentRequest.lineItems.last().amount.amount)
+                .put("totalPrice", paymentRequest.total.amount)
                 .put("totalPriceStatus", "FINAL")
                 .put("countryCode", paymentRequest.country)
                 .put("currencyCode", paymentRequest.currency))
@@ -166,10 +167,11 @@ fun EvervaultPaymentButton(
         )
     }
 
-    // TODO: Pass in button customizations
     PayButton(
         modifier = modifier,
         onClick = onClickHandler,
-        allowedPaymentMethods = allowedPaymentMethods(model).toString()
+        allowedPaymentMethods = allowedPaymentMethods(model).toString(),
+        theme = theme,
+        type = type,
     )
 }

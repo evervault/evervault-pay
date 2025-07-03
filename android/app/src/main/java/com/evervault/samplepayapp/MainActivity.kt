@@ -5,45 +5,68 @@ import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Text
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.evervault.googlepay.Amount
+import com.evervault.googlepay.ButtonTheme
+import com.evervault.googlepay.ButtonType
+import com.evervault.googlepay.CardNetwork
+import com.evervault.googlepay.Config
 import com.evervault.googlepay.EvervaultPayViewModel
 import com.evervault.googlepay.EvervaultPayViewModelFactory
 import com.evervault.googlepay.LineItem
-import com.evervault.googlepay.PaymentUiState
+import com.evervault.googlepay.PaymentState
 import com.evervault.googlepay.Transaction
-import com.google.android.gms.wallet.WalletConstants
 
 class MainActivity : AppCompatActivity() {
 
     private val model: EvervaultPayViewModel by viewModels {
-        EvervaultPayViewModelFactory(application, "app_1234567890", "merchant_123456790")
+        EvervaultPayViewModelFactory(
+            application,
+            Config(
+                appId = "app_1234567890",
+                merchantId = "merchant_123456790",
+                supportedNetworks = listOf(
+                    CardNetwork.VISA,
+                    CardNetwork.MASTERCARD
+                ),
+            )
+        )
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        // Set values and call start
-        this.model.environment = WalletConstants.ENVIRONMENT_TEST
-        this.model.start()
-
-        val transaction = Transaction("GB", "GBP", arrayOf(
-            LineItem("Men's Tech Shell Full Zip", Amount("50.20"))
-        ))
-
-        setContent {
-            val payState: PaymentUiState by this.model.paymentUiState.collectAsStateWithLifecycle()
-
-            ProductScreen(
-                title = "Men's Tech Shell Full-Zip",
-                description = "A versatile full-zip that you can wear all day long and even...",
-                price = "$50.20",
-                image = R.drawable.ts_10_11019a,
-                payUiState = payState,
-                transaction = transaction,
-                model = this.model,
+        val transaction = Transaction(
+            country = "GB",
+            currency = "GBP",
+            total = Amount("54.99"),
+            lineItems = arrayOf(
+                LineItem("Men's Tech Shell Full Zip", Amount("50.00")),
+                LineItem("Something small", Amount("04.99")),
             )
+        )
+        setContent {
+            LaunchedEffect(Unit) {
+                model.start()
+            }
+
+            val payState: PaymentState by model.paymentState.collectAsState()
+
+            when (val state = payState) {
+                is PaymentState.Unavailable -> Text("Google Pay is not available.")
+                is PaymentState.Available -> ProductScreen(
+                    model = model,
+                    transaction = transaction,
+                    type = ButtonType.Order,
+                    theme = ButtonTheme.Light,
+                )
+                is PaymentState.PaymentCompleted -> Text("${state.response}")
+                is PaymentState.Error -> Text("Error: ${state.message}")
+                is PaymentState.NotStarted -> CircularProgressIndicator()
+            }
         }
     }
 

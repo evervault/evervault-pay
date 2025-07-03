@@ -31,10 +31,7 @@ import java.io.IOException
  *
  * @value #PAYMENTS_ENVIRONMENT
  */
-class EvervaultPayViewModel(application: Application, private val appId: String, private val merchantId: String) : AndroidViewModel(application) {
-    // use WalletConstants.ENVIRONMENT_PRODUCTION or WalletConstants.ENVIRONMENT_TEST
-    var environment: Int = WalletConstants.ENVIRONMENT_TEST
-
+class EvervaultPayViewModel(application: Application, val config: Config) : AndroidViewModel(application) {
     val MERCHANT_NAME = "Evervault"
 
     /**
@@ -50,38 +47,22 @@ class EvervaultPayViewModel(application: Application, private val appId: String,
      */
     val PAYMENT_GATEWAY_TOKENIZATION_PARAMETERS = mapOf(
         "gateway" to PAYMENT_GATEWAY_TOKENIZATION_NAME,
-        "gatewayMerchantId" to merchantId
+        "gatewayMerchantId" to config.merchantId
     )
-
-    /**
-     * The allowed networks to be requested from the API. If the user has cards from networks not
-     * specified here in their account, these will not be offered for them to choose in the popup.
-     *
-     * This is defaulted to all known card brands.
-     */
-    var SUPPORTED_NETWORKS = CardNetwork.entries.map { it.name }
-
-    /**
-     * The Google Pay API may return cards on file on Google.com (PAN_ONLY) and/or a device token on
-     * an Android device authenticated with a 3-D Secure cryptogram (CRYPTOGRAM_3DS).
-     *
-     * We only support CRYPTOGRAM_3DS at this time.
-     */
-    val SUPPORTED_METHODS = listOf("CRYPTOGRAM_3DS")
 
     companion object {
         const val LOAD_PAYMENT_DATA_REQUEST_CODE = 991
         val LOG_TAG = "EvervaultPayViewModel"
     }
 
-    private val _paymentUiState: MutableStateFlow<PaymentUiState> = MutableStateFlow(PaymentUiState.NotStarted)
-    val paymentUiState: StateFlow<PaymentUiState> = _paymentUiState.asStateFlow()
+    private val _paymentState: MutableStateFlow<PaymentState> = MutableStateFlow(PaymentState.NotStarted)
+    val paymentState: StateFlow<PaymentState> = _paymentState.asStateFlow()
 
     // A client for interacting with the Google Pay API.
-    internal val paymentsClient: PaymentsClient by lazy { createPaymentsClient(application, this.environment) }
+    internal val paymentsClient: PaymentsClient by lazy { createPaymentsClient(application, config.environment) }
 
     private var isStarted = false
-    fun started() = this.isStarted
+    private fun started() = this.isStarted
 
     fun start() {
         if (this.isStarted) {
@@ -96,7 +77,7 @@ class EvervaultPayViewModel(application: Application, private val appId: String,
         }
     }
 
-    private val apiClient = EvervaultPayAPI(this.appId)
+    private val apiClient = EvervaultPayAPI(config.appId)
 
     fun handlePaymentDataIntent(requestCode: Int, resultCode: Int, data: Intent?) {
         if (requestCode != LOAD_PAYMENT_DATA_REQUEST_CODE) return
@@ -126,27 +107,27 @@ class EvervaultPayViewModel(application: Application, private val appId: String,
     ) */
     private suspend fun verifyGooglePayReadiness() {
         if (!this.started()) {
-            return _paymentUiState.update { PaymentUiState.Error(CommonStatusCodes.DEVELOPER_ERROR, "Must call 'start' before calling this method") }
+            return _paymentState.update { PaymentState.Error(CommonStatusCodes.DEVELOPER_ERROR, "Must call 'start' before calling this method") }
         }
 
-        val newUiState: PaymentUiState = try {
+        val newUiState: PaymentState = try {
             if (fetchCanUseGooglePay()) {
-                PaymentUiState.Available
+                PaymentState.Available
             } else {
-                PaymentUiState.Error(CommonStatusCodes.ERROR)
+                PaymentState.Unavailable
             }
         } catch (exception: ApiException) {
-            PaymentUiState.Error(exception.statusCode, exception.message)
+            PaymentState.Error(exception.statusCode, exception.message)
         }
 
-        _paymentUiState.update { newUiState }
+        _paymentState.update { newUiState }
     }
 
     /**
      * Determine the user's ability to pay with a payment method supported by your app.
      * You must call 'start' before calling this method.
     ) */
-    suspend fun fetchCanUseGooglePay(): Boolean {
+    private suspend fun fetchCanUseGooglePay(): Boolean {
         val request = IsReadyToPayRequest.fromJson(isReadyToPayRequest(this).toString())
         return this.paymentsClient.isReadyToPay(request).await()
     }
@@ -164,19 +145,19 @@ class EvervaultPayViewModel(application: Application, private val appId: String,
         Log.e(LOG_TAG, "Error code: $statusCode, Message: $message")
     }
 
-    internal fun setPaymentData(paymentData: PaymentData) {
-        this.apiClient.fetchCryptogram(paymentData, merchantId, this.environment, object : EvervaultPayAPICallback {
+    private fun setPaymentData(paymentData: PaymentData) {
+        this.apiClient.fetchCryptogram(paymentData, config.merchantId, config.environment, object : EvervaultPayAPICallback {
             override fun onFailure(e: IOException) {
                 Log.e(LOG_TAG, "An exception occured while fetching the cryptogram", e)
-                _paymentUiState.update { PaymentUiState.Error(CommonStatusCodes.INTERNAL_ERROR) }
+                _paymentState.update { PaymentState.Error(CommonStatusCodes.INTERNAL_ERROR, e.toString()) }
             }
 
             override fun onResponse(response: DpanResponse) {
                 val payState = extractPaymentBillingName(paymentData)?.let {
                     response.billingAddress = it
-                    PaymentUiState.PaymentCompleted(response = response)
-                } ?: PaymentUiState.Error(CommonStatusCodes.INTERNAL_ERROR)
-                _paymentUiState.update { payState }
+                    PaymentState.PaymentCompleted(response = response)
+                } ?: PaymentState.Error(CommonStatusCodes.INTERNAL_ERROR)
+                _paymentState.update { payState }
             }
         })
     }

@@ -1,6 +1,6 @@
 package com.evervault.googlepay
 
-data class Transaction(val country: String, val currency: String, val lineItems: Array<LineItem>) {
+data class Transaction(val country: String, val currency: String, val total: Amount, val lineItems: Array<LineItem>) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
@@ -10,7 +10,7 @@ data class Transaction(val country: String, val currency: String, val lineItems:
         if (country != other.country) return false
         if (currency != other.currency) return false
         if (!lineItems.contentEquals(other.lineItems)) return false
-
+        if (total != other.total) return false
         return true
     }
 
