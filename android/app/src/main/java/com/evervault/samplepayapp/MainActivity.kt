@@ -11,10 +11,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import com.evervault.googlepay.Amount
-import com.evervault.googlepay.ButtonTheme
-import com.evervault.googlepay.ButtonType
 import com.evervault.googlepay.CardNetwork
 import com.evervault.googlepay.Config
+import com.evervault.googlepay.EvervaultButtonTheme
+import com.evervault.googlepay.EvervaultButtonType
 import com.evervault.googlepay.EvervaultPayViewModel
 import com.evervault.googlepay.EvervaultPayViewModelFactory
 import com.evervault.googlepay.LineItem
@@ -60,8 +60,8 @@ class MainActivity : AppCompatActivity() {
                 is PaymentState.Available -> ProductScreen(
                     model = model,
                     transaction = transaction,
-                    type = ButtonType.Order,
-                    theme = ButtonTheme.Light,
+                    type = EvervaultButtonType.Order,
+                    theme = EvervaultButtonTheme.Light,
                 )
                 is PaymentState.PaymentCompleted -> Text("${state.response}")
                 is PaymentState.Error -> Text("Error: ${state.message}")

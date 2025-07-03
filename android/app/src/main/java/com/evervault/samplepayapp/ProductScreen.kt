@@ -1,4 +1,5 @@
 package com.evervault.samplepayapp
+
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -17,8 +18,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.evervault.googlepay.ButtonTheme
-import com.evervault.googlepay.ButtonType
+import com.evervault.googlepay.EvervaultButtonTheme
+import com.evervault.googlepay.EvervaultButtonType
 import com.evervault.googlepay.EvervaultPaymentButton
 import com.evervault.googlepay.EvervaultPayViewModel
 import com.evervault.googlepay.Transaction
@@ -27,8 +28,8 @@ import com.evervault.googlepay.Transaction
 fun ProductScreen(
     transaction: Transaction,
     model: EvervaultPayViewModel,
-    theme: ButtonTheme,
-    type: ButtonType,
+    theme: EvervaultButtonTheme,
+    type: EvervaultButtonType,
 ) {
     val padding = 20.dp
     val black = Color(0xff000000.toInt())

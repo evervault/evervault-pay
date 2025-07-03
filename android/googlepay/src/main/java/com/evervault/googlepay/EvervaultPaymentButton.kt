@@ -12,8 +12,6 @@ import com.google.android.gms.wallet.PaymentData
 import com.google.android.gms.wallet.PaymentDataRequest
 import com.google.android.gms.wallet.PaymentsClient
 import com.google.android.gms.wallet.Wallet
-import com.google.pay.button.ButtonTheme
-import com.google.pay.button.ButtonType
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
@@ -125,16 +123,16 @@ fun createPaymentsClient(context: Context, environment: Int): PaymentsClient {
     return Wallet.getPaymentsClient(context, walletOptions)
 }
 
-typealias ButtonTheme = com.google.pay.button.ButtonTheme
-typealias ButtonType = com.google.pay.button.ButtonType
+typealias EvervaultButtonTheme = com.google.pay.button.ButtonTheme
+typealias EvervaultButtonType = com.google.pay.button.ButtonType
 
 @Composable
 fun EvervaultPaymentButton(
     modifier: Modifier,
     paymentRequest: Transaction,
     model: EvervaultPayViewModel,
-    theme: ButtonTheme = ButtonTheme.Dark,
-    type: ButtonType = ButtonType.Pay,
+    theme: EvervaultButtonTheme = EvervaultButtonTheme.Dark,
+    type: EvervaultButtonType = EvervaultButtonType.Pay,
 ) {
     val activity = LocalContext.current as Activity
 

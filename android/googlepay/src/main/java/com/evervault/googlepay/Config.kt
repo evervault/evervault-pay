@@ -1,8 +1,5 @@
 package com.evervault.googlepay
 
-import com.google.pay.button.ButtonTheme
-import com.google.pay.button.ButtonType
-
 data class Config(
     val appId: String,
     val merchantId: String,
