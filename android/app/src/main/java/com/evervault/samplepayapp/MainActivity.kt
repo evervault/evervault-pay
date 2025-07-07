@@ -13,10 +13,12 @@ import androidx.compose.runtime.getValue
 import com.evervault.googlepay.Amount
 import com.evervault.googlepay.CardNetwork
 import com.evervault.googlepay.Config
+import com.evervault.googlepay.CardResponse
 import com.evervault.googlepay.EvervaultButtonTheme
 import com.evervault.googlepay.EvervaultButtonType
 import com.evervault.googlepay.EvervaultPayViewModel
 import com.evervault.googlepay.EvervaultPayViewModelFactory
+import com.evervault.googlepay.NetworkTokenResponse
 import com.evervault.googlepay.LineItem
 import com.evervault.googlepay.PaymentState
 import com.evervault.googlepay.Transaction
@@ -63,7 +65,16 @@ class MainActivity : AppCompatActivity() {
                     type = EvervaultButtonType.Order,
                     theme = EvervaultButtonTheme.Light,
                 )
-                is PaymentState.PaymentCompleted -> Text("${state.response}")
+                is PaymentState.PaymentCompleted -> {
+                    when (val token = state.response) {
+                        is NetworkTokenResponse -> {
+                            Text("Encrypted Network Token Cryptogram: ${token.cryptogram}")
+                        }
+                        is CardResponse -> {
+                            Text("Encrypted Card Number: ${token.card.number}")
+                        }
+                    }
+                }
                 is PaymentState.Error -> Text("Error: ${state.message}")
                 is PaymentState.NotStarted -> CircularProgressIndicator()
             }

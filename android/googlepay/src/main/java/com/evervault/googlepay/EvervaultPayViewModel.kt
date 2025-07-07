@@ -48,9 +48,9 @@ class TokenResponseAdapter : JsonDeserializer<TokenResponse> {
 
         val obj = json.asJsonObject
         if (obj.has("cryptogram")) {
-            return ctx.deserialize<DpanResponse>(obj, DpanResponse::class.java)
+            return ctx.deserialize<NetworkTokenResponse>(obj, NetworkTokenResponse::class.java)
         } else if (obj.has("card")) {
-            return ctx.deserialize<FpanResponse>(obj, FpanResponse::class.java)
+            return ctx.deserialize<CardResponse>(obj, CardResponse::class.java)
         } else {
             throw JsonParseException("Could not deserialize response")
         }

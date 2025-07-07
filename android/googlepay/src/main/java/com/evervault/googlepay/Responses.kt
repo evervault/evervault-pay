@@ -30,7 +30,7 @@ data class GooglePayCard(
     val issuer: String?
 )
 
-data class DpanResponse(
+data class NetworkTokenResponse(
     val card: GooglePayCard,
     val token: PaymentToken,
     val cryptogram: String,
@@ -49,7 +49,7 @@ data class FpanCardDetails(
     val issuer: String?
 )
 
-data class FpanResponse(
+data class CardResponse(
     val card: FpanCardDetails,
     override var billingAddress: BillingAddress?
 ) : TokenResponse
