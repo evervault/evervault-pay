@@ -3,3 +3,6 @@
 
 # Ignore any .entitlements under ios/Demo
 /ios/Demo/**/*.entitlements
+
+# Ignore config overrides
+/android/app/src/main/res/values/config.xml
