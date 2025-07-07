@@ -70,7 +70,7 @@ private fun baseCardPaymentMethod(model: EvervaultPayViewModel): JSONObject =
     JSONObject()
         .put("type", "CARD")
         .put("parameters", JSONObject()
-            .put("allowedAuthMethods", JSONArray(model.config.supportedMethods))
+            .put("allowedAuthMethods", JSONArray(model.config.supportedMethods.asGooglePayStrings()))
             .put("allowedCardNetworks", allowedCardNetworks(model.config))
             .put("billingAddressRequired", true)
             .put("billingAddressParameters", JSONObject()
