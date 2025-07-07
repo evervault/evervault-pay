@@ -3,71 +3,34 @@ import Foundation
 
 public typealias Network = PKPaymentNetwork
 
-public struct ApplePayNetworkTokenExpiry: Codable, Sendable {
+public struct ApplePayNetworkTokenExpiry: Codable, Sendable, Equatable {
     public let month: String
     public let year: String
-    
-    public init() {
-        self.month = "02"
-        self.year = "26"
-    }
 }
 
-public struct ApplePayNetworkToken: Codable, Sendable {
+public struct ApplePayNetworkToken: Codable, Sendable, Equatable {
     public let number: String
     public let expiry: ApplePayNetworkTokenExpiry
     public let rawExpiry: String
     public let tokenServiceProvider: String
-    
-    public init() {
-        let uuid = NSUUID().uuidString
-        let encoded = uuid.data(using: .utf8)?.base64EncodedString()
-        self.number = "ev:\(encoded ?? "encodedStringFailedToEncode"):$"
-        self.expiry = ApplePayNetworkTokenExpiry()
-        self.rawExpiry = "rawExpiryValue"
-        self.tokenServiceProvider = "tokenServiceProviderValue"
-    }
 }
 
-public struct ApplePayCard: Codable, Sendable {
+public struct ApplePayCard: Codable, Sendable, Equatable {
     public let brand: String?
     public let funding: String?
     public let segment: String?
     public let country: String?
     public let currency: String?
     public let issuer: String?
-
-    // TODO: remove
-    public init() {
-        self.brand = nil
-        self.funding = nil
-        self.segment = nil
-        self.country = nil
-        self.currency = nil
-        self.issuer = nil
-    }
 }
 
-public struct ApplePayResponse: Codable, Sendable  {
+public struct ApplePayResponse: Codable, Sendable, Equatable {
     public let networkToken: ApplePayNetworkToken
     public let card: ApplePayCard
     public let cryptogram: String
     public let eci: String?
     public let paymentDataType: String
     public let deviceManufacturerIdentifier: String
-    
-    // TODO: remove
-    public init() {
-        let uuid = NSUUID().uuidString
-        let encoded = uuid.data(using: .utf8)?.base64EncodedString()
-        
-        self.networkToken = ApplePayNetworkToken()
-        self.card = ApplePayCard()
-        self.cryptogram = encoded!
-        self.eci = "eciValue"
-        self.paymentDataType = "paymentDataTypeValue"
-        self.deviceManufacturerIdentifier = "deviceManufacturerIdentifierValue"
-    }
 }
 
 /// Amount wrapper around NSDecimalNumber
@@ -109,7 +72,20 @@ public struct Transaction {
     }
 }
 
+struct ApplePayTokenHeader: Codable {
+    let publicKeyHash: String
+    let ephemeralPublicKey: String
+    let transactionId: String
+}
+
+struct ApplePayToken: Codable {
+    let data: String
+    let signature: String
+    let header: ApplePayTokenHeader
+    let version: String
+}
+
 struct ApplePayPayload: Codable {
   let isNative: Bool
-  let paymentData: Data
+  let encryptedCredentials: ApplePayToken
 }

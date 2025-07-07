@@ -62,14 +62,21 @@ public class EvervaultPaymentView: UIView {
         self.supportedNetworks = supportedNetworks
         self.buttonStyle = buttonStyle
         self.buttonType = buttonType
+        super.init(frame: .zero)
 
         // Verify Apple Pay is available on device
         guard PKPaymentAuthorizationViewController.canMakePayments() else {
-            print("Error")
-            super.init(frame: .zero)
+            // defer until after init-time delegate assignment
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self else { return }
+                self.delegate?.evervaultPaymentView(
+                    self,
+                    didFinishWithError: EvervaultError.ApplePayUnavailableError
+                )
+            }
             return
         }
-        super.init(frame: .zero)
+        
         setupLayout()
         setContentHuggingPriority(.required, for: .horizontal)
         setContentHuggingPriority(.required, for: .vertical)
@@ -105,21 +112,30 @@ public class EvervaultPaymentView: UIView {
     // MARK: Actions
 
     /// Tapped handler to start the Apple Pay sheet
-    @objc private func didTapPay() throws {
-        // Build the PKPaymentRequest from the Transaction
-        let paymentRequest = buildPaymentRequest()
-        // Create the authorization view controller
-        guard let vc = PKPaymentAuthorizationViewController(paymentRequest: paymentRequest) else {
-            throw EvervaultError.ApplePayPaymentSheetError
-        }
-
-        vc.delegate = self
-        
-        // Present the Payment Sheet from the frontmost window
-        if let scene = UIApplication.shared.connectedScenes
-            .first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene,
-           let root = scene.windows.first?.rootViewController {
-            root.present(vc, animated: true, completion: nil)
+    @objc private func didTapPay() {
+        do {
+            // Must have at least 1 line item
+            guard !transaction.paymentSummaryItems.isEmpty else {
+                throw EvervaultError.InvalidTransactionError
+            }
+            
+            // Build the PKPaymentRequest from the Transaction
+            let paymentRequest = buildPaymentRequest()
+            // Create the authorization view controller
+            guard let vc = PKPaymentAuthorizationViewController(paymentRequest: paymentRequest) else {
+                throw EvervaultError.ApplePayPaymentSheetError
+            }
+            
+            vc.delegate = self
+            
+            // Present the Payment Sheet from the frontmost window
+            if let scene = UIApplication.shared.connectedScenes
+                .first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene,
+               let root = scene.windows.first?.rootViewController {
+                root.present(vc, animated: true, completion: nil)
+            }
+        } catch {
+            delegate?.evervaultPaymentView(self, didFinishWithError: error)
         }
     }
     

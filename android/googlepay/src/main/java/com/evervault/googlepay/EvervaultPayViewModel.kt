@@ -2,10 +2,12 @@ package com.evervault.googlepay
 
 import android.app.Activity
 import android.app.Application
+import android.content.Context
 import android.content.Intent
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.evervault.payments.R
 import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.common.api.CommonStatusCodes
 import com.google.android.gms.wallet.AutoResolveHelper
@@ -13,15 +15,23 @@ import com.google.android.gms.wallet.IsReadyToPayRequest
 import com.google.android.gms.wallet.PaymentData
 import com.google.android.gms.wallet.PaymentsClient
 import com.google.gson.Gson
+import com.google.gson.JsonSyntaxException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.tasks.await
+import okhttp3.ResponseBody
 import org.json.JSONException
 import org.json.JSONObject
 import java.io.IOException
+import kotlin.coroutines.resume
+
+internal fun Context.evervaultBaseUrl(): String =
+    getString(R.string.evervault_base_url)
+
 
 /**
  * Changing this to ENVIRONMENT_PRODUCTION will make the API return chargeable card information.
@@ -31,8 +41,6 @@ import java.io.IOException
  * @value #PAYMENTS_ENVIRONMENT
  */
 class EvervaultPayViewModel(application: Application, val config: Config) : AndroidViewModel(application) {
-    val MERCHANT_NAME = "Evervault"
-
     /**
      * The name of the payment processor/gateway.
      **/
@@ -76,7 +84,30 @@ class EvervaultPayViewModel(application: Application, val config: Config) : Andr
         }
     }
 
-    private val apiClient = EvervaultPayAPI(config.appId)
+    private val apiClient = EvervaultPayAPI(application.evervaultBaseUrl(), config.appId)
+
+    suspend fun getMerchantName(): String = suspendCancellableCoroutine { cont ->
+        this.apiClient.getMerchantName(
+            config.merchantId,
+            object : EvervaultPayAPICallback {
+                override fun onFailure(e: IOException) {
+                    Log.e(LOG_TAG, "An exception occurred while fetching the merchant", e)
+                    _paymentState.update { PaymentState.Error(CommonStatusCodes.INTERNAL_ERROR, e.message)}
+                    cont.cancel()
+                }
+
+                override fun onResponse(response: ResponseBody) {
+                    try {
+                        val merchant = Gson().fromJson(response.string(), Merchant::class.java)
+                        cont.resume(merchant.name)
+                    } catch (e: Exception) {
+                        _paymentState.update { PaymentState.Error(CommonStatusCodes.INTERNAL_ERROR, e.message)}
+                        cont.cancel()
+                    }
+                }
+            }
+        )
+    }
 
     fun handlePaymentDataIntent(requestCode: Int, resultCode: Int, data: Intent?) {
         if (requestCode != LOAD_PAYMENT_DATA_REQUEST_CODE) return
@@ -145,18 +176,26 @@ class EvervaultPayViewModel(application: Application, val config: Config) : Andr
     }
 
     private fun setPaymentData(paymentData: PaymentData) {
-        this.apiClient.fetchCryptogram(paymentData, config.merchantId, config.environment, object : EvervaultPayAPICallback {
+        this.apiClient.fetchCryptogram(paymentData, config.merchantId, object : EvervaultPayAPICallback {
             override fun onFailure(e: IOException) {
                 Log.e(LOG_TAG, "An exception occured while fetching the cryptogram", e)
                 _paymentState.update { PaymentState.Error(CommonStatusCodes.INTERNAL_ERROR, e.toString()) }
             }
 
-            override fun onResponse(response: DpanResponse) {
-                val payState = extractPaymentBillingName(paymentData)?.let {
-                    response.billingAddress = it
-                    PaymentState.PaymentCompleted(response = response)
-                } ?: PaymentState.Error(CommonStatusCodes.INTERNAL_ERROR)
-                _paymentState.update { payState }
+            override fun onResponse(response: ResponseBody) {
+                try {
+                    val dpanResponse = Gson().fromJson(response.string(), DpanResponse::class.java)
+
+                    val payState = extractPaymentBillingName(paymentData)?.let {
+                        dpanResponse.billingAddress = it
+                        PaymentState.PaymentCompleted(response = dpanResponse)
+                    } ?: PaymentState.Error(CommonStatusCodes.INTERNAL_ERROR)
+                    _paymentState.update { payState }
+                } catch (_: JsonSyntaxException) {
+                    _paymentState.update {
+                        PaymentState.Error(CommonStatusCodes.INTERNAL_ERROR, "Error decoding payment token data")
+                    }
+                }
             }
         })
     }

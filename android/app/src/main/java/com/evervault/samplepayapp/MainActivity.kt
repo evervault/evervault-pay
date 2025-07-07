@@ -27,8 +27,8 @@ class MainActivity : AppCompatActivity() {
         EvervaultPayViewModelFactory(
             application,
             Config(
-                appId = "app_1234567890",
-                merchantId = "merchant_123456790",
+                appId = "app_c7c594325ed9",
+                merchantId = "merchant_3ca5d6aec6ca",
                 supportedNetworks = listOf(
                     CardNetwork.VISA,
                     CardNetwork.MASTERCARD

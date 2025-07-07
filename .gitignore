@@ -1,0 +1,5 @@
+# Ignore any .plist under ios/Demo
+/ios/Demo/**/*.plist
+
+# Ignore any .entitlements under ios/Demo
+/ios/Demo/**/*.entitlements

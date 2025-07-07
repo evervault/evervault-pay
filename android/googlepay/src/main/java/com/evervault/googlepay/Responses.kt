@@ -12,6 +12,11 @@ data class PaymentToken(
     val token_service_provider: String
 )
 
+data class Merchant(
+    val id: String,
+    val name: String,
+)
+
 data class GooglePayCard(
     val brand: String?,
     val funding: String?,
