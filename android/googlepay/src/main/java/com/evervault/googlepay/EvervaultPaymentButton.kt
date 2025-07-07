@@ -3,7 +3,11 @@ package com.evervault.googlepay
 import android.app.Activity
 import android.content.Context
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import com.google.pay.button.PayButton
@@ -22,7 +26,7 @@ abstract class PaymentState internal constructor() {
     object NotStarted : PaymentState()
     object Available : PaymentState()
     object Unavailable: PaymentState()
-    class PaymentCompleted(val response: DpanResponse) : PaymentState()
+    class PaymentCompleted(val response: TokenResponse) : PaymentState()
     class Error(val code: Int, val message: String? = null) : PaymentState()
 }
 
@@ -139,7 +143,11 @@ fun EvervaultPaymentButton(
     val activity = LocalContext.current as Activity
     val scope = rememberCoroutineScope()
 
-    val onClickHandler: () -> Unit = {
+    var clickable by remember { mutableStateOf(true) }
+
+    val onClickHandler = onClick@{
+        if(!clickable) return@onClick
+        clickable = false
         scope.launch {
             val merchantName = model.getMerchantName()
 
@@ -170,6 +178,7 @@ fun EvervaultPaymentButton(
                 activity,
                 EvervaultPayViewModel.LOAD_PAYMENT_DATA_REQUEST_CODE
             )
+            task.addOnCompleteListener { clickable = true }
         }
     }
 
@@ -179,5 +188,6 @@ fun EvervaultPaymentButton(
         allowedPaymentMethods = allowedPaymentMethods(model).toString(),
         theme = theme,
         type = type,
+        enabled = clickable
     )
 }

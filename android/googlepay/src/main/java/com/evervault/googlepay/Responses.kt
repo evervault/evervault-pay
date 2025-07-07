@@ -17,6 +17,10 @@ data class Merchant(
     val name: String,
 )
 
+sealed interface TokenResponse {
+    abstract var billingAddress: BillingAddress?
+}
+
 data class GooglePayCard(
     val brand: String?,
     val funding: String?,
@@ -31,5 +35,21 @@ data class DpanResponse(
     val token: PaymentToken,
     val cryptogram: String,
     val eci: String,
-    var billingAddress: BillingAddress?,
+    override var billingAddress: BillingAddress?,
+) : TokenResponse
+
+data class FpanCardDetails(
+    val number: String,
+    val expiry: CardExpiry,
+    val brand: String?,
+    val funding: String?,
+    val segment: String?,
+    val country: String?,
+    val currency: String?,
+    val issuer: String?
 )
+
+data class FpanResponse(
+    val card: FpanCardDetails,
+    override var billingAddress: BillingAddress?
+) : TokenResponse

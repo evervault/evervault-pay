@@ -15,6 +15,11 @@ import com.google.android.gms.wallet.IsReadyToPayRequest
 import com.google.android.gms.wallet.PaymentData
 import com.google.android.gms.wallet.PaymentsClient
 import com.google.gson.Gson
+import com.google.gson.GsonBuilder
+import com.google.gson.JsonDeserializationContext
+import com.google.gson.JsonDeserializer
+import com.google.gson.JsonElement
+import com.google.gson.JsonParseException
 import com.google.gson.JsonSyntaxException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -28,10 +33,29 @@ import org.json.JSONException
 import org.json.JSONObject
 import java.io.IOException
 import kotlin.coroutines.resume
+import java.lang.reflect.Type
 
 internal fun Context.evervaultBaseUrl(): String =
     getString(R.string.evervault_base_url)
 
+// Handle decoding between FPAN and DPAN repsonse types
+class TokenResponseAdapter : JsonDeserializer<TokenResponse> {
+    override fun deserialize(
+        json: JsonElement,
+        typeOfT: Type,
+        ctx: JsonDeserializationContext
+    ): TokenResponse {
+
+        val obj = json.asJsonObject
+        if (obj.has("cryptogram")) {
+            return ctx.deserialize<DpanResponse>(obj, DpanResponse::class.java)
+        } else if (obj.has("card")) {
+            return ctx.deserialize<FpanResponse>(obj, FpanResponse::class.java)
+        } else {
+            throw JsonParseException("Could not deserialize response")
+        }
+    }
+}
 
 /**
  * Changing this to ENVIRONMENT_PRODUCTION will make the API return chargeable card information.
@@ -184,11 +208,15 @@ class EvervaultPayViewModel(application: Application, val config: Config) : Andr
 
             override fun onResponse(response: ResponseBody) {
                 try {
-                    val dpanResponse = Gson().fromJson(response.string(), DpanResponse::class.java)
+                    val raw = response.string()
+                    val gson: Gson = GsonBuilder()
+                        .registerTypeAdapter(TokenResponse::class.java, TokenResponseAdapter())
+                        .create()
+                    val tokenResponse = gson.fromJson(raw, TokenResponse::class.java)
 
                     val payState = extractPaymentBillingName(paymentData)?.let {
-                        dpanResponse.billingAddress = it
-                        PaymentState.PaymentCompleted(response = dpanResponse)
+                        tokenResponse.billingAddress = it
+                        PaymentState.PaymentCompleted(response = tokenResponse)
                     } ?: PaymentState.Error(CommonStatusCodes.INTERNAL_ERROR)
                     _paymentState.update { payState }
                 } catch (_: JsonSyntaxException) {
