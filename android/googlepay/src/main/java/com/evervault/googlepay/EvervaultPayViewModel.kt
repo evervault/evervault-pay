@@ -89,6 +89,9 @@ class EvervaultPayViewModel(application: Application, val config: Config) : Andr
     private val _paymentState: MutableStateFlow<PaymentState> = MutableStateFlow(PaymentState.NotStarted)
     val paymentState: StateFlow<PaymentState> = _paymentState.asStateFlow()
 
+    // To prevent spam clicking and queueing payment sheets, lock the button
+    var isClickable = MutableStateFlow(true)
+
     // A client for interacting with the Google Pay API.
     internal val paymentsClient: PaymentsClient by lazy { createPaymentsClient(application, config.environment) }
 
@@ -110,13 +113,19 @@ class EvervaultPayViewModel(application: Application, val config: Config) : Andr
 
     private val apiClient = EvervaultPayAPI(application.evervaultBaseUrl(), config.appId)
 
+    // Update the error state and unlock the button
+    private fun updateErrorStateAndUnlock(errorCode: Int, message: String?) {
+        _paymentState.update { PaymentState.Error(errorCode, message)}
+        isClickable.update { current -> !current }
+    }
+
     suspend fun getMerchantName(): String = suspendCancellableCoroutine { cont ->
         this.apiClient.getMerchantName(
             config.merchantId,
             object : EvervaultPayAPICallback {
                 override fun onFailure(e: IOException) {
                     Log.e(LOG_TAG, "An exception occurred while fetching the merchant", e)
-                    _paymentState.update { PaymentState.Error(CommonStatusCodes.INTERNAL_ERROR, e.message)}
+                    updateErrorStateAndUnlock(CommonStatusCodes.INTERNAL_ERROR, e.message)
                     cont.cancel()
                 }
 
@@ -125,7 +134,7 @@ class EvervaultPayViewModel(application: Application, val config: Config) : Andr
                         val merchant = Gson().fromJson(response.string(), Merchant::class.java)
                         cont.resume(merchant.name)
                     } catch (e: Exception) {
-                        _paymentState.update { PaymentState.Error(CommonStatusCodes.INTERNAL_ERROR, e.message)}
+                        updateErrorStateAndUnlock(CommonStatusCodes.INTERNAL_ERROR, e.message)
                         cont.cancel()
                     }
                 }
@@ -135,18 +144,22 @@ class EvervaultPayViewModel(application: Application, val config: Config) : Andr
 
     fun handlePaymentDataIntent(requestCode: Int, resultCode: Int, data: Intent?) {
         if (requestCode != LOAD_PAYMENT_DATA_REQUEST_CODE) return
+
+        // Unlock the button when complete
+        this.isClickable.update { current -> !current }
+
         when (resultCode) {
             Activity.RESULT_OK -> {
                 val paymentData = PaymentData.getFromIntent(data!!)
                 if (paymentData != null) {
                     setPaymentData(paymentData)
-                    } else {
-                        handleError(CommonStatusCodes.INTERNAL_ERROR, "No payment data")
-                    }
+                } else {
+                    handleError(CommonStatusCodes.INTERNAL_ERROR, "No payment data")
                 }
+            }
             Activity.RESULT_CANCELED -> {
                 Log.w(LOG_TAG, "Payment cancelled by user")
-                }
+            }
             AutoResolveHelper.RESULT_ERROR -> {
                 val status = AutoResolveHelper.getStatusFromIntent(data!!)
                 handleError(status?.statusCode ?: CommonStatusCodes.INTERNAL_ERROR,

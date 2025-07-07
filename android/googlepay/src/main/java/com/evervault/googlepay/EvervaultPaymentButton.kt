@@ -3,11 +3,9 @@ package com.evervault.googlepay
 import android.app.Activity
 import android.content.Context
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import com.google.pay.button.PayButton
@@ -17,6 +15,7 @@ import com.google.android.gms.wallet.PaymentData
 import com.google.android.gms.wallet.PaymentDataRequest
 import com.google.android.gms.wallet.PaymentsClient
 import com.google.android.gms.wallet.Wallet
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONException
@@ -143,11 +142,14 @@ fun EvervaultPaymentButton(
     val activity = LocalContext.current as Activity
     val scope = rememberCoroutineScope()
 
-    var clickable by remember { mutableStateOf(true) }
+    val isClickable by model.isClickable
+        .collectAsState(initial = false)
 
     val onClickHandler = onClick@{
-        if(!clickable) return@onClick
-        clickable = false
+        // Lock the button if it has been clicked and sheet is displaying
+        if(!model.isClickable.value) return@onClick
+        model.isClickable.update { current -> !current }
+
         scope.launch {
             val merchantName = model.getMerchantName()
 
@@ -178,7 +180,6 @@ fun EvervaultPaymentButton(
                 activity,
                 EvervaultPayViewModel.LOAD_PAYMENT_DATA_REQUEST_CODE
             )
-            task.addOnCompleteListener { clickable = true }
         }
     }
 
@@ -188,6 +189,6 @@ fun EvervaultPaymentButton(
         allowedPaymentMethods = allowedPaymentMethods(model).toString(),
         theme = theme,
         type = type,
-        enabled = clickable
+        enabled = isClickable
     )
 }
