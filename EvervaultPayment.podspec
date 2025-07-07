@@ -4,11 +4,11 @@ Pod::Spec.new do |s|
   s.summary          = "Client library for Evervault mobile payments"
   s.homepage         = "https://github.com/evervault/evervault-pay"
   s.license          = { :type => "MIT", :file => "LICENSE" }
-  s.author           = { "Jake Grogan" => "jake@evervault.com" }
+  s.author           = { "Evervault Engineering" => "engineering@evervault.com" }
   s.platform         = :ios, "12.0"
   s.swift_version    = "6.1"
 
-  # point at your git tag; make sure it matches s.version
+  # point at the git tag; make sure it matches s.version
   s.source = {
     :git  => "https://github.com/evervault/evervault-pay.git",
     :tag  => "ios-v#{s.version}"
@@ -20,9 +20,7 @@ Pod::Spec.new do |s|
   # link against the built-in Apple Pay framework
   s.frameworks = "Foundation", "PassKit"
 
-  # if your package has any resource bundles, assets, etc, add:
+  # if the package has any resource bundles, assets, etc, add:
+  # not required for now but leaving here in case
   # s.resources    = "ios/EvervaultPayment/Resources/**/*"
-
-  # any dependencies your package needs
-  # e.g. s.dependency "Alamofire", "~> 5.0"
 end
