@@ -3,6 +3,7 @@ package com.evervault.googlepay
 import android.app.Activity
 import android.content.Context
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import com.google.pay.button.PayButton
@@ -12,6 +13,7 @@ import com.google.android.gms.wallet.PaymentData
 import com.google.android.gms.wallet.PaymentDataRequest
 import com.google.android.gms.wallet.PaymentsClient
 import com.google.android.gms.wallet.Wallet
+import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
@@ -135,33 +137,40 @@ fun EvervaultPaymentButton(
     type: EvervaultButtonType = EvervaultButtonType.Pay,
 ) {
     val activity = LocalContext.current as Activity
+    val scope = rememberCoroutineScope()
 
     val onClickHandler: () -> Unit = {
-        // https://developers.google.com/pay/api/web/reference/request-objects#TransactionInfo
-        val paymentDataRequestJson = baseRequest
-            .put("allowedPaymentMethods", allowedPaymentMethods(model))
-            .put("transactionInfo", JSONObject()
-                .put("displayItems", JSONArray(paymentRequest.lineItems.map {
-                    JSONObject()
-                        .put("label", it.label)
-                        .put("type", "LINE_ITEM")
-                        .put("price", it.amount.amount)
-                        .put("status", "FINAL")
-                }))
-                .put("totalPriceLabel", "Total")
-                .put("totalPrice", paymentRequest.total.amount)
-                .put("totalPriceStatus", "FINAL")
-                .put("countryCode", paymentRequest.country)
-                .put("currencyCode", paymentRequest.currency))
-            .put("merchantInfo", JSONObject().put("merchantName", model.MERCHANT_NAME))
-        val request = PaymentDataRequest.fromJson(paymentDataRequestJson.toString())
+        scope.launch {
+            val merchantName = model.getMerchantName()
 
-        val task: Task<PaymentData> = model.paymentsClient.loadPaymentData(request)
-        AutoResolveHelper.resolveTask(
-            task,
-            activity,
-            EvervaultPayViewModel.LOAD_PAYMENT_DATA_REQUEST_CODE
-        )
+            // https://developers.google.com/pay/api/web/reference/request-objects#TransactionInfo
+            val paymentDataRequestJson = baseRequest
+                .put("allowedPaymentMethods", allowedPaymentMethods(model))
+                .put(
+                    "transactionInfo", JSONObject()
+                        .put("displayItems", JSONArray(paymentRequest.lineItems.map {
+                            JSONObject()
+                                .put("label", it.label)
+                                .put("type", "LINE_ITEM")
+                                .put("price", it.amount.amount)
+                                .put("status", "FINAL")
+                        }))
+                        .put("totalPriceLabel", "Total")
+                        .put("totalPrice", paymentRequest.total.amount)
+                        .put("totalPriceStatus", "FINAL")
+                        .put("countryCode", paymentRequest.country)
+                        .put("currencyCode", paymentRequest.currency)
+                )
+                .put("merchantInfo", JSONObject().put("merchantName", merchantName))
+            val request = PaymentDataRequest.fromJson(paymentDataRequestJson.toString())
+
+            val task: Task<PaymentData> = model.paymentsClient.loadPaymentData(request)
+            AutoResolveHelper.resolveTask(
+                task,
+                activity,
+                EvervaultPayViewModel.LOAD_PAYMENT_DATA_REQUEST_CODE
+            )
+        }
     }
 
     PayButton(

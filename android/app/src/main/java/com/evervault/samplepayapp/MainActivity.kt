@@ -28,7 +28,7 @@ class MainActivity : AppCompatActivity() {
             application,
             Config(
                 appId = "app_1234567890",
-                merchantId = "merchant_123456790",
+                merchantId = "merchant_1234567890",
                 supportedNetworks = listOf(
                     CardNetwork.VISA,
                     CardNetwork.MASTERCARD
