@@ -1,8 +1,8 @@
 # Ignore any .plist under ios/Demo
-/ios/Demo/**/*.plist
+ios/Demo/**/*.plist
 
 # Ignore any .entitlements under ios/Demo
-/ios/Demo/**/*.entitlements
+ios/Demo/**/*.entitlements
 
 # Ignore config overrides
-/android/app/src/main/res/values/config.xml
+android/app/src/main/res/values/config.xml
