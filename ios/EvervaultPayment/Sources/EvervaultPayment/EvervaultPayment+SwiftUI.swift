@@ -5,14 +5,12 @@
 //  Created by Jake Grogan on 12/06/2025.
 //
 
-#if canImport(SwiftUI)
 import SwiftUI
 import PassKit
 
 public typealias ButtonType = PKPaymentButtonType
 public typealias ButtonStyle = PKPaymentButtonStyle
 
-@available(iOS 13.0, *)
 /// A SwiftUI‐friendly wrapper around your UIKit EvervaultPaymentView.
 public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
   
@@ -30,13 +28,7 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
         merchantIdentifier: String,
         transaction: Transaction,
         supportedNetworks: [Network],
-        buttonStyle: ButtonStyle = {
-            if #available(iOS 14.0, *) {
-                return .automatic
-            } else {
-                return .black
-            }
-        }(),
+        buttonStyle: ButtonStyle = .automatic,
         buttonType: ButtonType = .buy,
         authorizedResponse: Binding<ApplePayResponse?>,
         onFinish: @escaping () -> Void,
@@ -130,4 +122,3 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
         }
     }
 }
-#endif

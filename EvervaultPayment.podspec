@@ -5,7 +5,7 @@ Pod::Spec.new do |s|
   s.homepage         = "https://github.com/evervault/evervault-pay"
   s.license          = { :type => "MIT", :file => "LICENSE" }
   s.author           = { "Evervault Engineering" => "engineering@evervault.com" }
-  s.platform         = :ios, "12.0"
+  s.platform         = :ios, "15.0"
   s.swift_version    = "6.1"
 
   # point at the git tag; make sure it matches s.version

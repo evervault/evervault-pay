@@ -27,7 +27,6 @@ public enum EvervaultError: Error, LocalizedError {
 
 // MARK: - Apple Pay View
 
-@objcMembers
 /// A UIView that wraps Apple Pay button and handles full payment flow.
 public class EvervaultPaymentView: UIView {
     public var appUuid: String
@@ -123,7 +122,6 @@ public class EvervaultPaymentView: UIView {
             let paymentRequest = buildPaymentRequest()
             // Create the authorization view controller
             guard let vc = PKPaymentAuthorizationViewController(paymentRequest: paymentRequest) else {
-                print("SOMEHOW HERE")
                 throw EvervaultError.ApplePayPaymentSheetError
             }
             
@@ -136,7 +134,7 @@ public class EvervaultPaymentView: UIView {
                     rootVC.present(vc, animated: true, completion: nil)
                 }
         } catch {
-            print("IM HERER: \(error)")
+    
             delegate?.evervaultPaymentView(self, didFinishWithError: error)
         }
     }
@@ -167,28 +165,28 @@ public class EvervaultPaymentView: UIView {
 // MARK: - Apple Pay Delegate
 
 extension EvervaultPaymentView : PKPaymentAuthorizationViewControllerDelegate {
-    public func paymentAuthorizationViewController(
+    /// Called when the user authorizes the payment
+    nonisolated public func paymentAuthorizationViewController(
         _ controller: PKPaymentAuthorizationViewController,
-        didAuthorizePayment payment: PKPayment,
-        completion: @escaping (_ status: PKPaymentAuthorizationStatus, _ errors: [any Error]?) -> Void
-    ) {
-        // Send the token via our callback‐based API
-        EvervaultApi.sendPaymentToken(appUuid, payment) { result in
-            DispatchQueue.main.async {
-                switch result {
-                case .success(let decoded):
-                    // Notify your own delegate
-                    self.delegate?.evervaultPaymentView(self, didAuthorizePayment: decoded)
-                    // Tell Apple Pay we succeeded
-                    completion(.success, nil)
-
-                case .failure(let error):
-                    // Notify your own delegate of the error
-                    self.delegate?.evervaultPaymentView(self, didFinishWithError: error)
-                    // Tell Apple Pay to show a failure
-                    completion(.failure, [error])
-                }
+        didAuthorizePayment payment: PKPayment
+    ) async -> PKPaymentAuthorizationResult {
+        do {
+            // Send the token to the Evervault backend for decryption and re-encryption with Evervault Encryption
+            let decoded = try await EvervaultApi.sendPaymentToken(appUuid, payment)
+            await MainActor.run {
+                // Notify the delegate on the main actor
+                self.delegate?.evervaultPaymentView(self, didAuthorizePayment: decoded)
             }
+
+            // Tell Apple Pay the payment was successful
+            return PKPaymentAuthorizationResult(status: .success, errors: nil)
+        } catch {
+            await MainActor.run {
+                // Notify the delegate on the main actor
+                self.delegate?.evervaultPaymentView(self, didFinishWithError: error)
+            }
+            // On error, surface back to Apple Pay
+            return PKPaymentAuthorizationResult(status: .failure, errors: [error])
         }
     }
 
@@ -200,35 +198,6 @@ extension EvervaultPaymentView : PKPaymentAuthorizationViewControllerDelegate {
         }
     }
 }
-
-#if compiler(>=5.5) && canImport(_Concurrency)
-@available(iOS 14.0, *)
-extension EvervaultPaymentView {
-    nonisolated public func paymentAuthorizationViewController(
-        _ controller: PKPaymentAuthorizationViewController,
-        didAuthorizePayment payment: PKPayment
-    ) async -> PKPaymentAuthorizationResult {
-        do {
-            // Send the token to the Evervault backend for decryption and re-encryption with Evervault Encryption
-            let decoded = try await EvervaultApi.sendPaymentToken(appUuid, payment)
-            DispatchQueue.main.async {
-                // Notify the delegate on the main actor
-                self.delegate?.evervaultPaymentView(self, didAuthorizePayment: decoded)
-            }
-
-            // Tell Apple Pay the payment was successful
-            return PKPaymentAuthorizationResult(status: .success, errors: nil)
-        } catch {
-            DispatchQueue.main.async {
-                  // Notify the delegate on the main actor
-                  self.delegate?.evervaultPaymentView(self, didFinishWithError: error)
-            }
-            // On error, surface back to Apple Pay
-            return PKPaymentAuthorizationResult(status: .failure, errors: [error])
-        }
-    }
-}
-#endif
 
 // MARK: - Delegate Protocol
 
