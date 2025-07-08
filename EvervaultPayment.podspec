@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = "EvervaultPayment"
-  s.version          = "0.0.3"                          # ← bump this per release
+  s.version          = "0.0.4"                          # ← bump this per release
   s.summary          = "Client library for Evervault mobile payments"
   s.homepage         = "https://github.com/evervault/evervault-pay"
   s.license          = { :type => "MIT", :file => "LICENSE" }
