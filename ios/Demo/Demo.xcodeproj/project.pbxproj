@@ -32,11 +32,10 @@
 		230C1B1C2DFB352B003CD60A /* Demo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Demo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		230C1B292DFB352D003CD60A /* DemoTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DemoTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		230C1B332DFB352D003CD60A /* DemoUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DemoUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		2394426E2E18340C00CC1291 /* Info-Debug.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = "Info-Debug.plist"; path = "Demo/Info-Debug.plist"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		239442742E1834D000CC1291 /* Exceptions for "Demo" folder in "Demo" target */ = {
+		239442912E1D221400CC1291 /* Exceptions for "Demo" folder in "Demo" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				"Info-Debug.plist",
@@ -50,7 +49,7 @@
 		230C1B1E2DFB352B003CD60A /* Demo */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				239442742E1834D000CC1291 /* Exceptions for "Demo" folder in "Demo" target */,
+				239442912E1D221400CC1291 /* Exceptions for "Demo" folder in "Demo" target */,
 			);
 			path = Demo;
 			sourceTree = "<group>";
@@ -97,7 +96,6 @@
 		230C1B132DFB352B003CD60A = {
 			isa = PBXGroup;
 			children = (
-				2394426E2E18340C00CC1291 /* Info-Debug.plist */,
 				230C1B1E2DFB352B003CD60A /* Demo */,
 				230C1B2C2DFB352D003CD60A /* DemoTests */,
 				230C1B362DFB352D003CD60A /* DemoUITests */,
