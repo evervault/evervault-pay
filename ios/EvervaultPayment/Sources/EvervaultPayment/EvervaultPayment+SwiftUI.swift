@@ -30,7 +30,13 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
         merchantIdentifier: String,
         transaction: Transaction,
         supportedNetworks: [Network],
-        buttonStyle: ButtonStyle = .automatic,
+        buttonStyle: ButtonStyle = {
+            if #available(iOS 14.0, *) {
+                return .automatic
+            } else {
+                return .black
+            }
+        }(),
         buttonType: ButtonType = .buy,
         authorizedResponse: Binding<ApplePayResponse?>,
         onFinish: @escaping () -> Void,
