@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = "EvervaultPayment"
-  s.version          = "0.0.2"                          # ← bump this per release
+  s.version          = "0.0.3"                          # ← bump this per release
   s.summary          = "Client library for Evervault mobile payments"
   s.homepage         = "https://github.com/evervault/evervault-pay"
   s.license          = { :type => "MIT", :file => "LICENSE" }
@@ -18,7 +18,10 @@ Pod::Spec.new do |s|
   s.source_files = "ios/EvervaultPayment/**/*.{swift}"
 
   # exclude test files
-  s.exclude_files = "ios/EvervaultPayment/Tests/*"
+  s.exclude_files = [
+    "ios/EvervaultPayment/Tests/**/*",
+    "ios/EvervaultPayment/Package.swift"
+  ]
 
   # link against the built-in Apple Pay framework
   s.frameworks = "Foundation", "PassKit"

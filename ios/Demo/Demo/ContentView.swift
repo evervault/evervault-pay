@@ -28,8 +28,8 @@ struct ContentView: View {
     var body: some View {
         VStack(spacing: 20) {
             EvervaultPaymentViewRepresentable(
-                appUuid: "YOUR_EVERVAULT_APP_ID",
-                merchantIdentifier: "YOUR_APPLE_MERCHANT_ID",
+                appUuid: "app_6b6660ba68c4",
+                merchantIdentifier: "merchant.com.evervault.testios",
                 transaction: transaction,
                 supportedNetworks: [.visa, .masterCard, .amex],
                 buttonStyle: .whiteOutline,
@@ -37,6 +37,7 @@ struct ContentView: View {
                 authorizedResponse: $applePayResponse,
                 onFinish: {
                     print("Payment sheet dismissed")
+                    print("HERE:", applePayResponse)
                 },
                 onError: { error in
                     let message = error?.localizedDescription

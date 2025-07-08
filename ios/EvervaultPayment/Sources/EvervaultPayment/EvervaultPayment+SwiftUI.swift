@@ -5,13 +5,14 @@
 //  Created by Jake Grogan on 12/06/2025.
 //
 
+#if canImport(SwiftUI)
 import SwiftUI
 import PassKit
 
 public typealias ButtonType = PKPaymentButtonType
 public typealias ButtonStyle = PKPaymentButtonStyle
 
-
+@available(iOS 13.0, *)
 /// A SwiftUI‐friendly wrapper around your UIKit EvervaultPaymentView.
 public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
   
@@ -123,3 +124,4 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
         }
     }
 }
+#endif
