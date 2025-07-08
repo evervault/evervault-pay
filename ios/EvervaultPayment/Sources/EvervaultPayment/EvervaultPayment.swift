@@ -167,9 +167,10 @@ public class EvervaultPaymentView: UIView {
 // MARK: - Apple Pay Delegate
 
 extension EvervaultPaymentView : PKPaymentAuthorizationViewControllerDelegate {
+    
+    /// Called when the user authorizes the payment
     #if compiler(>=5.5) && canImport(_Concurrency)
     @available(iOS 14.0, *)
-    /// Called when the user authorizes the payment
     nonisolated public func paymentAuthorizationViewController(_ controller: PKPaymentAuthorizationViewController, didAuthorizePayment payment: PKPayment) async -> PKPaymentAuthorizationResult {
         do {
             // Send the token to the Evervault backend for decryption and re-encryption with Evervault Encryption
