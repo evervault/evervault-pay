@@ -18,7 +18,7 @@ let package = Package(
     .target(
       name: "EvervaultPayment",
       path: "ios/EvervaultPayment",
-      exclude: ["Package.swift"]
+      exclude: ["ios/EvervaultPayment/Package.swift"]
     )
   ]
 )
