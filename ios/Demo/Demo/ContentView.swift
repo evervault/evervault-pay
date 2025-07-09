@@ -27,23 +27,29 @@ struct ContentView: View {
     
     var body: some View {
         VStack(spacing: 20) {
-            EvervaultPaymentViewRepresentable(
-                appUuid: "app_6b6660ba68c4",
-                merchantIdentifier: "merchant.com.evervault.testios",
-                transaction: transaction,
-                supportedNetworks: [.visa, .masterCard, .amex],
-                buttonStyle: .whiteOutline,
-                buttonType: .checkout,
-                authorizedResponse: $applePayResponse,
-                onFinish: {
-                    print("Payment sheet dismissed")
-                    print("HERE:", applePayResponse)
-                },
-                onError: { error in
-                    let message = error?.localizedDescription
-                    print("Payment sheet error: \(String(describing: message))")
-                }
-            )
+            if (EvervaultPaymentViewRepresentable.isAvailable()) {
+                EvervaultPaymentViewRepresentable(
+                    appId: "YOUR_EVERVAULT_APP_ID",
+                    merchantId: "YOUR_APPLE_MERCHANT_ID",
+                    transaction: transaction,
+                    supportedNetworks: [.visa, .masterCard, .amex],
+                    buttonStyle: .whiteOutline,
+                    buttonType: .checkout,
+                    authorizedResponse: $applePayResponse,
+                    onFinish: {
+                        print("Payment sheet dismissed")
+                        if (applePayResponse != nil) {
+                            // Send to PSP via Relay on your backend
+                        }
+                    },
+                    onError: { error in
+                        let message = error?.localizedDescription
+                        print("Payment sheet error: \(String(describing: message))")
+                    }
+                )
+            } else {
+                Text("Not available")
+            }
         }
     }
 }

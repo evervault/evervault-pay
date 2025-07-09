@@ -24,8 +24,8 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
     let buttonStyle: ButtonStyle
     
     public init(
-        appUuid: String,
-        merchantIdentifier: String,
+        appId: String,
+        merchantId: String,
         transaction: Transaction,
         supportedNetworks: [Network],
         buttonStyle: ButtonStyle = .automatic,
@@ -34,8 +34,8 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
         onFinish: @escaping () -> Void,
         onError: @escaping (_ error: Error?) -> Void
     ) {
-        self.appUuid = appUuid
-        self.merchantIdentifier = merchantIdentifier
+        self.appUuid = appId
+        self.merchantIdentifier = merchantId
         self.transaction = transaction
         self.supportedNetworks = supportedNetworks
         self.buttonStyle = buttonStyle
@@ -53,15 +53,18 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
     public var onFinish: () -> Void
     
     public var onError: (_ error: Error?) -> Void
-  
+    
+    public static func isAvailable() -> Bool {
+        return PKPaymentAuthorizationViewController.canMakePayments()
+    }
   
     // MARK: UIViewRepresentable
   
     public func makeUIView(context: Context) -> EvervaultPaymentView {
         // 1. Create the UIKit view
         let view = EvervaultPaymentView(
-            appUuid: appUuid,
-            merchantIdentifier: merchantIdentifier,
+            appId: appUuid,
+            merchantId: merchantIdentifier,
             transaction: transaction,
             supportedNetworks: supportedNetworks,
             buttonStyle: buttonStyle,

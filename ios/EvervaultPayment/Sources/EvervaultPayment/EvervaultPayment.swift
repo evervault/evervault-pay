@@ -48,15 +48,15 @@ public class EvervaultPaymentView: UIView {
 
     /// Designated initializer
     public init(
-        appUuid: String,
-        merchantIdentifier: String,
+        appId: String,
+        merchantId: String,
         transaction: Transaction,
         supportedNetworks: [Network],
         buttonStyle: ButtonStyle,
         buttonType: ButtonType,
     ) {
-        self.appUuid = appUuid
-        self.merchantIdentifier = merchantIdentifier
+        self.appUuid = appId
+        self.merchantIdentifier = merchantId
         self.transaction = transaction
         self.supportedNetworks = supportedNetworks
         self.buttonStyle = buttonStyle
@@ -86,7 +86,7 @@ public class EvervaultPaymentView: UIView {
     }
     
     /// Public check for Apple Pay availability
-    public func isAvailable() -> Bool {
+    public static func isAvailable() -> Bool {
         return PKPaymentAuthorizationViewController.canMakePayments()
     }
     

@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		230C1B5B2DFB3E6F003CD60A /* EvervaultPayment in Frameworks */ = {isa = PBXBuildFile; productRef = 230C1B5A2DFB3E6F003CD60A /* EvervaultPayment */; };
 		230C1B5D2DFB3E9F003CD60A /* EvervaultPayment in Frameworks */ = {isa = PBXBuildFile; productRef = 230C1B5C2DFB3E9F003CD60A /* EvervaultPayment */; };
+		2333CF442E1EB899006300FB /* EvervaultPayment in Frameworks */ = {isa = PBXBuildFile; productRef = 2333CF432E1EB899006300FB /* EvervaultPayment */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -72,6 +73,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				230C1B5D2DFB3E9F003CD60A /* EvervaultPayment in Frameworks */,
+				2333CF442E1EB899006300FB /* EvervaultPayment in Frameworks */,
 				230C1B5B2DFB3E6F003CD60A /* EvervaultPayment in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -135,6 +137,7 @@
 			packageProductDependencies = (
 				230C1B5A2DFB3E6F003CD60A /* EvervaultPayment */,
 				230C1B5C2DFB3E9F003CD60A /* EvervaultPayment */,
+				2333CF432E1EB899006300FB /* EvervaultPayment */,
 			);
 			productName = Demo;
 			productReference = 230C1B1C2DFB352B003CD60A /* Demo.app */;
@@ -219,7 +222,7 @@
 			mainGroup = 230C1B132DFB352B003CD60A;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				230C1B592DFB3E6F003CD60A /* XCLocalSwiftPackageReference "../EvervaultPayment" */,
+				2333CF422E1EB899006300FB /* XCLocalSwiftPackageReference "../../../evervault-pay" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 230C1B1D2DFB352B003CD60A /* Products */;
@@ -421,7 +424,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = Demo/Demo.entitlements;
+				CODE_SIGN_ENTITLEMENTS = Demo/DemoDebug.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -594,9 +597,9 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		230C1B592DFB3E6F003CD60A /* XCLocalSwiftPackageReference "../EvervaultPayment" */ = {
+		2333CF422E1EB899006300FB /* XCLocalSwiftPackageReference "../../../evervault-pay" */ = {
 			isa = XCLocalSwiftPackageReference;
-			relativePath = ../EvervaultPayment;
+			relativePath = "../../../evervault-pay";
 		};
 /* End XCLocalSwiftPackageReference section */
 
@@ -606,6 +609,10 @@
 			productName = EvervaultPayment;
 		};
 		230C1B5C2DFB3E9F003CD60A /* EvervaultPayment */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = EvervaultPayment;
+		};
+		2333CF432E1EB899006300FB /* EvervaultPayment */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = EvervaultPayment;
 		};
