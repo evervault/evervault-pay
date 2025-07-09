@@ -18,6 +18,11 @@ let package = Package(
     .target(
       name: "EvervaultPayment",
       path: "ios/EvervaultPayment"
+      exclude: ["Package.swift"]
     )
+  ],
+  exclude: [
+    "android",
+    "ios/Demo"
   ]
 )
