@@ -19,5 +19,10 @@ let package = Package(
       name: "EvervaultPayment",
       path: "ios/EvervaultPayment",
     )
+    .testTarget(
+      name: "EvervaultPaymentTests",
+      dependencies: ["EvervaultPayment"],
+      path: "ios/EvervaultPayment"
+    ),
   ]
 )
