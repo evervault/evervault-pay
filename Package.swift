@@ -20,9 +20,5 @@ let package = Package(
       path: "ios/EvervaultPayment",
       exclude: ["Package.swift"]
     )
-  ],
-  exclude: [
-    "android",
-    "ios/Demo"
   ]
 )
