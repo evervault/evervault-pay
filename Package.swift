@@ -3,7 +3,7 @@
 import PackageDescription
 
 let package = Package(
-  name: "evervault-pay",
+  name: "EvervaultPayment",
   platforms: [
     .iOS(.v15)
   ],
@@ -18,7 +18,6 @@ let package = Package(
     .target(
       name: "EvervaultPayment",
       path: "ios/EvervaultPayment",
-      exclude: ["ios/EvervaultPayment/Package.swift"]
     )
   ]
 )
