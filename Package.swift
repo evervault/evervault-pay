@@ -22,7 +22,7 @@ let package = Package(
     .testTarget(
       name: "EvervaultPaymentTests",
       dependencies: ["EvervaultPayment"],
-      path: "ios/EvervaultPayment"
+      path: "ios/EvervaultPayment/Test"
     ),
   ]
 )
