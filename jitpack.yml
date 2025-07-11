@@ -1,6 +1,14 @@
 jdk:
   - openjdk17
 
+before_install:
+  - |
+    echo "🔍  Checking tag prefix: '$VERSION'"
+    if [[ ! "$VERSION" =~ ^android- ]]; then
+      echo "Tag mismatch - not building for android"
+      exit 1
+    fi
+
 install:
   # Navigate into android/ and install into the local Maven repo
   - cd android && ./gradlew publishToMavenLocal
