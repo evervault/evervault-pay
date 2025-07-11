@@ -30,7 +30,7 @@ struct ContentView: View {
             if (EvervaultPaymentViewRepresentable.isAvailable()) {
                 EvervaultPaymentViewRepresentable(
                     appId: "YOUR_EVERVAULT_APP_ID",
-                    merchantId: "YOUR_APPLE_MERCHANT_ID",
+                    appleMerchantId: "YOUR_APPLE_MERCHANT_ID",
                     transaction: transaction,
                     supportedNetworks: [.visa, .masterCard, .amex],
                     buttonStyle: .whiteOutline,

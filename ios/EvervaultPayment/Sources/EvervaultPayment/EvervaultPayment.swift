@@ -9,7 +9,7 @@ public enum EvervaultError: Error, LocalizedError {
     case InvalidTransactionError
     case ApplePayUnavailableError
     case ApplePayPaymentSheetError
-    case DecodingError(underlying: Error)
+    case InternalError(underlying: Error)
     
     public var errorDescription: String? {
         switch self {
@@ -19,8 +19,8 @@ public enum EvervaultError: Error, LocalizedError {
             return "Apple Pay is unavailable on this device."
         case .ApplePayPaymentSheetError:
             return "An error occurred when presenting the Payment Sheet."
-        case .DecodingError(let underlying):
-            return "Failed to decode response from Evervault when encrypting the payment token: \(underlying)"
+        case .InternalError(let underlying):
+            return "An error occurred when handling the payment token: \(underlying)"
         }
     }
 }
@@ -30,7 +30,7 @@ public enum EvervaultError: Error, LocalizedError {
 /// A UIView that wraps Apple Pay button and handles full payment flow.
 public class EvervaultPaymentView: UIView {
     public var appUuid: String
-    public var merchantIdentifier: String
+    public var appleMerchantIdentifier: String
     public let transaction: Transaction
     public let supportedNetworks: [Network]
     public let buttonType: ButtonType
@@ -49,14 +49,14 @@ public class EvervaultPaymentView: UIView {
     /// Designated initializer
     public init(
         appId: String,
-        merchantId: String,
+        appleMerchantId: String,
         transaction: Transaction,
         supportedNetworks: [Network],
         buttonStyle: ButtonStyle,
         buttonType: ButtonType,
     ) {
         self.appUuid = appId
-        self.merchantIdentifier = merchantId
+        self.appleMerchantIdentifier = appleMerchantId
         self.transaction = transaction
         self.supportedNetworks = supportedNetworks
         self.buttonStyle = buttonStyle
@@ -142,7 +142,7 @@ public class EvervaultPaymentView: UIView {
     /// Constructs the Apple Pay Payment request object
     private func buildPaymentRequest() -> PKPaymentRequest {
         let paymentRequest = PKPaymentRequest()
-        paymentRequest.merchantIdentifier = self.merchantIdentifier
+        paymentRequest.merchantIdentifier = self.appleMerchantIdentifier
         paymentRequest.supportedNetworks = self.supportedNetworks
         paymentRequest.countryCode = self.transaction.country
         paymentRequest.currencyCode = self.transaction.currency
@@ -203,7 +203,7 @@ extension EvervaultPaymentView : PKPaymentAuthorizationViewControllerDelegate {
 
 /// Delegate for receiving result callbacks from `EvervaultPaymentView`
 public protocol EvervaultPaymentViewDelegate : AnyObject {
-    // Fired when a payment is authorized (but before dismissal)
+    /// Fired when a payment is authorized (but before dismissal)
     func evervaultPaymentView(_ view: EvervaultPaymentView, didAuthorizePayment result: ApplePayResponse?)
     /// Fired when the payment sheet is fully dismissed
     func evervaultPaymentView(_ view: EvervaultPaymentView, didFinishWithResult result: String?)

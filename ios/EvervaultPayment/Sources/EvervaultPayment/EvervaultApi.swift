@@ -31,7 +31,7 @@ struct EvervaultApi {
             let applePayResponse = try JSONDecoder().decode(ApplePayResponse.self, from: data)
             return applePayResponse
         } catch {
-            throw EvervaultError.DecodingError(underlying: error)
+            throw EvervaultError.InternalError(underlying: error)
         }
     }
 }

@@ -16,7 +16,7 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
   
     // MARK: Inputs
     let appUuid: String
-    let merchantIdentifier: String
+    let appleMerchantIdentifier: String
     let transaction: Transaction
     let supportedNetworks: [Network]
     
@@ -25,7 +25,7 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
     
     public init(
         appId: String,
-        merchantId: String,
+        appleMerchantId: String,
         transaction: Transaction,
         supportedNetworks: [Network],
         buttonStyle: ButtonStyle = .automatic,
@@ -35,7 +35,7 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
         onError: @escaping (_ error: Error?) -> Void
     ) {
         self.appUuid = appId
-        self.merchantIdentifier = merchantId
+        self.appleMerchantIdentifier = appleMerchantId
         self.transaction = transaction
         self.supportedNetworks = supportedNetworks
         self.buttonStyle = buttonStyle
@@ -64,7 +64,7 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
         // 1. Create the UIKit view
         let view = EvervaultPaymentView(
             appId: appUuid,
-            merchantId: merchantIdentifier,
+            appleMerchantId: appleMerchantIdentifier,
             transaction: transaction,
             supportedNetworks: supportedNetworks,
             buttonStyle: buttonStyle,
