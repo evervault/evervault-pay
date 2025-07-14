@@ -6,8 +6,10 @@ This project contains both iOS and Android implementations of the [Evervault](ht
 
 ## Installation
 
-[Android](https://docs.evervault.com/sdks/android)
-[iOS](https://docs.evervault.com/sdks/ios)
+This SDK is primarily available through both the Evervault Android SDK and Evervault iOS SDK. Check out the docs below on how to install them.
+
+* [Android](https://docs.evervault.com/sdks/android)
+* [iOS](https://docs.evervault.com/sdks/ios)
 
 ## SDK Reference
 
