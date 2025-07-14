@@ -2,6 +2,9 @@
 # IOS #
 #######
 
+#ignore swiftpm
+**/*/.swiftpm
+
 # Ignore any .plist under ios/Demo
 ios/Demo/**/*.plist
 
@@ -9,7 +12,7 @@ ios/Demo/**/*.plist
 **/*.entitlements
 
 # User settings
-xcuserdata/
+**/*/xcuserdata
 
 # Builds
 .build/
