@@ -53,7 +53,7 @@ public class EvervaultPaymentView: UIView {
         transaction: Transaction,
         supportedNetworks: [Network],
         buttonStyle: ButtonStyle,
-        buttonType: ButtonType,
+        buttonType: ButtonType
     ) {
         self.appUuid = appId
         self.appleMerchantIdentifier = appleMerchantId
