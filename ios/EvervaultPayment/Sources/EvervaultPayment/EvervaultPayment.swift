@@ -220,6 +220,11 @@ extension EvervaultPaymentView : PKPaymentAuthorizationViewControllerDelegate {
             controller.dismiss(animated: true)
         }
     }
+    
+    @MainActor
+    public func paymentAuthorizationViewController(_ controller: PKPaymentAuthorizationViewController, didSelect shippingMethod: PKShippingMethod) async -> PKPaymentRequestShippingMethodUpdate {
+        return await self.delegate?.evervaultPaymentView(self, onUpdateShippingMethod: shippingMethod) ?? PKPaymentRequestShippingMethodUpdate(paymentSummaryItems: self.buildPaymentRequest().paymentSummaryItems)
+    }
 }
 
 // MARK: - Delegate Protocol
@@ -228,6 +233,9 @@ extension EvervaultPaymentView : PKPaymentAuthorizationViewControllerDelegate {
 public protocol EvervaultPaymentViewDelegate : AnyObject {
     /// Fired when a payment is authorized (but before dismissal)
     func evervaultPaymentView(_ view: EvervaultPaymentView, didAuthorizePayment result: ApplePayResponse?)
+
+    func evervaultPaymentView(_ view: EvervaultPaymentView, onUpdateShippingMethod shippingMethod: PKShippingMethod) async -> PKPaymentRequestShippingMethodUpdate?
+
     /// Fired when the payment sheet is fully dismissed
     func evervaultPaymentView(_ view: EvervaultPaymentView, didFinishWithResult result: String?)
     func evervaultPaymentView(_ view: EvervaultPaymentView, didFinishWithError error: Error?)

@@ -32,7 +32,8 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
         buttonType: ButtonType = .buy,
         authorizedResponse: Binding<ApplePayResponse?>,
         onFinish: @escaping () -> Void,
-        onError: @escaping (_ error: Error?) -> Void
+        onError: @escaping (_ error: Error?) -> Void,
+        onShippingAddressChange: ((_ shippingMethod: PKShippingMethod) -> PKPaymentRequestShippingMethodUpdate)? = nil
     ) {
         self.appUuid = appId
         self.appleMerchantIdentifier = appleMerchantId
@@ -44,6 +45,7 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
         self._authorizedResponse = authorizedResponse
         self.onFinish = onFinish
         self.onError = onError
+        self.onShippingAddressChange = onShippingAddressChange
     }
   
     /// Called when Apple Pay authorizes the payment
@@ -53,6 +55,8 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
     public var onFinish: () -> Void
     
     public var onError: (_ error: Error?) -> Void
+    
+    public var onShippingAddressChange: ((_ shippingMethod: PKShippingMethod) -> PKPaymentRequestShippingMethodUpdate)?
     
     public static func isAvailable() -> Bool {
         return PKPaymentAuthorizationViewController.canMakePayments()
@@ -122,6 +126,14 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
             DispatchQueue.main.async {
                 parent.onError(error)
             }
+        }
+        
+        public func evervaultPaymentView(_ view: EvervaultPaymentView, onUpdateShippingMethod shippingMethod: PKShippingMethod) async -> PKPaymentRequestShippingMethodUpdate? {
+            if let handler = self.parent.onShippingAddressChange {
+                return await handler(shippingMethod)
+            }
+    
+            return nil
         }
     }
 }
