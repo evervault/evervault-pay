@@ -11,13 +11,13 @@ let package = Package(
     .library(
       name: "EvervaultPayment",
       targets: ["EvervaultPayment"]
-    ),
+    )
   ],
   dependencies: [],
   targets: [
     .target(
       name: "EvervaultPayment",
-      path: "ios/EvervaultPayment",
+      path: "ios/EvervaultPayment"
     )
   ]
 )

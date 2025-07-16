@@ -2,11 +2,10 @@
 # IOS #
 #######
 
-#ignore swiftpm
-**/*/.swiftpm
+**/*.DS_Store
 
-# Ignore any .plist under ios/Demo
-ios/Demo/**/*.plist
+#ignore swiftpm
+**/.swiftpm
 
 # Ignore any .entitlements
 **/*.entitlements
@@ -16,6 +15,8 @@ ios/Demo/**/*.plist
 
 # Builds
 .build/
+
+**/*.xcodeproj/xcshareddata
 
 ###########
 # Android #
