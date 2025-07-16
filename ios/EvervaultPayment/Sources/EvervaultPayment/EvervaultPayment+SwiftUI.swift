@@ -33,7 +33,8 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
         authorizedResponse: Binding<ApplePayResponse?>,
         onFinish: @escaping () -> Void,
         onError: @escaping (_ error: Error?) -> Void,
-        onShippingAddressChange: ((_ shippingMethod: PKShippingMethod) -> PKPaymentRequestShippingMethodUpdate)? = nil
+        onShippingAddressChange: ((_ shippingMethod: PKShippingMethod) -> PKPaymentRequestShippingMethodUpdate)? = nil,
+        onPaymentMethodChange: ((_ paymentMethod: PKPaymentMethod) -> PKPaymentRequestPaymentMethodUpdate)? = nil
     ) {
         self.appUuid = appId
         self.appleMerchantIdentifier = appleMerchantId
@@ -46,6 +47,7 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
         self.onFinish = onFinish
         self.onError = onError
         self.onShippingAddressChange = onShippingAddressChange
+        self.onPaymentMethodChange = onPaymentMethodChange
     }
   
     /// Called when Apple Pay authorizes the payment
@@ -57,7 +59,8 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
     public var onError: (_ error: Error?) -> Void
     
     public var onShippingAddressChange: ((_ shippingMethod: PKShippingMethod) -> PKPaymentRequestShippingMethodUpdate)?
-    
+    public var onPaymentMethodChange: ((_ paymentMethod: PKPaymentMethod) -> PKPaymentRequestPaymentMethodUpdate)?
+
     public static func isAvailable() -> Bool {
         return PKPaymentAuthorizationViewController.canMakePayments()
     }
@@ -128,9 +131,17 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
             }
         }
         
-        public func evervaultPaymentView(_ view: EvervaultPaymentView, onUpdateShippingMethod shippingMethod: PKShippingMethod) async -> PKPaymentRequestShippingMethodUpdate? {
+        public func evervaultPaymentView(_ view: EvervaultPaymentView, didUpdateShippingMethod shippingMethod: PKShippingMethod) async -> PKPaymentRequestShippingMethodUpdate? {
             if let handler = self.parent.onShippingAddressChange {
                 return await handler(shippingMethod)
+            }
+    
+            return nil
+        }
+        
+        public func evervaultPaymentView(_ view: EvervaultPaymentView, didUpdatePaymentMethod paymentMethod: PKPaymentMethod) async -> PKPaymentRequestPaymentMethodUpdate? {
+            if let handler = self.parent.onPaymentMethodChange {
+                return await handler(paymentMethod)
             }
     
             return nil

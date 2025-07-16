@@ -223,7 +223,12 @@ extension EvervaultPaymentView : PKPaymentAuthorizationViewControllerDelegate {
     
     @MainActor
     public func paymentAuthorizationViewController(_ controller: PKPaymentAuthorizationViewController, didSelect shippingMethod: PKShippingMethod) async -> PKPaymentRequestShippingMethodUpdate {
-        return await self.delegate?.evervaultPaymentView(self, onUpdateShippingMethod: shippingMethod) ?? PKPaymentRequestShippingMethodUpdate(paymentSummaryItems: self.buildPaymentRequest().paymentSummaryItems)
+        return await self.delegate?.evervaultPaymentView(self, didUpdateShippingMethod: shippingMethod) ?? PKPaymentRequestShippingMethodUpdate(paymentSummaryItems: self.buildPaymentRequest().paymentSummaryItems)
+    }
+    
+    @MainActor
+    public func paymentAuthorizationViewController(_ controller: PKPaymentAuthorizationViewController, didSelectPaymentMethod paymentMethod: PKPaymentMethod) async -> PKPaymentRequestPaymentMethodUpdate {
+        return await self.delegate?.evervaultPaymentView(self, didUpdatePaymentMethod: paymentMethod) ?? PKPaymentRequestPaymentMethodUpdate(paymentSummaryItems: self.buildPaymentRequest().paymentSummaryItems)
     }
 }
 
@@ -234,7 +239,8 @@ public protocol EvervaultPaymentViewDelegate : AnyObject {
     /// Fired when a payment is authorized (but before dismissal)
     func evervaultPaymentView(_ view: EvervaultPaymentView, didAuthorizePayment result: ApplePayResponse?)
 
-    func evervaultPaymentView(_ view: EvervaultPaymentView, onUpdateShippingMethod shippingMethod: PKShippingMethod) async -> PKPaymentRequestShippingMethodUpdate?
+    func evervaultPaymentView(_ view: EvervaultPaymentView, didUpdateShippingMethod shippingMethod: PKShippingMethod) async -> PKPaymentRequestShippingMethodUpdate?
+    func evervaultPaymentView(_ view: EvervaultPaymentView, didUpdatePaymentMethod paymentMethod: PKPaymentMethod) async -> PKPaymentRequestPaymentMethodUpdate?
 
     /// Fired when the payment sheet is fully dismissed
     func evervaultPaymentView(_ view: EvervaultPaymentView, didFinishWithResult result: String?)
