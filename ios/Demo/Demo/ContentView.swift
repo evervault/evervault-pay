@@ -9,16 +9,15 @@ import SwiftUI
 import EvervaultPayment
 
 func buildTransaction() -> EvervaultPayment.Transaction {
-        let transaction = try! EvervaultPayment.Transaction.createOneOff(
-            country: .ireland,
-            currency: .init("EUR"),
-            paymentSummaryItems: [
-                SummaryItem(label: "Mens Shirt", amount: Amount("30.00")),
-                SummaryItem(label: "Socks", amount: Amount("5.00")),
-                SummaryItem(label: "Total", amount: Amount("35.00"))
-            ]
-        )
-        return transaction
+    return try! .oneOffPayment(.init(
+        country: .ireland,
+        currency: .init("EUR"),
+        paymentSummaryItems: [
+            SummaryItem(label: "Mens Shirt", amount: Amount("30.00")),
+            SummaryItem(label: "Socks", amount: Amount("5.00")),
+            SummaryItem(label: "Total", amount: Amount("35.00"))
+        ]
+    ))
 }
 
 struct ContentView: View {

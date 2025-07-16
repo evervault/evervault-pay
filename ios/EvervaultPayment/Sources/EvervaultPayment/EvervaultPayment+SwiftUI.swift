@@ -113,24 +113,19 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
 
         nonisolated public func evervaultPaymentView(
             _ view: EvervaultPaymentView,
-            didFinishWithResult result: String?
+            didFinishWithResult result: Result<String?, Error>
         ) {
             let parent = self.parent
             DispatchQueue.main.async {
-                parent.onFinish()
+                switch result {
+                case .success(_):
+                    parent.onFinish()
+                case let .failure(error):
+                    parent.onError(error)
+                }
             }
         }
-        
-        nonisolated public func evervaultPaymentView(
-            _ view: EvervaultPaymentView,
-            didFinishWithError error: Error?
-        ) {
-            let parent = self.parent
-            DispatchQueue.main.async {
-                parent.onError(error)
-            }
-        }
-        
+
         public func evervaultPaymentView(_ view: EvervaultPaymentView, didUpdateShippingMethod shippingMethod: PKShippingMethod) async -> PKPaymentRequestShippingMethodUpdate? {
             if let handler = self.parent.onShippingAddressChange {
                 return await handler(shippingMethod)

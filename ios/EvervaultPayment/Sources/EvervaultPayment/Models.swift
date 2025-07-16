@@ -54,23 +54,115 @@ public struct SummaryItem {
     }
 }
 
-public enum TransactionType {
-    case oneOffPayment
-    case disbursement
+public struct OneOffPaymentTransaction {
+    public let country: String
+    public let currency: String
+    public let paymentSummaryItems: [SummaryItem]
+    
+    public init(country: String, currency: String, paymentSummaryItems: [SummaryItem]) throws {
+        self.country = country
+        self.currency = currency
+        self.paymentSummaryItems = paymentSummaryItems
+        
+        // Ensure at least one line item is provided
+        guard paymentSummaryItems.count > 0 else {
+            throw EvervaultError.InvalidTransactionError
+        }
+    }
+    
+    @available(iOS 16, *)
+    public init(country: Locale.Region, currency: Locale.Currency, paymentSummaryItems: [SummaryItem]) throws {
+        self.country = country.identifier
+        self.currency = currency.identifier
+        self.paymentSummaryItems = paymentSummaryItems
+
+        // Ensure at least one line item is provided
+        guard paymentSummaryItems.count > 0 else {
+            throw EvervaultError.InvalidTransactionError
+        }
+        
+        // Ensure valid currency
+        guard currency.isISOCurrency else {
+            throw EvervaultError.InvalidCurrencyError
+        }
+
+        guard country.isISORegion else {
+            throw EvervaultError.InvalidCountryError
+        }
+    }
 }
 
-/// Transaction details, including country, currency, and summary items
-public struct Transaction {
-    public let type: TransactionType
+public struct DisbursementTransaction {
     public let country: String
     public let currency: String
     public let paymentSummaryItems: [SummaryItem]
     public let requiredRecipientDetails: [PKContactField]
     
-    internal init(type: TransactionType, country: String, currency: String, paymentSummaryItems: [SummaryItem], requiredRecipientDetails: [PKContactField]) throws {
-        self.type = type
+    public init(country: String, currency: String, paymentSummaryItems: [SummaryItem], requiredRecipientDetails: [PKContactField]) throws {
         self.country = country
         self.currency = currency
+        self.paymentSummaryItems = paymentSummaryItems
+        self.requiredRecipientDetails = requiredRecipientDetails
+        
+        // 1. Ensure at least one line item is provided
+        guard paymentSummaryItems.count > 0 else {
+            throw EvervaultError.InvalidTransactionError
+        }
+    }
+    
+    @available(iOS 16, *)
+    public init(country: Locale.Region, currency: Locale.Currency, paymentSummaryItems: [SummaryItem], requiredRecipientDetails: [PKContactField]) throws {
+        self.country = country.identifier
+        self.currency = currency.identifier
+        self.paymentSummaryItems = paymentSummaryItems
+        self.requiredRecipientDetails = requiredRecipientDetails
+        
+        // Ensure at least one line item is provided
+        guard paymentSummaryItems.count > 0 else {
+            throw EvervaultError.InvalidTransactionError
+        }
+        
+        // Ensure valid currency
+        guard currency.isISOCurrency else {
+            throw EvervaultError.InvalidCurrencyError
+        }
+
+        guard country.isISORegion else {
+            throw EvervaultError.InvalidCountryError
+        }
+    }
+}
+
+public struct RecurringPaymentTransaction {
+    public let country: String
+    public let currency: String
+    public let paymentSummaryItems: [SummaryItem]
+    public let paymentDescription: String
+    public let regularBilling: PKRecurringPaymentSummaryItem
+    public let managementURL: URL
+    
+    public init(country: String, currency: String, paymentSummaryItems: [SummaryItem], paymentDescription: String, regularBilling: PKRecurringPaymentSummaryItem, managementURL: URL) throws {
+        self.country = country
+        self.currency = currency
+        self.paymentSummaryItems = paymentSummaryItems
+        self.paymentDescription = paymentDescription
+        self.regularBilling = regularBilling
+        self.managementURL = managementURL
+        
+        // 1. Ensure at least one line item is provided
+        guard paymentSummaryItems.count > 0 else {
+            throw EvervaultError.InvalidTransactionError
+        }
+    }
+    
+    @available(iOS 16.0, *)
+    public init(country: Locale.Region, currency: Locale.Currency, paymentSummaryItems: [SummaryItem], paymentDescription: String, regularBilling: PKRecurringPaymentSummaryItem, managementURL: URL) throws {
+        self.country = country.identifier
+        self.currency = currency.identifier
+        self.paymentSummaryItems = paymentSummaryItems
+        self.paymentDescription = paymentDescription
+        self.regularBilling = regularBilling
+        self.managementURL = managementURL
         
         // 1. Ensure at least one line item is provided
         guard paymentSummaryItems.count > 0 else {
@@ -78,47 +170,20 @@ public struct Transaction {
         }
         
         // Ensure valid currency
-        if #available(iOS 16, *) {
-            guard Locale.Currency(currency).isISOCurrency else {
-                throw EvervaultError.InvalidCurrencyError
-            }
-
-            guard Locale.Region(country).isISORegion else {
-                throw EvervaultError.InvalidCountryError
-            }
+        guard currency.isISOCurrency else {
+            throw EvervaultError.InvalidCurrencyError
         }
-        
-        self.paymentSummaryItems = paymentSummaryItems
-        self.requiredRecipientDetails = requiredRecipientDetails
-    }
 
-    public static func create(type: TransactionType, country: String, currency: String, paymentSummaryItems: [SummaryItem]) throws -> Transaction {
-        return try Transaction(type: type, country: country, currency: currency, paymentSummaryItems: paymentSummaryItems, requiredRecipientDetails: [])
+        guard country.isISORegion else {
+            throw EvervaultError.InvalidCountryError
+        }
     }
-    
-    @available(iOS 16, *)
-    public static func create(type: TransactionType, country: Locale.Region, currency: Locale.Currency, paymentSummaryItems: [SummaryItem]) throws -> Transaction {
-        return try Transaction(type: type, country: country.identifier, currency: currency.identifier, paymentSummaryItems: paymentSummaryItems, requiredRecipientDetails: [])
-    }
-    
-    public static func createOneOff(country: String, currency: String, paymentSummaryItems: [SummaryItem]) throws -> Transaction {
-        return try Transaction(type: .oneOffPayment, country: country, currency: currency, paymentSummaryItems: paymentSummaryItems, requiredRecipientDetails: [])
-    }
-    
-    @available(iOS 16, *)
-    public static func createOneOff(country: Locale.Region, currency: Locale.Currency, paymentSummaryItems: [SummaryItem]) throws -> Transaction {
-        return try Transaction(type: .oneOffPayment, country: country.identifier, currency: currency.identifier, paymentSummaryItems: paymentSummaryItems, requiredRecipientDetails: [])
-    }
-    
-    @available(iOS 17.0, *)
-    public static func createDisbursement(country: String, currency: String, paymentSummaryItems: [SummaryItem], requiredRecipientDetails: [PKContactField]) throws -> Transaction {
-        return try Transaction(type: .disbursement, country: country, currency: currency, paymentSummaryItems: paymentSummaryItems, requiredRecipientDetails: requiredRecipientDetails)
-    }
-    
-    @available(iOS 17.0, *)
-    public static func createDisbursement(country: Locale.Region, currency: Locale.Currency, paymentSummaryItems: [SummaryItem], requiredRecipientDetails: [PKContactField]) throws -> Transaction {
-        return try Transaction(type: .disbursement, country: country.identifier, currency: currency.identifier, paymentSummaryItems: paymentSummaryItems, requiredRecipientDetails: requiredRecipientDetails)
-    }
+}
+
+public enum Transaction {
+    case oneOffPayment(OneOffPaymentTransaction)
+    case disbursement(DisbursementTransaction)
+    case recurringPayment(RecurringPaymentTransaction)
 }
 
 struct ApplePayTokenHeader: Codable {

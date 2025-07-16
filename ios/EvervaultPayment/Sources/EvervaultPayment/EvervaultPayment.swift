@@ -12,6 +12,7 @@ public enum EvervaultError: Error, LocalizedError {
     case InvalidCountryError
     case ApplePayUnavailableError
     case ApplePayPaymentSheetError
+    case UnsupportedVersionError
     case InternalError(underlying: Error)
     
     public var errorDescription: String? {
@@ -30,6 +31,8 @@ public enum EvervaultError: Error, LocalizedError {
             return "Invalid currency provided to the transaction"
         case .InvalidCountryError:
             return "Invalid country provided to the transaction"
+        case .UnsupportedVersionError:
+            return "Some functionality is not available on this version of iOS"
         }
     }
 }
@@ -77,10 +80,7 @@ public class EvervaultPaymentView: UIView {
             // defer until after init-time delegate assignment
             DispatchQueue.main.async { [weak self] in
                 guard let self = self else { return }
-                self.delegate?.evervaultPaymentView(
-                    self,
-                    didFinishWithError: EvervaultError.ApplePayUnavailableError
-                )
+                self.delegate?.evervaultPaymentView(self, didFinishWithResult: .failure(EvervaultError.ApplePayUnavailableError))
             }
             return
         }
@@ -122,66 +122,108 @@ public class EvervaultPaymentView: UIView {
     /// Tapped handler to start the Apple Pay sheet
     @objc private func didTapPay() {
         do {
-            // Must have at least 1 line item
-            guard !transaction.paymentSummaryItems.isEmpty else {
-                throw EvervaultError.EmptyTransactionError
-            }
-            
-            // Build the PKPaymentRequest from the Transaction
-            let paymentRequest = buildPaymentRequest()
-            // Create the authorization view controller
-            guard let vc = PKPaymentAuthorizationViewController(paymentRequest: paymentRequest) else {
-                throw EvervaultError.ApplePayPaymentSheetError
-            }
-            
-            vc.delegate = self
-            
-            // Present the Payment Sheet from the frontmost window
-            if let rootVC = UIApplication.shared.windows
-                .first(where: { $0.isKeyWindow })?
-                .rootViewController {
-                    rootVC.present(vc, animated: true, completion: nil)
+            let rootVC = UIApplication.shared.windows.first(where: { $0.isKeyWindow })?.rootViewController
+
+            switch self.transaction {
+            case let .oneOffPayment(oneOffTransaction):
+                // Must have at least 1 line item
+                guard !oneOffTransaction.paymentSummaryItems.isEmpty else {
+                    throw EvervaultError.EmptyTransactionError
                 }
+
+                let paymentRequest = PKPaymentRequest()
+                paymentRequest.merchantIdentifier = self.appleMerchantIdentifier
+                paymentRequest.supportedNetworks = self.supportedNetworks
+                paymentRequest.countryCode = oneOffTransaction.country
+                paymentRequest.currencyCode = oneOffTransaction.currency
+                paymentRequest.paymentSummaryItems = oneOffTransaction.paymentSummaryItems.map { item in
+                    PKPaymentSummaryItem(label: item.label, amount: item.amount.amount)
+                }
+                paymentRequest.merchantCapabilities = .threeDSecure
+
+                guard let vc = PKPaymentAuthorizationViewController(paymentRequest: paymentRequest) else {
+                    throw EvervaultError.ApplePayPaymentSheetError
+                }
+                vc.delegate = self
+
+                // Present the Payment Sheet from the frontmost window
+                rootVC?.present(vc, animated: true)
+            case let .disbursement(disbursementTransaction):
+                // Must have at least 1 line item
+                guard !disbursementTransaction.paymentSummaryItems.isEmpty else {
+                    throw EvervaultError.EmptyTransactionError
+                }
+
+                if #available(iOS 17.0, *) {
+                    let paymentRequest = PKDisbursementRequest()
+                    paymentRequest.merchantIdentifier = self.appleMerchantIdentifier
+                    paymentRequest.supportedNetworks = self.supportedNetworks
+                    paymentRequest.region = Locale.Region(disbursementTransaction.country)
+                    paymentRequest.currency = Locale.Currency(disbursementTransaction.currency)
+                    paymentRequest.summaryItems = disbursementTransaction.paymentSummaryItems.map { item in
+                        PKPaymentSummaryItem(label: item.label, amount: item.amount.amount)
+                    }
+                    paymentRequest.merchantCapabilities = .threeDSecure
+                    
+                    let vc = PKPaymentAuthorizationViewController(disbursementRequest: paymentRequest)
+                    vc.delegate = self
+
+                    // Present the Payment Sheet from the frontmost window
+                    rootVC?.present(vc, animated: true)
+                } else {
+                    throw EvervaultError.UnsupportedVersionError
+                }
+            case let .recurringPayment(recurringTransaction):
+                // Must have at least 1 line item
+                guard !recurringTransaction.paymentSummaryItems.isEmpty else {
+                    throw EvervaultError.EmptyTransactionError
+                }
+
+                if #available(iOS 16.0, *) {
+                    let paymentRequest = PKPaymentRequest()
+                    paymentRequest.merchantIdentifier = self.appleMerchantIdentifier
+                    paymentRequest.supportedNetworks = self.supportedNetworks
+                    paymentRequest.countryCode = recurringTransaction.country
+                    paymentRequest.currencyCode = recurringTransaction.currency
+                    paymentRequest.paymentSummaryItems = recurringTransaction.paymentSummaryItems.map { item in
+                        PKPaymentSummaryItem(label: item.label, amount: item.amount.amount)
+                    }
+                    paymentRequest.merchantCapabilities = .threeDSecure
+
+                    var recurringPaymentRequest = PKRecurringPaymentRequest(paymentDescription: recurringTransaction.paymentDescription, regularBilling: recurringTransaction.regularBilling, managementURL: recurringTransaction.managementURL)
+                    paymentRequest.recurringPaymentRequest = recurringPaymentRequest
+
+                    guard let vc = PKPaymentAuthorizationViewController(paymentRequest: paymentRequest) else {
+                        throw EvervaultError.ApplePayPaymentSheetError
+                    }
+                    vc.delegate = self
+
+                    // Present the Payment Sheet from the frontmost window
+                    rootVC?.present(vc, animated: true)
+                } else {
+                    throw EvervaultError.UnsupportedVersionError
+                }
+            }
         } catch {
-            delegate?.evervaultPaymentView(self, didFinishWithError: error)
+            self.delegate?.evervaultPaymentView(self, didFinishWithResult: .failure(error))
         }
     }
     
-    /// Constructs the Apple Pay Payment request object
-    private func buildPaymentRequest() -> PKPaymentRequest {
-        let paymentRequest = PKPaymentRequest()
-        paymentRequest.merchantIdentifier = self.appleMerchantIdentifier
-        paymentRequest.supportedNetworks = self.supportedNetworks
-        paymentRequest.countryCode = self.transaction.country
-        paymentRequest.currencyCode = self.transaction.currency
-
-        // Map our SummaryItem model to PKPaymentSummaryItem
-        paymentRequest.paymentSummaryItems = paymentSummaryItemsForSummaryItems()
-        paymentRequest.merchantCapabilities = .threeDSecure
-        return paymentRequest
-    }
-    
-    /// Constructs the Apple Pay Payment request object
-    @available(iOS 17.0, *)
-    private func buildDisbursementPaymentRequest() -> PKDisbursementRequest {
-        let paymentRequest = PKDisbursementRequest()
-        paymentRequest.merchantIdentifier = self.appleMerchantIdentifier
-        paymentRequest.supportedNetworks = self.supportedNetworks
-        paymentRequest.region = .init(self.transaction.country)
-        paymentRequest.currency = .init(self.transaction.currency)
-
-        // Map our SummaryItem model to PKPaymentSummaryItem
-        paymentRequest.summaryItems = paymentSummaryItemsForSummaryItems()
-        paymentRequest.merchantCapabilities = .threeDSecure
-        return paymentRequest
-    }
-    
-    /// Converts our `SummaryItem` array into PassKit summary items
-    private func paymentSummaryItemsForSummaryItems() -> [PKPaymentSummaryItem] {
-        let summaryItems = self.transaction.paymentSummaryItems.map { item in
-            PKPaymentSummaryItem(label: item.label, amount: item.amount.amount)
+    private func getPaymentSummaryItems() -> [PKPaymentSummaryItem] {
+        switch self.transaction {
+        case let .oneOffPayment(oneOffTransaction):
+            return oneOffTransaction.paymentSummaryItems.map { item in
+                PKPaymentSummaryItem(label: item.label, amount: item.amount.amount)
+            }
+        case let .disbursement(dispersementTransaction):
+            return dispersementTransaction.paymentSummaryItems.map { item in
+                PKPaymentSummaryItem(label: item.label, amount: item.amount.amount)
+            }
+        case let .recurringPayment(recurringTransaction):
+            return recurringTransaction.paymentSummaryItems.map { item in
+                PKPaymentSummaryItem(label: item.label, amount: item.amount.amount)
+            }
         }
-        return summaryItems
     }
 }
 
@@ -206,7 +248,7 @@ extension EvervaultPaymentView : PKPaymentAuthorizationViewControllerDelegate {
         } catch {
             await MainActor.run {
                 // Notify the delegate on the main actor
-                self.delegate?.evervaultPaymentView(self, didFinishWithError: error)
+                self.delegate?.evervaultPaymentView(self, didFinishWithResult: .failure(error))
             }
             // On error, surface back to Apple Pay
             return PKPaymentAuthorizationResult(status: .failure, errors: [error])
@@ -216,19 +258,19 @@ extension EvervaultPaymentView : PKPaymentAuthorizationViewControllerDelegate {
     /// Called when the payment sheet is dismissed
     nonisolated public func paymentAuthorizationViewControllerDidFinish(_ controller: PKPaymentAuthorizationViewController) {
         DispatchQueue.main.async { [weak self] in
-            self?.delegate?.evervaultPaymentView(self!, didFinishWithResult: nil)
+            self?.delegate?.evervaultPaymentView(self!, didFinishWithResult: .success(nil))
             controller.dismiss(animated: true)
         }
     }
     
     @MainActor
     public func paymentAuthorizationViewController(_ controller: PKPaymentAuthorizationViewController, didSelect shippingMethod: PKShippingMethod) async -> PKPaymentRequestShippingMethodUpdate {
-        return await self.delegate?.evervaultPaymentView(self, didUpdateShippingMethod: shippingMethod) ?? PKPaymentRequestShippingMethodUpdate(paymentSummaryItems: self.buildPaymentRequest().paymentSummaryItems)
+        return await self.delegate?.evervaultPaymentView(self, didUpdateShippingMethod: shippingMethod) ?? PKPaymentRequestShippingMethodUpdate(paymentSummaryItems: self.getPaymentSummaryItems())
     }
     
     @MainActor
     public func paymentAuthorizationViewController(_ controller: PKPaymentAuthorizationViewController, didSelectPaymentMethod paymentMethod: PKPaymentMethod) async -> PKPaymentRequestPaymentMethodUpdate {
-        return await self.delegate?.evervaultPaymentView(self, didUpdatePaymentMethod: paymentMethod) ?? PKPaymentRequestPaymentMethodUpdate(paymentSummaryItems: self.buildPaymentRequest().paymentSummaryItems)
+        return await self.delegate?.evervaultPaymentView(self, didUpdatePaymentMethod: paymentMethod) ?? PKPaymentRequestPaymentMethodUpdate(paymentSummaryItems: self.getPaymentSummaryItems())
     }
 }
 
@@ -243,6 +285,5 @@ public protocol EvervaultPaymentViewDelegate : AnyObject {
     func evervaultPaymentView(_ view: EvervaultPaymentView, didUpdatePaymentMethod paymentMethod: PKPaymentMethod) async -> PKPaymentRequestPaymentMethodUpdate?
 
     /// Fired when the payment sheet is fully dismissed
-    func evervaultPaymentView(_ view: EvervaultPaymentView, didFinishWithResult result: String?)
-    func evervaultPaymentView(_ view: EvervaultPaymentView, didFinishWithError error: Error?)
+    func evervaultPaymentView(_ view: EvervaultPaymentView, didFinishWithResult result: Result<String?, Error>)
 }
