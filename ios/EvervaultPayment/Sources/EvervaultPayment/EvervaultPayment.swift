@@ -121,7 +121,7 @@ public class EvervaultPaymentView: UIView {
 
     /// Tapped handler to start the Apple Pay sheet
     @objc private func didTapPay() {
-        // If not delegate, use the transaction in-place
+        // Update the transaction in place.
         self.delegate?.evervaultPaymentView(self, prepareTransaction: &self.transaction)
 
         do {

@@ -8,7 +8,7 @@
 import SwiftUI
 import EvervaultPayment
 
-func buildTransaction() -> EvervaultPayment.Transaction {
+fileprivate func buildTransaction() -> EvervaultPayment.Transaction {
     return try! .oneOffPayment(.init(
         country: .ireland,
         currency: .init("EUR"),
@@ -30,7 +30,7 @@ struct ContentView: View {
                 EvervaultPaymentViewRepresentable(
                     appId: "YOUR_EVERVAULT_APP_ID",
                     appleMerchantId: "YOUR_APPLE_MERCHANT_ID",
-                    transaction: transaction,
+                    transaction: self.transaction,
                     supportedNetworks: [.visa, .masterCard, .amex],
                     buttonStyle: .whiteOutline,
                     buttonType: .checkout,
