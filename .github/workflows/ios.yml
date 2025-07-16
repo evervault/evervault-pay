@@ -1,7 +1,10 @@
 name: iOS workflow
 
 on:
-  - push
+  push:
+    paths:
+      - 'ios'
+      - '**.swift'
 
 jobs:
   build:

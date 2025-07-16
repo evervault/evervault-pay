@@ -1,7 +1,10 @@
 name: Android CI
 
 on:
-  - push
+  push:
+    paths:
+      - 'android'
+   
 
 jobs:
   build:
