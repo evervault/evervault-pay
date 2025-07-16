@@ -43,7 +43,7 @@ public enum EvervaultError: Error, LocalizedError {
 public class EvervaultPaymentView: UIView {
     public var appUuid: String
     public var appleMerchantIdentifier: String
-    public let transaction: Transaction
+    private(set) var transaction: Transaction
     public let supportedNetworks: [Network]
     public let buttonType: ButtonType
     public let buttonStyle: ButtonStyle
@@ -121,6 +121,9 @@ public class EvervaultPaymentView: UIView {
 
     /// Tapped handler to start the Apple Pay sheet
     @objc private func didTapPay() {
+        // If not delegate, use the transaction in-place
+        self.delegate?.evervaultPaymentView(self, prepareTransaction: &self.transaction)
+
         do {
             let rootVC = UIApplication.shared.windows.first(where: { $0.isKeyWindow })?.rootViewController
 
@@ -286,4 +289,25 @@ public protocol EvervaultPaymentViewDelegate : AnyObject {
 
     /// Fired when the payment sheet is fully dismissed
     func evervaultPaymentView(_ view: EvervaultPaymentView, didFinishWithResult result: Result<String?, Error>)
+    
+    func evervaultPaymentView(_ view: EvervaultPaymentView, prepareTransaction transaction: inout Transaction)
+}
+
+// Default implementations, making these methods optional for a delegate to implement.
+extension EvervaultPaymentViewDelegate {
+    public func evervaultPaymentView(_ view: EvervaultPaymentView, prepareTransaction transaction: inout Transaction) {
+        // Do nothing
+    }
+    
+    func evervaultPaymentView(_ view: EvervaultPaymentView, didFinishWithResult result: Result<String?, Error>) {
+        // Do nothing
+    }
+    
+    public func evervaultPaymentView(_ view: EvervaultPaymentView, didUpdateShippingMethod shippingMethod: PKShippingMethod) async -> PKPaymentRequestShippingMethodUpdate? {
+        return nil
+    }
+
+    public func evervaultPaymentView(_ view: EvervaultPaymentView, didUpdatePaymentMethod paymentMethod: PKPaymentMethod) async -> PKPaymentRequestPaymentMethodUpdate? {
+        return nil
+    }
 }

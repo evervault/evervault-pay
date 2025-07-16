@@ -33,6 +33,7 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
         authorizedResponse: Binding<ApplePayResponse?>,
         onFinish: @escaping () -> Void,
         onError: @escaping (_ error: Error?) -> Void,
+        prepareTransaction: ((_ transaction: inout Transaction) -> Void)? = nil,
         onShippingAddressChange: ((_ shippingMethod: PKShippingMethod) -> PKPaymentRequestShippingMethodUpdate)? = nil,
         onPaymentMethodChange: ((_ paymentMethod: PKPaymentMethod) -> PKPaymentRequestPaymentMethodUpdate)? = nil
     ) {
@@ -46,6 +47,7 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
         self._authorizedResponse = authorizedResponse
         self.onFinish = onFinish
         self.onError = onError
+        self.prepareTransaction = prepareTransaction
         self.onShippingAddressChange = onShippingAddressChange
         self.onPaymentMethodChange = onPaymentMethodChange
     }
@@ -60,6 +62,8 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
     
     public var onShippingAddressChange: ((_ shippingMethod: PKShippingMethod) -> PKPaymentRequestShippingMethodUpdate)?
     public var onPaymentMethodChange: ((_ paymentMethod: PKPaymentMethod) -> PKPaymentRequestPaymentMethodUpdate)?
+
+    public var prepareTransaction: ((_ transaction: inout Transaction) -> Void)?
 
     public static func isAvailable() -> Bool {
         return PKPaymentAuthorizationViewController.canMakePayments()
@@ -140,6 +144,12 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
             }
     
             return nil
+        }
+        
+        public func evervaultPaymentView(_ view: EvervaultPaymentView, prepareTransaction transaction: inout Transaction) {
+            if let handler = self.parent.prepareTransaction {
+                handler(&transaction)
+            }
         }
     }
 }
