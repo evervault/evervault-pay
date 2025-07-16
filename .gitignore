@@ -16,6 +16,8 @@
 # Builds
 .build/
 
+**/*.xcodeproj/xcshareddata
+
 ###########
 # Android #
 ###########
