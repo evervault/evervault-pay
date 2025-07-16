@@ -3,7 +3,8 @@ name: Android CI
 on:
   push:
     paths:
-      - 'android'
+      - 'android/**'
+      - '.github/**'
    
 
 jobs:

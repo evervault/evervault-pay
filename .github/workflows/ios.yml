@@ -3,8 +3,9 @@ name: iOS workflow
 on:
   push:
     paths:
-      - 'ios'
-      - '**.swift'
+      - 'ios/**'
+      - '*.swift'
+      - '.github/**'
 
 jobs:
   build:
