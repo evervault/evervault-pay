@@ -7,6 +7,9 @@ import Foundation
 /// Defines all possible errors in the Evervault Apple Pay flow.
 public enum EvervaultError: Error, LocalizedError {
     case InvalidTransactionError
+    case EmptyTransactionError
+    case InvalidCurrencyError
+    case InvalidCountryError
     case ApplePayUnavailableError
     case ApplePayPaymentSheetError
     case InternalError(underlying: Error)
@@ -14,6 +17,8 @@ public enum EvervaultError: Error, LocalizedError {
     public var errorDescription: String? {
         switch self {
         case .InvalidTransactionError:
+            return "A generic error occurred when processing the transaction."
+        case .EmptyTransactionError:
             return "Transaction must contain at least 1 summary item."
         case .ApplePayUnavailableError:
             return "Apple Pay is unavailable on this device."
@@ -21,6 +26,10 @@ public enum EvervaultError: Error, LocalizedError {
             return "An error occurred when presenting the Payment Sheet."
         case .InternalError(let underlying):
             return "An error occurred when handling the payment token: \(underlying)"
+        case .InvalidCurrencyError:
+            return "Invalid currency provided to the transaction"
+        case .InvalidCountryError:
+            return "Invalid country provided to the transaction"
         }
     }
 }
@@ -115,7 +124,7 @@ public class EvervaultPaymentView: UIView {
         do {
             // Must have at least 1 line item
             guard !transaction.paymentSummaryItems.isEmpty else {
-                throw EvervaultError.InvalidTransactionError
+                throw EvervaultError.EmptyTransactionError
             }
             
             // Build the PKPaymentRequest from the Transaction
@@ -134,7 +143,6 @@ public class EvervaultPaymentView: UIView {
                     rootVC.present(vc, animated: true, completion: nil)
                 }
         } catch {
-    
             delegate?.evervaultPaymentView(self, didFinishWithError: error)
         }
     }
@@ -149,6 +157,21 @@ public class EvervaultPaymentView: UIView {
 
         // Map our SummaryItem model to PKPaymentSummaryItem
         paymentRequest.paymentSummaryItems = paymentSummaryItemsForSummaryItems()
+        paymentRequest.merchantCapabilities = .threeDSecure
+        return paymentRequest
+    }
+    
+    /// Constructs the Apple Pay Payment request object
+    @available(iOS 17.0, *)
+    private func buildDisbursementPaymentRequest() -> PKDisbursementRequest {
+        let paymentRequest = PKDisbursementRequest()
+        paymentRequest.merchantIdentifier = self.appleMerchantIdentifier
+        paymentRequest.supportedNetworks = self.supportedNetworks
+        paymentRequest.region = .init(self.transaction.country)
+        paymentRequest.currency = .init(self.transaction.currency)
+
+        // Map our SummaryItem model to PKPaymentSummaryItem
+        paymentRequest.summaryItems = paymentSummaryItemsForSummaryItems()
         paymentRequest.merchantCapabilities = .threeDSecure
         return paymentRequest
     }

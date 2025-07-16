@@ -9,9 +9,9 @@ import SwiftUI
 import EvervaultPayment
 
 func buildTransaction() -> EvervaultPayment.Transaction {
-        let transaction = try! EvervaultPayment.Transaction(
-            country: "IE",
-            currency: "EUR",
+        let transaction = try! EvervaultPayment.Transaction.createOneOff(
+            country: .ireland,
+            currency: .init("EUR"),
             paymentSummaryItems: [
                 SummaryItem(label: "Mens Shirt", amount: Amount("30.00")),
                 SummaryItem(label: "Socks", amount: Amount("5.00")),

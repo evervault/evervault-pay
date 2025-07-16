@@ -54,13 +54,21 @@ public struct SummaryItem {
     }
 }
 
+public enum TransactionType {
+    case oneOffPayment
+    case disbursement
+}
+
 /// Transaction details, including country, currency, and summary items
 public struct Transaction {
+    public let type: TransactionType
     public let country: String
     public let currency: String
     public let paymentSummaryItems: [SummaryItem]
-
-    public init(country: String, currency: String, paymentSummaryItems: [SummaryItem]) throws {
+    public let requiredRecipientDetails: [PKContactField]
+    
+    internal init(type: TransactionType, country: String, currency: String, paymentSummaryItems: [SummaryItem], requiredRecipientDetails: [PKContactField]) throws {
+        self.type = type
         self.country = country
         self.currency = currency
         
@@ -68,7 +76,48 @@ public struct Transaction {
         guard paymentSummaryItems.count > 0 else {
             throw EvervaultError.InvalidTransactionError
         }
+        
+        // Ensure valid currency
+        if #available(iOS 16, *) {
+            guard Locale.Currency(currency).isISOCurrency else {
+                throw EvervaultError.InvalidCurrencyError
+            }
+
+            guard Locale.Region(country).isISORegion else {
+                throw EvervaultError.InvalidCountryError
+            }
+        }
+        
         self.paymentSummaryItems = paymentSummaryItems
+        self.requiredRecipientDetails = requiredRecipientDetails
+    }
+
+    public static func create(type: TransactionType, country: String, currency: String, paymentSummaryItems: [SummaryItem]) throws -> Transaction {
+        return try Transaction(type: type, country: country, currency: currency, paymentSummaryItems: paymentSummaryItems, requiredRecipientDetails: [])
+    }
+    
+    @available(iOS 16, *)
+    public static func create(type: TransactionType, country: Locale.Region, currency: Locale.Currency, paymentSummaryItems: [SummaryItem]) throws -> Transaction {
+        return try Transaction(type: type, country: country.identifier, currency: currency.identifier, paymentSummaryItems: paymentSummaryItems, requiredRecipientDetails: [])
+    }
+    
+    public static func createOneOff(country: String, currency: String, paymentSummaryItems: [SummaryItem]) throws -> Transaction {
+        return try Transaction(type: .oneOffPayment, country: country, currency: currency, paymentSummaryItems: paymentSummaryItems, requiredRecipientDetails: [])
+    }
+    
+    @available(iOS 16, *)
+    public static func createOneOff(country: Locale.Region, currency: Locale.Currency, paymentSummaryItems: [SummaryItem]) throws -> Transaction {
+        return try Transaction(type: .oneOffPayment, country: country.identifier, currency: currency.identifier, paymentSummaryItems: paymentSummaryItems, requiredRecipientDetails: [])
+    }
+    
+    @available(iOS 17.0, *)
+    public static func createDisbursement(country: String, currency: String, paymentSummaryItems: [SummaryItem], requiredRecipientDetails: [PKContactField]) throws -> Transaction {
+        return try Transaction(type: .disbursement, country: country, currency: currency, paymentSummaryItems: paymentSummaryItems, requiredRecipientDetails: requiredRecipientDetails)
+    }
+    
+    @available(iOS 17.0, *)
+    public static func createDisbursement(country: Locale.Region, currency: Locale.Currency, paymentSummaryItems: [SummaryItem], requiredRecipientDetails: [PKContactField]) throws -> Transaction {
+        return try Transaction(type: .disbursement, country: country.identifier, currency: currency.identifier, paymentSummaryItems: paymentSummaryItems, requiredRecipientDetails: requiredRecipientDetails)
     }
 }
 
