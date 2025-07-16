@@ -11,6 +11,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Inject Entitlements File
+        working-directory: ios/Demo/Demo
+        run: |
+          echo "$IOS_TEST_ENTITLEMENTS_CONTENTS" > DemoDebug.entitlements
       - name: Set Default Scheme
         working-directory: ios/Demo
         run: |
