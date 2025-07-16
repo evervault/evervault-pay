@@ -57,7 +57,6 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
 
     /// Called when the sheet is dismissed
     public var onFinish: () -> Void
-    
     public var onError: (_ error: Error?) -> Void
     
     public var onShippingAddressChange: ((_ shippingMethod: PKShippingMethod) -> PKPaymentRequestShippingMethodUpdate)?
@@ -104,28 +103,20 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
           self.parent = parent
         }
 
-        nonisolated public func evervaultPaymentView(
-            _ view: EvervaultPaymentView,
-            didAuthorizePayment result: ApplePayResponse?
-        ) {
-          // hop back to main thread to update SwiftUI state
-            let parent = self.parent
+        nonisolated public func evervaultPaymentView(_ view: EvervaultPaymentView, didAuthorizePayment result: ApplePayResponse?) {
+            // hop back to main thread to update SwiftUI state
             DispatchQueue.main.async {
-                parent.authorizedResponse = result
+                self.parent.authorizedResponse = result
             }
         }
 
-        nonisolated public func evervaultPaymentView(
-            _ view: EvervaultPaymentView,
-            didFinishWithResult result: Result<String?, Error>
-        ) {
-            let parent = self.parent
+        nonisolated public func evervaultPaymentView(_ view: EvervaultPaymentView, didFinishWithResult result: Result<String?, Error>) {
             DispatchQueue.main.async {
                 switch result {
                 case .success(_):
-                    parent.onFinish()
+                    self.parent.onFinish()
                 case let .failure(error):
-                    parent.onError(error)
+                    self.parent.onError(error)
                 }
             }
         }

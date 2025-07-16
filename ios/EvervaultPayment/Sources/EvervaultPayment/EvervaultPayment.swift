@@ -234,10 +234,7 @@ public class EvervaultPaymentView: UIView {
 
 extension EvervaultPaymentView : PKPaymentAuthorizationViewControllerDelegate {
     /// Called when the user authorizes the payment
-    nonisolated public func paymentAuthorizationViewController(
-        _ controller: PKPaymentAuthorizationViewController,
-        didAuthorizePayment payment: PKPayment
-    ) async -> PKPaymentAuthorizationResult {
+    nonisolated public func paymentAuthorizationViewController(_ controller: PKPaymentAuthorizationViewController, didAuthorizePayment payment: PKPayment) async -> PKPaymentAuthorizationResult {
         do {
             // Send the token to the Evervault backend for decryption and re-encryption with Evervault Encryption
             let decoded = try await EvervaultApi.sendPaymentToken(appUuid, payment)
@@ -261,7 +258,8 @@ extension EvervaultPaymentView : PKPaymentAuthorizationViewControllerDelegate {
     /// Called when the payment sheet is dismissed
     nonisolated public func paymentAuthorizationViewControllerDidFinish(_ controller: PKPaymentAuthorizationViewController) {
         DispatchQueue.main.async { [weak self] in
-            self?.delegate?.evervaultPaymentView(self!, didFinishWithResult: .success(nil))
+            guard let self = self else { return }
+            self.delegate?.evervaultPaymentView(self, didFinishWithResult: .success(nil))
             controller.dismiss(animated: true)
         }
     }
@@ -284,12 +282,16 @@ public protocol EvervaultPaymentViewDelegate : AnyObject {
     /// Fired when a payment is authorized (but before dismissal)
     func evervaultPaymentView(_ view: EvervaultPaymentView, didAuthorizePayment result: ApplePayResponse?)
 
+    /// Called when the user updates the shipping method.  The delegate returns an optional update which could include things like the re-calculated cost including shipping.
     func evervaultPaymentView(_ view: EvervaultPaymentView, didUpdateShippingMethod shippingMethod: PKShippingMethod) async -> PKPaymentRequestShippingMethodUpdate?
+
+    /// Called when the user updates the payment method.
     func evervaultPaymentView(_ view: EvervaultPaymentView, didUpdatePaymentMethod paymentMethod: PKPaymentMethod) async -> PKPaymentRequestPaymentMethodUpdate?
 
     /// Fired when the payment sheet is fully dismissed
     func evervaultPaymentView(_ view: EvervaultPaymentView, didFinishWithResult result: Result<String?, Error>)
-    
+
+    /// Called after the user taps the Apple Pay button, but before the modal is displayed.  The delegate can modify the transaction in-place.
     func evervaultPaymentView(_ view: EvervaultPaymentView, prepareTransaction transaction: inout Transaction)
 }
 
