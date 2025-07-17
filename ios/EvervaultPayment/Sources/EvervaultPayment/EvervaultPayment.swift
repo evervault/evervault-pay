@@ -133,17 +133,8 @@ public class EvervaultPaymentView: UIView {
                 guard !oneOffTransaction.paymentSummaryItems.isEmpty else {
                     throw EvervaultError.EmptyTransactionError
                 }
-
-                let paymentRequest = PKPaymentRequest()
-                paymentRequest.merchantIdentifier = self.appleMerchantIdentifier
-                paymentRequest.supportedNetworks = self.supportedNetworks
-                paymentRequest.countryCode = oneOffTransaction.country
-                paymentRequest.currencyCode = oneOffTransaction.currency
-                paymentRequest.paymentSummaryItems = oneOffTransaction.paymentSummaryItems.map { item in
-                    PKPaymentSummaryItem(label: item.label, amount: item.amount.amount)
-                }
-                paymentRequest.merchantCapabilities = .threeDSecure
-
+                
+                let paymentRequest = self.buildPaymentRequest(transaction: oneOffTransaction)
                 guard let vc = PKPaymentAuthorizationViewController(paymentRequest: paymentRequest) else {
                     throw EvervaultError.ApplePayPaymentSheetError
                 }
@@ -158,16 +149,7 @@ public class EvervaultPaymentView: UIView {
                 }
 
                 if #available(iOS 17.0, *) {
-                    let paymentRequest = PKDisbursementRequest()
-                    paymentRequest.merchantIdentifier = self.appleMerchantIdentifier
-                    paymentRequest.supportedNetworks = self.supportedNetworks
-                    paymentRequest.region = Locale.Region(disbursementTransaction.country)
-                    paymentRequest.currency = Locale.Currency(disbursementTransaction.currency)
-                    paymentRequest.summaryItems = disbursementTransaction.paymentSummaryItems.map { item in
-                        PKPaymentSummaryItem(label: item.label, amount: item.amount.amount)
-                    }
-                    paymentRequest.merchantCapabilities = .threeDSecure
-                    
+                    let paymentRequest = self.buildPaymentRequest(transaction: disbursementTransaction)
                     let vc = PKPaymentAuthorizationViewController(disbursementRequest: paymentRequest)
                     vc.delegate = self
 
@@ -183,19 +165,7 @@ public class EvervaultPaymentView: UIView {
                 }
 
                 if #available(iOS 16.0, *) {
-                    let paymentRequest = PKPaymentRequest()
-                    paymentRequest.merchantIdentifier = self.appleMerchantIdentifier
-                    paymentRequest.supportedNetworks = self.supportedNetworks
-                    paymentRequest.countryCode = recurringTransaction.country
-                    paymentRequest.currencyCode = recurringTransaction.currency
-                    paymentRequest.paymentSummaryItems = recurringTransaction.paymentSummaryItems.map { item in
-                        PKPaymentSummaryItem(label: item.label, amount: item.amount.amount)
-                    }
-                    paymentRequest.merchantCapabilities = .threeDSecure
-
-                    var recurringPaymentRequest = PKRecurringPaymentRequest(paymentDescription: recurringTransaction.paymentDescription, regularBilling: recurringTransaction.regularBilling, managementURL: recurringTransaction.managementURL)
-                    paymentRequest.recurringPaymentRequest = recurringPaymentRequest
-
+                    let paymentRequest = self.buildPaymentRequest(transaction: recurringTransaction)
                     guard let vc = PKPaymentAuthorizationViewController(paymentRequest: paymentRequest) else {
                         throw EvervaultError.ApplePayPaymentSheetError
                     }
@@ -210,6 +180,50 @@ public class EvervaultPaymentView: UIView {
         } catch {
             self.delegate?.evervaultPaymentView(self, didFinishWithResult: .failure(error))
         }
+    }
+    
+    private func buildPaymentRequest(transaction: OneOffPaymentTransaction) -> PKPaymentRequest {
+        let paymentRequest = PKPaymentRequest()
+        paymentRequest.merchantIdentifier = self.appleMerchantIdentifier
+        paymentRequest.supportedNetworks = self.supportedNetworks
+        paymentRequest.countryCode = transaction.country
+        paymentRequest.currencyCode = transaction.currency
+        paymentRequest.paymentSummaryItems = transaction.paymentSummaryItems.map { item in
+            PKPaymentSummaryItem(label: item.label, amount: item.amount.amount)
+        }
+        paymentRequest.merchantCapabilities = .threeDSecure
+        return paymentRequest
+    }
+    
+    @available(iOS 17.0, *)
+    private func buildPaymentRequest(transaction: DisbursementTransaction) -> PKDisbursementRequest {
+        let paymentRequest = PKDisbursementRequest()
+        paymentRequest.merchantIdentifier = self.appleMerchantIdentifier
+        paymentRequest.supportedNetworks = self.supportedNetworks
+        paymentRequest.region = Locale.Region(transaction.country)
+        paymentRequest.currency = Locale.Currency(transaction.currency)
+        paymentRequest.summaryItems = transaction.paymentSummaryItems.map { item in
+            PKPaymentSummaryItem(label: item.label, amount: item.amount.amount)
+        }
+        paymentRequest.merchantCapabilities = .threeDSecure
+        return paymentRequest
+    }
+    
+    @available(iOS 16.0, *)
+    private func buildPaymentRequest(transaction: RecurringPaymentTransaction) -> PKPaymentRequest {
+        let paymentRequest = PKPaymentRequest()
+        paymentRequest.merchantIdentifier = self.appleMerchantIdentifier
+        paymentRequest.supportedNetworks = self.supportedNetworks
+        paymentRequest.countryCode = transaction.country
+        paymentRequest.currencyCode = transaction.currency
+        paymentRequest.paymentSummaryItems = transaction.paymentSummaryItems.map { item in
+            PKPaymentSummaryItem(label: item.label, amount: item.amount.amount)
+        }
+        paymentRequest.merchantCapabilities = .threeDSecure
+
+        var recurringPaymentRequest = PKRecurringPaymentRequest(paymentDescription: transaction.paymentDescription, regularBilling: transaction.regularBilling, managementURL: transaction.managementURL)
+        paymentRequest.recurringPaymentRequest = recurringPaymentRequest
+        return paymentRequest
     }
     
     private func getPaymentSummaryItems() -> [PKPaymentSummaryItem] {

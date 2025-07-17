@@ -5,7 +5,8 @@ struct EvervaultApi {
     private static let defaultBaseUrl = "https://api.evervault.com"
 
     static func sendPaymentToken(_ appUuid: String, _ payment: PKPayment) async throws -> ApplePayResponse? {
-        guard let url = URL(string: "\(EvervaultApi.defaultBaseUrl)/frontend/apple-pay/credentials") else {
+        let evervaultBaseURL = ProcessInfo.processInfo.environment["EVERVAULT_BASE_URL"] ?? EvervaultApi.defaultBaseUrl
+        guard let url = URL(string: "\(evervaultBaseURL)/frontend/apple-pay/credentials") else {
             return nil
         }
 
