@@ -58,12 +58,33 @@ public struct OneOffPaymentTransaction {
     public let country: String
     public let currency: String
     public let paymentSummaryItems: [SummaryItem]
+
+    public let shippingType: PKShippingType
+    public let shippingMethods: [PKShippingMethod]
+    public let requiredShippingContactFields: Set<PKContactField>
     
     public init(country: String, currency: String, paymentSummaryItems: [SummaryItem]) throws {
         self.country = country
         self.currency = currency
         self.paymentSummaryItems = paymentSummaryItems
-        
+        self.shippingType = .shipping
+        self.shippingMethods = []
+        self.requiredShippingContactFields = []
+
+        // Ensure at least one line item is provided
+        guard paymentSummaryItems.count > 0 else {
+            throw EvervaultError.InvalidTransactionError
+        }
+    }
+
+    public init(country: String, currency: String, paymentSummaryItems: [SummaryItem], shippingType: PKShippingType, shippingMethods: [PKShippingMethod], requiredShippingContactFields: Set<PKContactField>) throws {
+        self.country = country
+        self.currency = currency
+        self.paymentSummaryItems = paymentSummaryItems
+        self.shippingType = shippingType
+        self.shippingMethods = shippingMethods
+        self.requiredShippingContactFields = requiredShippingContactFields
+
         // Ensure at least one line item is provided
         guard paymentSummaryItems.count > 0 else {
             throw EvervaultError.InvalidTransactionError
@@ -75,6 +96,33 @@ public struct OneOffPaymentTransaction {
         self.country = country.identifier
         self.currency = currency.identifier
         self.paymentSummaryItems = paymentSummaryItems
+        self.shippingType = .shipping
+        self.shippingMethods = []
+        self.requiredShippingContactFields = []
+
+        // Ensure at least one line item is provided
+        guard paymentSummaryItems.count > 0 else {
+            throw EvervaultError.InvalidTransactionError
+        }
+        
+        // Ensure valid currency
+        guard currency.isISOCurrency else {
+            throw EvervaultError.InvalidCurrencyError
+        }
+
+        guard country.isISORegion else {
+            throw EvervaultError.InvalidCountryError
+        }
+    }
+    
+    @available(iOS 16, *)
+    public init(country: Locale.Region, currency: Locale.Currency, paymentSummaryItems: [SummaryItem], shippingType: PKShippingType, shippingMethods: [PKShippingMethod], requiredShippingContactFields: Set<PKContactField>) throws {
+        self.country = country.identifier
+        self.currency = currency.identifier
+        self.paymentSummaryItems = paymentSummaryItems
+        self.shippingType = shippingType
+        self.shippingMethods = shippingMethods
+        self.requiredShippingContactFields = requiredShippingContactFields
 
         // Ensure at least one line item is provided
         guard paymentSummaryItems.count > 0 else {
@@ -97,7 +145,7 @@ public struct DisbursementTransaction {
     public let currency: String
     public let paymentSummaryItems: [SummaryItem]
     public let requiredRecipientDetails: [PKContactField]
-    
+
     public init(country: String, currency: String, paymentSummaryItems: [SummaryItem], requiredRecipientDetails: [PKContactField]) throws {
         self.country = country
         self.currency = currency

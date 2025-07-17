@@ -151,6 +151,9 @@ public class EvervaultPaymentView: UIView {
                 if #available(iOS 17.0, *) {
                     let paymentRequest = self.buildPaymentRequest(transaction: disbursementTransaction)
                     let vc = PKPaymentAuthorizationViewController(disbursementRequest: paymentRequest)
+                    if vc == nil {
+                        throw EvervaultError.ApplePayPaymentSheetError
+                    }
                     vc.delegate = self
 
                     // Present the Payment Sheet from the frontmost window
@@ -181,7 +184,7 @@ public class EvervaultPaymentView: UIView {
             self.delegate?.evervaultPaymentView(self, didFinishWithResult: .failure(error))
         }
     }
-    
+
     private func buildPaymentRequest(transaction: OneOffPaymentTransaction) -> PKPaymentRequest {
         let paymentRequest = PKPaymentRequest()
         paymentRequest.merchantIdentifier = self.appleMerchantIdentifier
@@ -192,9 +195,14 @@ public class EvervaultPaymentView: UIView {
             PKPaymentSummaryItem(label: item.label, amount: item.amount.amount)
         }
         paymentRequest.merchantCapabilities = .threeDSecure
+
+        paymentRequest.shippingType = transaction.shippingType
+        paymentRequest.shippingMethods = transaction.shippingMethods
+        paymentRequest.requiredShippingContactFields = transaction.requiredShippingContactFields
+
         return paymentRequest
     }
-    
+
     @available(iOS 17.0, *)
     private func buildPaymentRequest(transaction: DisbursementTransaction) -> PKDisbursementRequest {
         let paymentRequest = PKDisbursementRequest()
@@ -206,9 +214,10 @@ public class EvervaultPaymentView: UIView {
             PKPaymentSummaryItem(label: item.label, amount: item.amount.amount)
         }
         paymentRequest.merchantCapabilities = .threeDSecure
+
         return paymentRequest
     }
-    
+
     @available(iOS 16.0, *)
     private func buildPaymentRequest(transaction: RecurringPaymentTransaction) -> PKPaymentRequest {
         let paymentRequest = PKPaymentRequest()
