@@ -8,17 +8,16 @@
 import SwiftUI
 import EvervaultPayment
 
-func buildTransaction() -> EvervaultPayment.Transaction {
-        let transaction = try! EvervaultPayment.Transaction(
-            country: "IE",
-            currency: "EUR",
-            paymentSummaryItems: [
-                SummaryItem(label: "Mens Shirt", amount: Amount("30.00")),
-                SummaryItem(label: "Socks", amount: Amount("5.00")),
-                SummaryItem(label: "Total", amount: Amount("35.00"))
-            ]
-        )
-        return transaction
+fileprivate func buildTransaction() -> EvervaultPayment.Transaction {
+    return try! .oneOffPayment(.init(
+        country: .ireland,
+        currency: .init("EUR"),
+        paymentSummaryItems: [
+            SummaryItem(label: "Mens Shirt", amount: Amount("30.00")),
+            SummaryItem(label: "Socks", amount: Amount("5.00")),
+            SummaryItem(label: "Total", amount: Amount("35.00"))
+        ]
+    ))
 }
 
 struct ContentView: View {
@@ -31,7 +30,7 @@ struct ContentView: View {
                 EvervaultPaymentViewRepresentable(
                     appId: "YOUR_EVERVAULT_APP_ID",
                     appleMerchantId: "YOUR_APPLE_MERCHANT_ID",
-                    transaction: transaction,
+                    transaction: self.transaction,
                     supportedNetworks: [.visa, .masterCard, .amex],
                     buttonStyle: .whiteOutline,
                     buttonType: .checkout,
