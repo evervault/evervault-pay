@@ -67,6 +67,14 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
     public static func isAvailable() -> Bool {
         return PKPaymentAuthorizationViewController.canMakePayments()
     }
+    
+    public static func supportsDisbursements() -> Bool {
+        if #available(iOS 17.0, *) {
+            return PKPaymentAuthorizationViewController.supportsDisbursements()
+        } else {
+            return false
+        }
+    }
   
     // MARK: UIViewRepresentable
   

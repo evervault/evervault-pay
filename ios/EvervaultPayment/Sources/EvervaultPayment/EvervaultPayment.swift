@@ -211,10 +211,28 @@ public class EvervaultPaymentView: UIView {
         paymentRequest.region = Locale.Region(transaction.country)
         paymentRequest.currency = Locale.Currency(transaction.currency)
         paymentRequest.summaryItems = transaction.paymentSummaryItems.map { item in
-            PKPaymentSummaryItem(label: item.label, amount: item.amount.amount)
+            PKPaymentSummaryItem(
+                label: item.label,
+                amount: item.amount.amount
+            )
         }
-        paymentRequest.merchantCapabilities = .threeDSecure
-
+        if (transaction.merchantCapability == .instantFundsOut) {
+            paymentRequest.summaryItems.append(
+                PKInstantFundsOutFeeSummaryItem(
+                    label: transaction.instantOutFee?.label ?? "Instant funds out fee",
+                    amount: transaction.instantOutFee?.amount.amount ?? 0
+                )
+            )
+        }
+        paymentRequest.summaryItems.append(
+            PKDisbursementSummaryItem(
+                label: transaction.disbursementItem.label,
+                amount: transaction.disbursementItem.amount.amount
+            )
+        )
+        paymentRequest.merchantCapabilities = transaction.merchantCapability
+        paymentRequest.requiredRecipientContactFields = transaction.requiredRecipientDetails
+                
         return paymentRequest
     }
 

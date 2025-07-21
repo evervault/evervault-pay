@@ -7,16 +7,24 @@
 
 import SwiftUI
 import EvervaultPayment
+//import PassKit
 
 fileprivate func buildTransaction() -> EvervaultPayment.Transaction {
-    return try! .oneOffPayment(.init(
-        country: .ireland,
-        currency: .init("EUR"),
+    return try! .disbursement(.init(
+        country: "IE",
+        currency: "EUR",
         paymentSummaryItems: [
-            SummaryItem(label: "Mens Shirt", amount: Amount("30.00")),
-            SummaryItem(label: "Socks", amount: Amount("5.00")),
-            SummaryItem(label: "Total", amount: Amount("35.00"))
-        ]
+            SummaryItem(label: "Withdrawal Summary", amount: Amount("41.00")),
+            SummaryItem(label: "Crypto Balance", amount: Amount("25.00")),
+            SummaryItem(label: "EUR Balance", amount: Amount("15.00")),
+        ],
+        disbursementItem: SummaryItem(label: "Disbursement", amount: Amount("41.00")),
+        instantOutFee: SummaryItem(label: "Instant funds out fee", amount: Amount("1.00")),
+        requiredRecipientDetails: [
+            ContactField.emailAddress,
+            ContactField.phoneNumber,
+        ],
+        merchantCapability: MerchantCapability.instantFundsOut
     ))
 }
 

@@ -3,6 +3,9 @@ import Foundation
 
 public typealias Network = PKPaymentNetwork
 
+public typealias ContactField = PKContactField
+public typealias MerchantCapability = PKMerchantCapability
+
 public struct ApplePayNetworkTokenExpiry: Codable, Sendable, Equatable {
     public let month: String
     public let year: String
@@ -144,13 +147,19 @@ public struct DisbursementTransaction {
     public let country: String
     public let currency: String
     public let paymentSummaryItems: [SummaryItem]
+    public let disbursementItem: SummaryItem
+    public let instantOutFee: SummaryItem?
     public let requiredRecipientDetails: [PKContactField]
-
-    public init(country: String, currency: String, paymentSummaryItems: [SummaryItem], requiredRecipientDetails: [PKContactField]) throws {
+    public let merchantCapability: PKMerchantCapability
+    
+    public init(country: String, currency: String, paymentSummaryItems: [SummaryItem], disbursementItem: SummaryItem, instantOutFee: SummaryItem? = nil, requiredRecipientDetails: [PKContactField], merchantCapability: PKMerchantCapability) throws {
         self.country = country
         self.currency = currency
         self.paymentSummaryItems = paymentSummaryItems
+        self.disbursementItem = disbursementItem
+        self.instantOutFee = instantOutFee
         self.requiredRecipientDetails = requiredRecipientDetails
+        self.merchantCapability = merchantCapability
         
         // 1. Ensure at least one line item is provided
         guard paymentSummaryItems.count > 0 else {
@@ -159,11 +168,14 @@ public struct DisbursementTransaction {
     }
     
     @available(iOS 16, *)
-    public init(country: Locale.Region, currency: Locale.Currency, paymentSummaryItems: [SummaryItem], requiredRecipientDetails: [PKContactField]) throws {
+    public init(country: Locale.Region, currency: Locale.Currency, paymentSummaryItems: [SummaryItem], disbursementItem: SummaryItem, instantOutFee: SummaryItem? = nil, requiredRecipientDetails: [PKContactField], merchantCapability: PKMerchantCapability) throws {
         self.country = country.identifier
         self.currency = currency.identifier
         self.paymentSummaryItems = paymentSummaryItems
+        self.disbursementItem = disbursementItem
+        self.instantOutFee = instantOutFee
         self.requiredRecipientDetails = requiredRecipientDetails
+        self.merchantCapability = merchantCapability
         
         // Ensure at least one line item is provided
         guard paymentSummaryItems.count > 0 else {
