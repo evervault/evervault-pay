@@ -32,7 +32,7 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
         buttonType: ButtonType = .buy,
         authorizedResponse: Binding<ApplePayResponse?>,
         prepareTransaction: ((_ transaction: inout Transaction) -> Void)? = nil,
-        onShippingAddressChange: ((_ shippingMethod: PKShippingMethod) -> PKPaymentRequestShippingMethodUpdate)? = nil,
+        onShippingAddressChange: ((_ shippingAddress: PKContact) -> [SummaryItem])? = nil,
         onPaymentMethodChange: ((_ paymentMethod: PKPaymentMethod) -> PKPaymentRequestPaymentMethodUpdate)? = nil,
         onResult: @escaping (_ result: Result<(), EvervaultError>) -> Void
     ) {
@@ -55,8 +55,7 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
 
     /// Called when the sheet is dismissed
     public var onResult: (_ result: Result<(), EvervaultError>) -> Void
-
-    public var onShippingAddressChange: ((_ shippingMethod: PKShippingMethod) -> PKPaymentRequestShippingMethodUpdate)?
+    public var onShippingAddressChange: ((_ shippingContact: PKContact) -> [SummaryItem])?
     public var onPaymentMethodChange: ((_ paymentMethod: PKPaymentMethod) -> PKPaymentRequestPaymentMethodUpdate)?
 
     public var prepareTransaction: ((_ transaction: inout Transaction) -> Void)?
@@ -121,9 +120,16 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
             }
         }
 
-        public func evervaultPaymentView(_ view: EvervaultPaymentView, didUpdateShippingMethod shippingMethod: PKShippingMethod) async -> PKPaymentRequestShippingMethodUpdate? {
+        nonisolated public func evervaultPaymentView(_ view: EvervaultPaymentView, didSelectShippingContact contact: PKContact) async -> PKPaymentRequestShippingContactUpdate? {
             if let handler = self.parent.onShippingAddressChange {
-                return await handler(shippingMethod)
+                let updatedLineItems = await handler(contact)
+                return PKPaymentRequestShippingContactUpdate(
+                    errors: nil,
+                    paymentSummaryItems: updatedLineItems.map{ item in
+                        PKPaymentSummaryItem(label: item.label, amount: item.amount.amount)
+                    },
+                    shippingMethods: getShippingMethods(transaction: view.transaction)
+                )
             }
 
             return nil
@@ -140,6 +146,18 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
         public func evervaultPaymentView(_ view: EvervaultPaymentView, prepareTransaction transaction: inout Transaction) {
             if let handler = self.parent.prepareTransaction {
                 handler(&transaction)
+            }
+        }
+        
+        // Helper function to get the shipping methods for the various transaction types
+        private func getShippingMethods(transaction: Transaction) -> [PKShippingMethod] {
+            switch transaction {
+                case .oneOffPayment(let paymentRequest):
+                    return paymentRequest.shippingMethods ?? []
+                case .recurringPayment(let paymentRequest):
+                    return []
+                case .disbursement(let paymentRequest):
+                    return []
             }
         }
     }

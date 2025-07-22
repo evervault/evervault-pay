@@ -5,6 +5,10 @@ public typealias Network = PKPaymentNetwork
 
 public typealias ContactField = PKContactField
 public typealias MerchantCapability = PKMerchantCapability
+public typealias ShippingMethod = PKShippingMethod
+public typealias ShippingContact = PKContact
+public typealias ShippingContactField = PKContactField
+public typealias ShippingType = PKShippingType
 
 public struct ApplePayNetworkTokenExpiry: Codable, Sendable, Equatable {
     public let month: String
@@ -60,7 +64,7 @@ public struct SummaryItem {
 public struct OneOffPaymentTransaction {
     public let country: String
     public let currency: String
-    public let paymentSummaryItems: [SummaryItem]
+    public var paymentSummaryItems: [SummaryItem]
 
     public let shippingType: PKShippingType
     public let shippingMethods: [PKShippingMethod]
@@ -146,7 +150,7 @@ public struct OneOffPaymentTransaction {
 public struct DisbursementTransaction {
     public let country: String
     public let currency: String
-    public let paymentSummaryItems: [SummaryItem]
+    public var paymentSummaryItems: [SummaryItem]
     public let disbursementItem: SummaryItem
     public let instantOutFee: SummaryItem?
     public let requiredRecipientDetails: [ContactField]
@@ -196,23 +200,26 @@ public struct DisbursementTransaction {
 public struct RecurringPaymentTransaction {
     public let country: String
     public let currency: String
-    public let paymentSummaryItems: [SummaryItem]
+    public var paymentSummaryItems: [SummaryItem]
     public let paymentDescription: String
     public let regularBilling: PKRecurringPaymentSummaryItem
     public let managementURL: URL
+    public var trialBilling: PKRecurringPaymentSummaryItem?
+    public var billingAgreement: String?
     
-    public init(country: String, currency: String, paymentSummaryItems: [SummaryItem], paymentDescription: String, regularBilling: PKRecurringPaymentSummaryItem, managementURL: URL) throws {
+    public init(country: String, currency: String, paymentSummaryItems: [SummaryItem], paymentDescription: String, regularBilling: PKRecurringPaymentSummaryItem, managementURL: String) throws {
         self.country = country
         self.currency = currency
         self.paymentSummaryItems = paymentSummaryItems
         self.paymentDescription = paymentDescription
         self.regularBilling = regularBilling
-        self.managementURL = managementURL
+        self.managementURL = URL(string: managementURL)!
         
+        // TODO: leaving commented for now - it may be a subscription with no line items
         // 1. Ensure at least one line item is provided
-        guard paymentSummaryItems.count > 0 else {
-            throw EvervaultError.InvalidTransactionError
-        }
+        // guard paymentSummaryItems.count > 0 else {
+        //     throw EvervaultError.InvalidTransactionError
+        // }
     }
     
     @available(iOS 16.0, *)
@@ -224,10 +231,11 @@ public struct RecurringPaymentTransaction {
         self.regularBilling = regularBilling
         self.managementURL = managementURL
         
+        // TODO: leaving commented for now - it may be a subscription with no line items
         // 1. Ensure at least one line item is provided
-        guard paymentSummaryItems.count > 0 else {
-            throw EvervaultError.InvalidTransactionError
-        }
+        // guard paymentSummaryItems.count > 0 else {
+        //     throw EvervaultError.InvalidTransactionError
+        // }
         
         // Ensure valid currency
         guard currency.isISOCurrency else {

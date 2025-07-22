@@ -165,10 +165,11 @@ public class EvervaultPaymentView: UIView {
                     throw EvervaultError.UnsupportedVersionError
                 }
             case let .recurringPayment(recurringTransaction):
+                // TODO: commented for now - may be a subscription with no line items
                 // Must have at least 1 line item
-                guard !recurringTransaction.paymentSummaryItems.isEmpty else {
-                    throw EvervaultError.EmptyTransactionError
-                }
+                // guard !recurringTransaction.paymentSummaryItems.isEmpty else {
+                //     throw EvervaultError.EmptyTransactionError
+                // }
 
                 if #available(iOS 16.0, *) {
                     let paymentRequest = self.buildPaymentRequest(transaction: recurringTransaction)
@@ -255,8 +256,19 @@ public class EvervaultPaymentView: UIView {
         }
         paymentRequest.merchantCapabilities = .threeDSecure
 
-        var recurringPaymentRequest = PKRecurringPaymentRequest(paymentDescription: transaction.paymentDescription, regularBilling: transaction.regularBilling, managementURL: transaction.managementURL)
-        paymentRequest.recurringPaymentRequest = recurringPaymentRequest
+        paymentRequest.paymentSummaryItems.append(transaction.regularBilling)
+        if (transaction.trialBilling != nil) {
+            paymentRequest.paymentSummaryItems.append(transaction.trialBilling!)
+        }
+        let recurring = PKRecurringPaymentRequest(
+            paymentDescription: "Monthly Pro Subscription",
+            regularBilling: transaction.regularBilling,
+            managementURL: URL(string: "https://example.com/manage")!
+        )
+        recurring.trialBilling = transaction.trialBilling
+        recurring.billingAgreement = "Agree to recurring payments"
+        paymentRequest.recurringPaymentRequest = recurring
+        
         return paymentRequest
     }
     
@@ -313,8 +325,11 @@ extension EvervaultPaymentView : PKPaymentAuthorizationViewControllerDelegate {
     }
     
     @MainActor
-    public func paymentAuthorizationViewController(_ controller: PKPaymentAuthorizationViewController, didSelect shippingMethod: PKShippingMethod) async -> PKPaymentRequestShippingMethodUpdate {
-        return await self.delegate?.evervaultPaymentView(self, didUpdateShippingMethod: shippingMethod) ?? PKPaymentRequestShippingMethodUpdate(paymentSummaryItems: self.getPaymentSummaryItems())
+    public func paymentAuthorizationViewController(
+        _ controller: PKPaymentAuthorizationViewController,
+        didSelectShippingContact contact: PKContact
+    ) async -> PKPaymentRequestShippingContactUpdate {
+        return await self.delegate?.evervaultPaymentView(self, didSelectShippingContact: contact) ?? PKPaymentRequestShippingContactUpdate(paymentSummaryItems: self.getPaymentSummaryItems())
     }
     
     @MainActor
@@ -331,7 +346,7 @@ public protocol EvervaultPaymentViewDelegate : AnyObject {
     func evervaultPaymentView(_ view: EvervaultPaymentView, didAuthorizePayment result: ApplePayResponse?)
 
     /// Called when the user updates the shipping method.  The delegate returns an optional update which could include things like the re-calculated cost including shipping.
-    func evervaultPaymentView(_ view: EvervaultPaymentView, didUpdateShippingMethod shippingMethod: PKShippingMethod) async -> PKPaymentRequestShippingMethodUpdate?
+    func evervaultPaymentView(_ view: EvervaultPaymentView, didSelectShippingContact: PKContact) async -> PKPaymentRequestShippingContactUpdate?
 
     /// Called when the user updates the payment method.
     func evervaultPaymentView(_ view: EvervaultPaymentView, didUpdatePaymentMethod paymentMethod: PKPaymentMethod) async -> PKPaymentRequestPaymentMethodUpdate?
@@ -353,7 +368,7 @@ extension EvervaultPaymentViewDelegate {
         // Do nothing
     }
     
-    public func evervaultPaymentView(_ view: EvervaultPaymentView, didUpdateShippingMethod shippingMethod: PKShippingMethod) async -> PKPaymentRequestShippingMethodUpdate? {
+    public func evervaultPaymentView(_ view: EvervaultPaymentView, didSelectShippingContact: PKContact) async -> PKPaymentRequestShippingContactUpdate? {
         return nil
     }
 

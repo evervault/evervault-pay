@@ -7,42 +7,112 @@
 
 import SwiftUI
 import EvervaultPayment
+import PassKit
 
-fileprivate func buildTransaction(type: TransactionType) -> EvervaultPayment.Transaction {
-    switch type {
-    case .disbursement:
-        return try! .disbursement(.init(
-            country: "IE",
-            currency: "EUR",
-            paymentSummaryItems: [
-                SummaryItem(label: "Withdrawal Summary", amount: Amount("41.00")),
-                SummaryItem(label: "Crypto Balance", amount: Amount("25.00")),
-                SummaryItem(label: "EUR Balance", amount: Amount("15.00")),
-            ],
-            disbursementItem: SummaryItem(label: "Disbursement", amount: Amount("41.00")),
-            instantOutFee: SummaryItem(label: "Instant funds out fee", amount: Amount("1.00")),
-            requiredRecipientDetails: [
-                .emailAddress,
-                .phoneNumber,
-            ],
-            merchantCapability: MerchantCapability.instantFundsOut
-        ))
-    case .oneOff:
-        return try! .oneOffPayment(.init(
-             country: "IE",
-             currency: "EUR",
-             paymentSummaryItems: [
-                 SummaryItem(label: "Mens Shirt", amount: Amount("30.00")),
-                 SummaryItem(label: "Socks", amount: Amount("5.00")),
-                 SummaryItem(label: "Total", amount: Amount("35.00"))
-             ]
-         ))
-    case .recurring:
-        return try! .recurringPayment(.init(country: "IE", currency: "EUR", paymentSummaryItems: [
-            SummaryItem(label: "Mens Shirt", amount: Amount("30.00")),
-            SummaryItem(label: "Socks", amount: Amount("5.00")),
-            SummaryItem(label: "Total", amount: Amount("35.00"))
-        ], paymentDescription: "Orders a shirt and socks everry month", regularBilling: .init(label: "Checkout", amount: 70.0), managementURL: URL(string: "https://mock.evervault.com/checkout")!))
+fileprivate func buildTransaction() -> EvervaultPayment.Transaction {
+    let express = ShippingMethod(
+      label: "Express Shipping",                      // what shows in the UI
+      amount: NSDecimalNumber(string: "9.99")         // cost
+    )
+    express.identifier = "express_1day"
+    express.detail = "Arrives in 1–2 business days."
+    
+    let standard = ShippingMethod(
+        label: "Standard Shipping",
+        amount: NSDecimalNumber(string: "2.99")
+    )
+    standard.identifier = "standard_3day"
+    standard.detail = "Arrives in 3-5 business days."
+    
+    let recurringBilling = PKRecurringPaymentSummaryItem(
+        label: "Pro Subscription",
+        amount: 5.00
+    )
+    recurringBilling.intervalUnit = NSCalendar.Unit.month
+    recurringBilling.intervalCount = 2
+    var dateComponent = DateComponents()
+    dateComponent.day = 7
+    recurringBilling.startDate = Calendar.current.date(byAdding: dateComponent, to: Date())
+    
+    let trialBilling = PKRecurringPaymentSummaryItem(label: "Trial", amount: 0)
+    trialBilling.startDate = nil // Now
+    
+    var recurringBillingRequest = try! RecurringPaymentTransaction.init(
+        country: "IE",
+        currency: "EUR",
+        paymentSummaryItems: [],
+        paymentDescription: "Recurring payment example.",
+        regularBilling: recurringBilling,
+        managementURL: "https://www.merchant.com/manage-subscriptions",
+    )
+    recurringBillingRequest.billingAgreement = "https://www.merchant.com/billing-agreement"
+    recurringBillingRequest.trialBilling = trialBilling
+    return Transaction.recurringPayment(recurringBillingRequest)
+}
+
+fileprivate func getUpdatedTransaction(_ newAddress: ShippingContact, transaction: EvervaultPayment.Transaction) -> [SummaryItem] {
+    // Get the country for the new address
+    let country = newAddress.postalAddress?.country
+    
+    // Calculate the shipping cost based on the new address
+    let shippingCost = country == "IE" ? Amount("2.99") : Amount("9.99")
+
+    switch transaction {
+    case .oneOffPayment(let oneOff):
+        var summaryItems = [SummaryItem(label: "Shipping", amount: shippingCost)]
+        summaryItems = summaryItems + oneOff.paymentSummaryItems
+        
+        // Remove the old "Total" line item
+        summaryItems.popLast()
+        
+        // Calculate the new total
+        let newTotal = summaryItems
+            .map { $0.amount.amount as Decimal }
+            .reduce(Decimal.zero, +)
+        
+        // Format for currency
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.minimumFractionDigits = 2
+        formatter.maximumFractionDigits = 2
+        let formattedTotal = formatter.string(
+            from: newTotal as NSDecimalNumber
+        ) ?? newTotal.description
+        
+        // Add the new "Total" line item to the end
+        summaryItems.append(
+            SummaryItem(label: "Total", amount: Amount(formattedTotal))
+        )
+
+        return summaryItems
+    case .disbursement(let disbursement):
+        // Calculate new line items and total for address change
+        return disbursement.paymentSummaryItems
+    case .recurringPayment(let recurring):
+        // Calculate new line items and total for address change
+        var summaryItems = [SummaryItem(label: "Shipping", amount: shippingCost)]
+        summaryItems = summaryItems + recurring.paymentSummaryItems
+        
+        // Calculate the new total
+        let newTotal = summaryItems
+            .map { $0.amount.amount as Decimal }
+            .reduce(Decimal.zero, +)
+        
+        // Format for currency
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.minimumFractionDigits = 2
+        formatter.maximumFractionDigits = 2
+        let formattedTotal = formatter.string(
+            from: newTotal as NSDecimalNumber
+        ) ?? newTotal.description
+        
+        // Add the new "Total" line item to the end
+        summaryItems.append(
+            SummaryItem(label: "Total", amount: Amount(formattedTotal))
+        )
+
+        return summaryItems
     }
 }
 
@@ -78,7 +148,8 @@ struct TransactionHandler : View {
                     supportedNetworks: [.visa, .masterCard, .amex],
                     buttonStyle: .whiteOutline,
                     buttonType: .checkout,
-                    authorizedResponse: $applePayResponse) { result in
+                    authorizedResponse: $applePayResponse
+                    onFinish: { result in
                         switch result {
                         case .success(_):
                             print("Payment sheet dismissed")
@@ -90,7 +161,16 @@ struct TransactionHandler : View {
                             print("Payment sheet error: \(error.localizedDescription)")
                             break
                         }
-                    }
+                    },
+                    onError: { error in
+                        let message = error?.localizedDescription
+                        print("Payment sheet error: \(String(describing: message))")
+                    },
+                    onShippingAddressChange: { newAddress in
+                        let updatedSummaryItems = getUpdatedTransaction(newAddress, transaction: self.transaction)
+                        return updatedSummaryItems
+                    },
+                )
             } else {
                 Text("Not available")
             }
