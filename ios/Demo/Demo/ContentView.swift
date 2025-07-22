@@ -7,7 +7,6 @@
 
 import SwiftUI
 import EvervaultPayment
-//import PassKit
 
 fileprivate func buildTransaction() -> EvervaultPayment.Transaction {
     return try! .disbursement(.init(
@@ -21,8 +20,8 @@ fileprivate func buildTransaction() -> EvervaultPayment.Transaction {
         disbursementItem: SummaryItem(label: "Disbursement", amount: Amount("41.00")),
         instantOutFee: SummaryItem(label: "Instant funds out fee", amount: Amount("1.00")),
         requiredRecipientDetails: [
-            ContactField.emailAddress,
-            ContactField.phoneNumber,
+            .emailAddress,
+            .phoneNumber,
         ],
         merchantCapability: MerchantCapability.instantFundsOut
     ))
@@ -42,18 +41,19 @@ struct ContentView: View {
                     supportedNetworks: [.visa, .masterCard, .amex],
                     buttonStyle: .whiteOutline,
                     buttonType: .checkout,
-                    authorizedResponse: $applePayResponse,
-                    onFinish: {
-                        print("Payment sheet dismissed")
-                        if (applePayResponse != nil) {
-                            // Send to PSP via Relay on your backend
+                    authorizedResponse: $applePayResponse) { result in
+                        switch result {
+                        case .success(_):
+                            print("Payment sheet dismissed")
+                            if (applePayResponse != nil) {
+                                // Send to PSP via Relay on your backend
+                            }
+                            break
+                        case let .failure(error):
+                            print("Payment sheet error: \(error.localizedDescription)")
+                            break
                         }
-                    },
-                    onError: { error in
-                        let message = error?.localizedDescription
-                        print("Payment sheet error: \(String(describing: message))")
                     }
-                )
             } else {
                 Text("Not available")
             }

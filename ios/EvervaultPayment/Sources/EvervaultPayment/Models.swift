@@ -64,7 +64,7 @@ public struct OneOffPaymentTransaction {
 
     public let shippingType: PKShippingType
     public let shippingMethods: [PKShippingMethod]
-    public let requiredShippingContactFields: Set<PKContactField>
+    public let requiredShippingContactFields: Set<ContactField>
     
     public init(country: String, currency: String, paymentSummaryItems: [SummaryItem]) throws {
         self.country = country
@@ -80,7 +80,7 @@ public struct OneOffPaymentTransaction {
         }
     }
 
-    public init(country: String, currency: String, paymentSummaryItems: [SummaryItem], shippingType: PKShippingType, shippingMethods: [PKShippingMethod], requiredShippingContactFields: Set<PKContactField>) throws {
+    public init(country: String, currency: String, paymentSummaryItems: [SummaryItem], shippingType: PKShippingType, shippingMethods: [PKShippingMethod], requiredShippingContactFields: Set<ContactField>) throws {
         self.country = country
         self.currency = currency
         self.paymentSummaryItems = paymentSummaryItems
@@ -119,7 +119,7 @@ public struct OneOffPaymentTransaction {
     }
     
     @available(iOS 16, *)
-    public init(country: Locale.Region, currency: Locale.Currency, paymentSummaryItems: [SummaryItem], shippingType: PKShippingType, shippingMethods: [PKShippingMethod], requiredShippingContactFields: Set<PKContactField>) throws {
+    public init(country: Locale.Region, currency: Locale.Currency, paymentSummaryItems: [SummaryItem], shippingType: PKShippingType, shippingMethods: [PKShippingMethod], requiredShippingContactFields: Set<ContactField>) throws {
         self.country = country.identifier
         self.currency = currency.identifier
         self.paymentSummaryItems = paymentSummaryItems
@@ -149,10 +149,10 @@ public struct DisbursementTransaction {
     public let paymentSummaryItems: [SummaryItem]
     public let disbursementItem: SummaryItem
     public let instantOutFee: SummaryItem?
-    public let requiredRecipientDetails: [PKContactField]
-    public let merchantCapability: PKMerchantCapability
+    public let requiredRecipientDetails: [ContactField]
+    public let merchantCapability: MerchantCapability
     
-    public init(country: String, currency: String, paymentSummaryItems: [SummaryItem], disbursementItem: SummaryItem, instantOutFee: SummaryItem? = nil, requiredRecipientDetails: [PKContactField], merchantCapability: PKMerchantCapability) throws {
+    public init(country: String, currency: String, paymentSummaryItems: [SummaryItem], disbursementItem: SummaryItem, instantOutFee: SummaryItem? = nil, requiredRecipientDetails: [ContactField], merchantCapability: MerchantCapability) throws {
         self.country = country
         self.currency = currency
         self.paymentSummaryItems = paymentSummaryItems
@@ -168,7 +168,7 @@ public struct DisbursementTransaction {
     }
     
     @available(iOS 16, *)
-    public init(country: Locale.Region, currency: Locale.Currency, paymentSummaryItems: [SummaryItem], disbursementItem: SummaryItem, instantOutFee: SummaryItem? = nil, requiredRecipientDetails: [PKContactField], merchantCapability: PKMerchantCapability) throws {
+    public init(country: Locale.Region, currency: Locale.Currency, paymentSummaryItems: [SummaryItem], disbursementItem: SummaryItem, instantOutFee: SummaryItem? = nil, requiredRecipientDetails: [ContactField], merchantCapability: MerchantCapability) throws {
         self.country = country.identifier
         self.currency = currency.identifier
         self.paymentSummaryItems = paymentSummaryItems

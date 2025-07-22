@@ -13,6 +13,7 @@ public enum EvervaultError: Error, LocalizedError {
     case ApplePayUnavailableError
     case ApplePayPaymentSheetError
     case UnsupportedVersionError
+    case ApplePayAuthorizationError(underlying: Error)
     case InternalError(underlying: Error)
     
     public var errorDescription: String? {
@@ -33,6 +34,8 @@ public enum EvervaultError: Error, LocalizedError {
             return "Invalid country provided to the transaction"
         case .UnsupportedVersionError:
             return "Some functionality is not available on this version of iOS"
+        case .ApplePayAuthorizationError(underlying: let underlying):
+            return "Apple Pay failed to authorize: \(underlying)"
         }
     }
 }
@@ -80,7 +83,7 @@ public class EvervaultPaymentView: UIView {
             // defer until after init-time delegate assignment
             DispatchQueue.main.async { [weak self] in
                 guard let self = self else { return }
-                self.delegate?.evervaultPaymentView(self, didFinishWithResult: .failure(EvervaultError.ApplePayUnavailableError))
+                self.delegate?.evervaultPaymentView(self, didFinishWithResult: .failure(.ApplePayUnavailableError))
             }
             return
         }
@@ -181,7 +184,11 @@ public class EvervaultPaymentView: UIView {
                 }
             }
         } catch {
-            self.delegate?.evervaultPaymentView(self, didFinishWithResult: .failure(error))
+            if let evError = error as? EvervaultError {
+                self.delegate?.evervaultPaymentView(self, didFinishWithResult: .failure(evError))
+            } else {
+                self.delegate?.evervaultPaymentView(self, didFinishWithResult: .failure(.InternalError(underlying: error)))
+            }
         }
     }
 
@@ -289,7 +296,7 @@ extension EvervaultPaymentView : PKPaymentAuthorizationViewControllerDelegate {
         } catch {
             await MainActor.run {
                 // Notify the delegate on the main actor
-                self.delegate?.evervaultPaymentView(self, didFinishWithResult: .failure(error))
+                self.delegate?.evervaultPaymentView(self, didFinishWithResult: .failure(.ApplePayAuthorizationError(underlying: error)))
             }
             // On error, surface back to Apple Pay
             return PKPaymentAuthorizationResult(status: .failure, errors: [error])
@@ -300,7 +307,7 @@ extension EvervaultPaymentView : PKPaymentAuthorizationViewControllerDelegate {
     nonisolated public func paymentAuthorizationViewControllerDidFinish(_ controller: PKPaymentAuthorizationViewController) {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
-            self.delegate?.evervaultPaymentView(self, didFinishWithResult: .success(nil))
+            self.delegate?.evervaultPaymentView(self, didFinishWithResult: .success(()))
             controller.dismiss(animated: true)
         }
     }
@@ -330,7 +337,7 @@ public protocol EvervaultPaymentViewDelegate : AnyObject {
     func evervaultPaymentView(_ view: EvervaultPaymentView, didUpdatePaymentMethod paymentMethod: PKPaymentMethod) async -> PKPaymentRequestPaymentMethodUpdate?
 
     /// Fired when the payment sheet is fully dismissed
-    func evervaultPaymentView(_ view: EvervaultPaymentView, didFinishWithResult result: Result<String?, Error>)
+    func evervaultPaymentView(_ view: EvervaultPaymentView, didFinishWithResult result: Result<Void, EvervaultError>)
 
     /// Called after the user taps the Apple Pay button, but before the modal is displayed.  The delegate can modify the transaction in-place.
     func evervaultPaymentView(_ view: EvervaultPaymentView, prepareTransaction transaction: inout Transaction)
@@ -342,7 +349,7 @@ extension EvervaultPaymentViewDelegate {
         // Do nothing
     }
     
-    func evervaultPaymentView(_ view: EvervaultPaymentView, didFinishWithResult result: Result<String?, Error>) {
+    func evervaultPaymentView(_ view: EvervaultPaymentView, didFinishWithResult result: Result<Void, EvervaultError>) {
         // Do nothing
     }
     

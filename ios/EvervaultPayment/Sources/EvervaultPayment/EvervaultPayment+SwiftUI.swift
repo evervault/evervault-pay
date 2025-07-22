@@ -13,16 +13,16 @@ public typealias ButtonStyle = PKPaymentButtonStyle
 
 /// A SwiftUI‐friendly wrapper around your UIKit EvervaultPaymentView.
 public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
-  
+
     // MARK: Inputs
     let appUuid: String
     let appleMerchantIdentifier: String
     let transaction: Transaction
     let supportedNetworks: [Network]
-    
+
     let buttonType: ButtonType
     let buttonStyle: ButtonStyle
-    
+
     public init(
         appId: String,
         appleMerchantId: String,
@@ -31,11 +31,10 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
         buttonStyle: ButtonStyle = .automatic,
         buttonType: ButtonType = .buy,
         authorizedResponse: Binding<ApplePayResponse?>,
-        onFinish: @escaping () -> Void,
-        onError: @escaping (_ error: Error?) -> Void,
         prepareTransaction: ((_ transaction: inout Transaction) -> Void)? = nil,
         onShippingAddressChange: ((_ shippingMethod: PKShippingMethod) -> PKPaymentRequestShippingMethodUpdate)? = nil,
-        onPaymentMethodChange: ((_ paymentMethod: PKPaymentMethod) -> PKPaymentRequestPaymentMethodUpdate)? = nil
+        onPaymentMethodChange: ((_ paymentMethod: PKPaymentMethod) -> PKPaymentRequestPaymentMethodUpdate)? = nil,
+        onResult: @escaping (_ result: Result<(), EvervaultError>) -> Void
     ) {
         self.appUuid = appId
         self.appleMerchantIdentifier = appleMerchantId
@@ -45,20 +44,18 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
         self.buttonType = buttonType
 
         self._authorizedResponse = authorizedResponse
-        self.onFinish = onFinish
-        self.onError = onError
+        self.onResult = onResult
         self.prepareTransaction = prepareTransaction
         self.onShippingAddressChange = onShippingAddressChange
         self.onPaymentMethodChange = onPaymentMethodChange
     }
-  
+
     /// Called when Apple Pay authorizes the payment
     @Binding var authorizedResponse: ApplePayResponse?
 
     /// Called when the sheet is dismissed
-    public var onFinish: () -> Void
-    public var onError: (_ error: Error?) -> Void
-    
+    public var onResult: (_ result: Result<(), EvervaultError>) -> Void
+
     public var onShippingAddressChange: ((_ shippingMethod: PKShippingMethod) -> PKPaymentRequestShippingMethodUpdate)?
     public var onPaymentMethodChange: ((_ paymentMethod: PKPaymentMethod) -> PKPaymentRequestPaymentMethodUpdate)?
 
@@ -67,7 +64,7 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
     public static func isAvailable() -> Bool {
         return PKPaymentAuthorizationViewController.canMakePayments()
     }
-    
+
     public static func supportsDisbursements() -> Bool {
         if #available(iOS 17.0, *) {
             return PKPaymentAuthorizationViewController.supportsDisbursements()
@@ -75,9 +72,9 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
             return false
         }
     }
-  
+
     // MARK: UIViewRepresentable
-  
+
     public func makeUIView(context: Context) -> EvervaultPaymentView {
         // 1. Create the UIKit view
         let view = EvervaultPaymentView(
@@ -92,23 +89,23 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
         view.delegate = context.coordinator
         return view
     }
-  
+
     public func updateUIView(_ uiView: EvervaultPaymentView, context: Context) {
-      // You could update merchantIdentifier/transaction here if you expose setters
-    }
-  
-    public func makeCoordinator() -> Coordinator {
-      Coordinator(parent: self)
+        // You could update merchantIdentifier/transaction here if you expose setters
     }
 
-  
+    public func makeCoordinator() -> Coordinator {
+        Coordinator(parent: self)
+    }
+
+
     // MARK: Coordinator
-  
+
     public class Coordinator: NSObject, EvervaultPaymentViewDelegate {
         let parent: EvervaultPaymentViewRepresentable
 
         public init(parent: EvervaultPaymentViewRepresentable) {
-          self.parent = parent
+            self.parent = parent
         }
 
         nonisolated public func evervaultPaymentView(_ view: EvervaultPaymentView, didAuthorizePayment result: ApplePayResponse?) {
@@ -118,14 +115,9 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
             }
         }
 
-        nonisolated public func evervaultPaymentView(_ view: EvervaultPaymentView, didFinishWithResult result: Result<String?, Error>) {
+        nonisolated public func evervaultPaymentView(_ view: EvervaultPaymentView, didFinishWithResult result: Result<Void, EvervaultError>) {
             DispatchQueue.main.async {
-                switch result {
-                case .success(_):
-                    self.parent.onFinish()
-                case let .failure(error):
-                    self.parent.onError(error)
-                }
+                self.parent.onResult(result)
             }
         }
 
@@ -133,18 +125,18 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
             if let handler = self.parent.onShippingAddressChange {
                 return await handler(shippingMethod)
             }
-    
+
             return nil
         }
-        
+
         public func evervaultPaymentView(_ view: EvervaultPaymentView, didUpdatePaymentMethod paymentMethod: PKPaymentMethod) async -> PKPaymentRequestPaymentMethodUpdate? {
             if let handler = self.parent.onPaymentMethodChange {
                 return await handler(paymentMethod)
             }
-    
+
             return nil
         }
-        
+
         public func evervaultPaymentView(_ view: EvervaultPaymentView, prepareTransaction transaction: inout Transaction) {
             if let handler = self.parent.prepareTransaction {
                 handler(&transaction)
