@@ -8,32 +8,69 @@
 import SwiftUI
 import EvervaultPayment
 
-fileprivate func buildTransaction() -> EvervaultPayment.Transaction {
-    return try! .disbursement(.init(
-        country: "IE",
-        currency: "EUR",
-        paymentSummaryItems: [
-            SummaryItem(label: "Withdrawal Summary", amount: Amount("41.00")),
-            SummaryItem(label: "Crypto Balance", amount: Amount("25.00")),
-            SummaryItem(label: "EUR Balance", amount: Amount("15.00")),
-        ],
-        disbursementItem: SummaryItem(label: "Disbursement", amount: Amount("41.00")),
-        instantOutFee: SummaryItem(label: "Instant funds out fee", amount: Amount("1.00")),
-        requiredRecipientDetails: [
-            .emailAddress,
-            .phoneNumber,
-        ],
-        merchantCapability: MerchantCapability.instantFundsOut
-    ))
+fileprivate func buildTransaction(type: TransactionType) -> EvervaultPayment.Transaction {
+    switch type {
+    case .disbursement:
+        return try! .disbursement(.init(
+            country: "IE",
+            currency: "EUR",
+            paymentSummaryItems: [
+                SummaryItem(label: "Withdrawal Summary", amount: Amount("41.00")),
+                SummaryItem(label: "Crypto Balance", amount: Amount("25.00")),
+                SummaryItem(label: "EUR Balance", amount: Amount("15.00")),
+            ],
+            disbursementItem: SummaryItem(label: "Disbursement", amount: Amount("41.00")),
+            instantOutFee: SummaryItem(label: "Instant funds out fee", amount: Amount("1.00")),
+            requiredRecipientDetails: [
+                .emailAddress,
+                .phoneNumber,
+            ],
+            merchantCapability: MerchantCapability.instantFundsOut
+        ))
+    case .oneOff:
+        return try! .oneOffPayment(.init(
+             country: "IE",
+             currency: "EUR",
+             paymentSummaryItems: [
+                 SummaryItem(label: "Mens Shirt", amount: Amount("30.00")),
+                 SummaryItem(label: "Socks", amount: Amount("5.00")),
+                 SummaryItem(label: "Total", amount: Amount("35.00"))
+             ]
+         ))
+    case .recurring:
+        return try! .recurringPayment(.init(country: "IE", currency: "EUR", paymentSummaryItems: [
+            SummaryItem(label: "Mens Shirt", amount: Amount("30.00")),
+            SummaryItem(label: "Socks", amount: Amount("5.00")),
+            SummaryItem(label: "Total", amount: Amount("35.00"))
+        ], paymentDescription: "Orders a shirt and socks everry month", regularBilling: .init(label: "Checkout", amount: 70.0), managementURL: URL(string: "https://mock.evervault.com/checkout")!))
+    }
 }
 
-struct ContentView: View {
-    @State private var applePayResponse: ApplePayResponse? = nil
-    let transaction = buildTransaction()
-    
+enum TransactionType {
+    case oneOff
+    case recurring
+    case disbursement
+}
+
+struct TransactionHandler : View {
+    let name: String
+    let type: TransactionType
+
+    @State
+    private var applePayResponse: ApplePayResponse? = nil
+    private let transaction: EvervaultPayment.Transaction
+
+    init(name: String, type: TransactionType) {
+        self.name = name
+        self.type = type
+        self.transaction = buildTransaction(type: type)
+    }
+
     var body: some View {
         VStack(spacing: 20) {
-            if (EvervaultPaymentViewRepresentable.isAvailable()) {
+            Text(self.name)
+            Spacer()
+            if EvervaultPaymentViewRepresentable.isAvailable() {
                 EvervaultPaymentViewRepresentable(
                     appId: "YOUR_EVERVAULT_APP_ID",
                     appleMerchantId: "YOUR_APPLE_MERCHANT_ID",
@@ -57,6 +94,27 @@ struct ContentView: View {
             } else {
                 Text("Not available")
             }
+        }
+    }
+}
+
+struct ContentView: View {
+    var body: some View {
+        TabView {
+            TransactionHandler(name: "One-Off", type: .oneOff)
+                .tabItem {
+                    Label("One-Off", systemImage: "house")
+                }
+
+            TransactionHandler(name: "Disbursement", type: .disbursement)
+                .tabItem {
+                    Label("Disbursement", systemImage: "magnifyingglass")
+                }
+
+            TransactionHandler(name: "Recurring", type: .recurring)
+                .tabItem {
+                    Label("Recurring", systemImage: "person.crop.circle")
+                }
         }
     }
 }
