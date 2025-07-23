@@ -118,30 +118,7 @@ fileprivate func getUpdatedTransaction(_ newAddress: ShippingContact, transactio
         // Calculate new line items and total for address change
         return disbursement.paymentSummaryItems
     case .recurringPayment(let recurring):
-        // Calculate new line items and total for address change
-        var summaryItems = [SummaryItem(label: "Shipping", amount: shippingCost)]
-        summaryItems = summaryItems + recurring.paymentSummaryItems
-        
-        // Calculate the new total
-        let newTotal = summaryItems
-            .map { $0.amount.amount as Decimal }
-            .reduce(Decimal.zero, +)
-        
-        // Format for currency
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        formatter.minimumFractionDigits = 2
-        formatter.maximumFractionDigits = 2
-        let formattedTotal = formatter.string(
-            from: newTotal as NSDecimalNumber
-        ) ?? newTotal.description
-        
-        // Add the new "Total" line item to the end
-        summaryItems.append(
-            SummaryItem(label: "Total", amount: Amount(formattedTotal))
-        )
-
-        return summaryItems
+        return recurring.paymentSummaryItems
     }
 }
 

@@ -2,7 +2,7 @@ import PassKit
 
 /// Simple async API wrapper to send the Apple Pay token to the Evervault backend for decryption and re-encryption with Evervault Encryption.
 struct EvervaultApi {
-    private static let defaultBaseUrl = "https://api.evervault.io"
+    private static let defaultBaseUrl = "https://api.evervault.com"
 
     static func sendPaymentToken(_ appUuid: String, _ payment: PKPayment) async throws -> ApplePayResponse? {
         let evervaultBaseURL = ProcessInfo.processInfo.environment["EVERVAULT_BASE_URL"] ?? EvervaultApi.defaultBaseUrl
