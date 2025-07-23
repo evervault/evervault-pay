@@ -50,7 +50,15 @@ public class EvervaultPaymentView: UIView {
     public let supportedNetworks: [Network]
     public let buttonType: ButtonType
     public let buttonStyle: ButtonStyle
-    public weak var delegate: EvervaultPaymentViewDelegate?
+
+    public weak var delegate: EvervaultPaymentViewDelegate? {
+        didSet {
+            // Verify Apple Pay is available on device
+            if !EvervaultPaymentView.isAvailable() {
+                self.delegate?.evervaultPaymentView(self, didFinishWithResult: .failure(.ApplePayUnavailableError))
+            }
+        }
+    }
 
     /// The Apple Pay button
     private lazy var payButton: PKPaymentButton = {
@@ -80,14 +88,10 @@ public class EvervaultPaymentView: UIView {
 
         // Verify Apple Pay is available on device
         guard PKPaymentAuthorizationViewController.canMakePayments() else {
-            // defer until after init-time delegate assignment
-            DispatchQueue.main.async { [weak self] in
-                guard let self = self else { return }
-                self.delegate?.evervaultPaymentView(self, didFinishWithResult: .failure(.ApplePayUnavailableError))
-            }
+            // Notify the delegate after it is set.
             return
         }
-        
+
         setupLayout()
         setContentHuggingPriority(.required, for: .horizontal)
         setContentHuggingPriority(.required, for: .vertical)
@@ -318,8 +322,9 @@ extension EvervaultPaymentView : PKPaymentAuthorizationViewControllerDelegate {
     /// Called when the payment sheet is dismissed
     nonisolated public func paymentAuthorizationViewControllerDidFinish(_ controller: PKPaymentAuthorizationViewController) {
         DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
-            self.delegate?.evervaultPaymentView(self, didFinishWithResult: .success(()))
+            if let self = self {
+                self.delegate?.evervaultPaymentView(self, didFinishWithResult: .success(()))
+            }
             controller.dismiss(animated: true)
         }
     }

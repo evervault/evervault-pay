@@ -34,7 +34,7 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
         prepareTransaction: ((_ transaction: inout Transaction) -> Void)? = nil,
         onShippingAddressChange: ((_ shippingAddress: PKContact) -> [SummaryItem])? = nil,
         onPaymentMethodChange: ((_ paymentMethod: PKPaymentMethod) -> PKPaymentRequestPaymentMethodUpdate)? = nil,
-        onResult: @escaping (_ result: Result<(), EvervaultError>) -> Void
+        onResult: @escaping (_ result: Result<Void, EvervaultError>) -> Void
     ) {
         self.appUuid = appId
         self.appleMerchantIdentifier = appleMerchantId
@@ -54,7 +54,7 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
     @Binding var authorizedResponse: ApplePayResponse?
 
     /// Called when the sheet is dismissed
-    public var onResult: (_ result: Result<(), EvervaultError>) -> Void
+    public var onResult: (_ result: Result<Void, EvervaultError>) -> Void
     public var onShippingAddressChange: ((_ shippingContact: PKContact) -> [SummaryItem])?
     public var onPaymentMethodChange: ((_ paymentMethod: PKPaymentMethod) -> PKPaymentRequestPaymentMethodUpdate)?
 
