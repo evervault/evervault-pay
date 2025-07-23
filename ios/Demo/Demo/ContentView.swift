@@ -72,7 +72,7 @@ fileprivate func buildTransaction(type: TransactionType) -> EvervaultPayment.Tra
             paymentSummaryItems: [],
             paymentDescription: "Recurring payment example.",
             regularBilling: recurringBilling,
-            managementURL: URL(string: "https://www.merchant.com/manage-subscriptions")!,
+            managementURL: URL(string: "https://www.merchant.com/manage-subscriptions")!
         )
         recurringBillingRequest.billingAgreement = "https://www.merchant.com/billing-agreement"
         recurringBillingRequest.trialBilling = trialBilling
