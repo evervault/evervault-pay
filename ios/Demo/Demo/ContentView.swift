@@ -177,15 +177,7 @@ struct TransactionHandler : View {
                     supportedNetworks: [.visa, .masterCard, .amex],
                     buttonStyle: .whiteOutline,
                     buttonType: .checkout,
-                    authorizedResponse: $applePayResponse,
-                    prepareTransaction: { transaction in
-                        print("Preparing Transaction")
-                    },
-                    onShippingAddressChange: { newAddress in
-                        let updatedSummaryItems = getUpdatedTransaction(newAddress, transaction: self.transaction)
-                        return updatedSummaryItems
-                    })
-                    { result in
+                    authorizedResponse: $applePayResponse) { result in
                         switch result {
                         case .success(_):
                             print("Payment sheet dismissed")
@@ -197,6 +189,11 @@ struct TransactionHandler : View {
                             print("Payment sheet error: \(error.localizedDescription)")
                             break
                         }
+                    }
+                    .onShippingAddressChange { newAddress in
+                        return getUpdatedTransaction(newAddress, transaction: self.transaction)
+                    }.prepareTransaction { transaction in
+                        print("Preparing transaction")
                     }
             } else {
                 Text("Not available")

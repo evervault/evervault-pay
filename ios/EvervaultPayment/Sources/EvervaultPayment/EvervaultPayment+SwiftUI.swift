@@ -31,9 +31,6 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
         buttonStyle: ButtonStyle = .automatic,
         buttonType: ButtonType = .buy,
         authorizedResponse: Binding<ApplePayResponse?>,
-        prepareTransaction: ((_ transaction: inout Transaction) -> Void)? = nil,
-        onShippingAddressChange: ((_ shippingAddress: PKContact) -> [SummaryItem])? = nil,
-        onPaymentMethodChange: ((_ paymentMethod: PKPaymentMethod) -> PKPaymentRequestPaymentMethodUpdate)? = nil,
         onResult: @escaping (_ result: Result<Void, EvervaultError>) -> Void
     ) {
         self.appUuid = appId
@@ -44,21 +41,17 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
         self.buttonType = buttonType
 
         self._authorizedResponse = authorizedResponse
-        self.onResult = onResult
-        self.prepareTransaction = prepareTransaction
-        self.onShippingAddressChange = onShippingAddressChange
-        self.onPaymentMethodChange = onPaymentMethodChange
+        self.onResultCallback = onResult
     }
 
     /// Called when Apple Pay authorizes the payment
     @Binding var authorizedResponse: ApplePayResponse?
 
     /// Called when the sheet is dismissed
-    public var onResult: (_ result: Result<Void, EvervaultError>) -> Void
-    public var onShippingAddressChange: ((_ shippingContact: PKContact) -> [SummaryItem])?
-    public var onPaymentMethodChange: ((_ paymentMethod: PKPaymentMethod) -> PKPaymentRequestPaymentMethodUpdate)?
-
-    public var prepareTransaction: ((_ transaction: inout Transaction) -> Void)?
+    private var onResultCallback: (_ result: Result<Void, EvervaultError>) -> Void
+    private var onShippingAddressChangeCallback: ((_ shippingContact: PKContact) -> [SummaryItem])?
+    private var onPaymentMethodChangeCallback: ((_ paymentMethod: PKPaymentMethod) -> PKPaymentRequestPaymentMethodUpdate)?
+    private var prepareTransactionCallback: ((_ transaction: inout Transaction) -> Void)?
 
     public static func isAvailable() -> Bool {
         return PKPaymentAuthorizationViewController.canMakePayments()
@@ -116,12 +109,12 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
 
         nonisolated public func evervaultPaymentView(_ view: EvervaultPaymentView, didFinishWithResult result: Result<Void, EvervaultError>) {
             DispatchQueue.main.async {
-                self.parent.onResult(result)
+                self.parent.onResultCallback(result)
             }
         }
 
         nonisolated public func evervaultPaymentView(_ view: EvervaultPaymentView, didSelectShippingContact contact: PKContact) async -> PKPaymentRequestShippingContactUpdate? {
-            if let handler = self.parent.onShippingAddressChange {
+            if let handler = self.parent.onShippingAddressChangeCallback {
                 let updatedLineItems = await handler(contact)
                 return PKPaymentRequestShippingContactUpdate(
                     errors: nil,
@@ -136,7 +129,7 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
         }
 
         public func evervaultPaymentView(_ view: EvervaultPaymentView, didUpdatePaymentMethod paymentMethod: PKPaymentMethod) async -> PKPaymentRequestPaymentMethodUpdate? {
-            if let handler = self.parent.onPaymentMethodChange {
+            if let handler = self.parent.onPaymentMethodChangeCallback {
                 return await handler(paymentMethod)
             }
 
@@ -144,7 +137,7 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
         }
 
         public func evervaultPaymentView(_ view: EvervaultPaymentView, prepareTransaction transaction: inout Transaction) {
-            if let handler = self.parent.prepareTransaction {
+            if let handler = self.parent.prepareTransactionCallback {
                 handler(&transaction)
             }
         }
@@ -160,5 +153,23 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
                     return []
             }
         }
+    }
+
+    public func prepareTransaction(_ action: @escaping (inout Transaction) -> Void) -> EvervaultPaymentViewRepresentable {
+        var copy = self
+        copy.prepareTransactionCallback = action
+        return copy
+    }
+
+    public func onShippingAddressChange(_ action: @escaping (PKContact) -> [SummaryItem]) -> EvervaultPaymentViewRepresentable {
+        var copy = self
+        copy.onShippingAddressChangeCallback = action
+        return copy
+    }
+
+    public func onPaymentMethodChange(_ action: @escaping (PKPaymentMethod) -> PKPaymentRequestPaymentMethodUpdate) -> EvervaultPaymentViewRepresentable {
+        var copy = self
+        copy.onPaymentMethodChangeCallback = action
+        return copy
     }
 }
