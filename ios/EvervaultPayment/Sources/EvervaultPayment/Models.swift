@@ -217,7 +217,7 @@ public struct RecurringPaymentTransaction {
     public var trialBilling: PKRecurringPaymentSummaryItem?
     public var billingAgreement: String?
     
-    public init(country: String, currency: String, paymentSummaryItems: [SummaryItem], paymentDescription: String, regularBilling: PKRecurringPaymentSummaryItem, managementURL: URL) throws {
+    public init(country: String, currency: String, paymentSummaryItems: [SummaryItem] = [], paymentDescription: String, regularBilling: PKRecurringPaymentSummaryItem, managementURL: URL) throws {
         self.country = country
         self.currency = currency
         self.paymentSummaryItems = paymentSummaryItems
@@ -227,7 +227,7 @@ public struct RecurringPaymentTransaction {
     }
     
     @available(iOS 16.0, *)
-    public init(country: Locale.Region, currency: Locale.Currency, paymentSummaryItems: [SummaryItem], paymentDescription: String, regularBilling: PKRecurringPaymentSummaryItem, managementURL: URL) throws {
+    public init(country: Locale.Region, currency: Locale.Currency, paymentSummaryItems: [SummaryItem] = [], paymentDescription: String, regularBilling: PKRecurringPaymentSummaryItem, managementURL: URL) throws {
         self.country = country.identifier
         self.currency = currency.identifier
         self.paymentSummaryItems = paymentSummaryItems
