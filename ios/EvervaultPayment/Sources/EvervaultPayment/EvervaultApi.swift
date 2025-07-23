@@ -9,7 +9,9 @@ struct EvervaultApi {
         guard let url = URL(string: "\(evervaultBaseURL)/frontend/apple-pay/credentials") else {
             return nil
         }
-
+#if targetEnvironment(simulator)
+        return ApplePayResponse(networkToken: ApplePayNetworkToken(number: "ev:Tk9D:hY5KJanIPOHBoI8S:AsnnjRl0FDe2zEddBAQG/eI2vN+b...:$", expiry: ApplePayNetworkTokenExpiry(month: 12, year: 31), rawExpiry: "12/31", tokenServiceProvider: "Apple"), card: ApplePayCard(brand: "visa", funding: "debit", segment: "consumer", country: "ie", currency: "eur", issuer: "Revolut Bank Uab"), cryptogram: "ev:Tk9D:vUVeybXqrA9Ds4rZ...=:$", eci: "5", paymentDataType: "oneOff", deviceManufacturerIdentifier: "string")
+#else
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue(appUuid, forHTTPHeaderField: "x-evervault-app-id")
@@ -37,5 +39,6 @@ struct EvervaultApi {
         } catch {
             throw EvervaultError.InternalError(underlying: error)
         }
+#endif
     }
 }

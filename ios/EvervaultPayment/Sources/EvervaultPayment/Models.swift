@@ -11,6 +11,16 @@ public typealias ShippingContactField = PKContactField
 public typealias ShippingType = PKShippingType
 
 public struct ApplePayNetworkTokenExpiry: Codable, Sendable, Equatable {
+    init(month: String, year: String) {
+        self.month = month
+        self.year = year
+    }
+
+    init(month: Int, year: Int) {
+        self.month = month.formatted()
+        self.year = year.formatted()
+    }
+
     public let month: String
     public let year: String
 }
@@ -62,14 +72,14 @@ public struct SummaryItem {
 }
 
 public struct OneOffPaymentTransaction {
-    public let country: String
-    public let currency: String
+    public var country: String
+    public var currency: String
     public var paymentSummaryItems: [SummaryItem]
 
-    public let shippingType: PKShippingType
-    public let shippingMethods: [PKShippingMethod]
-    public let requiredShippingContactFields: Set<ContactField>
-    
+    public var shippingType: PKShippingType
+    public var shippingMethods: [PKShippingMethod]
+    public var requiredShippingContactFields: Set<ContactField>
+
     public init(country: String, currency: String, paymentSummaryItems: [SummaryItem]) throws {
         self.country = country
         self.currency = currency
@@ -148,14 +158,14 @@ public struct OneOffPaymentTransaction {
 }
 
 public struct DisbursementTransaction {
-    public let country: String
-    public let currency: String
+    public var country: String
+    public var currency: String
     public var paymentSummaryItems: [SummaryItem]
-    public let disbursementItem: SummaryItem
-    public let instantOutFee: SummaryItem?
-    public let requiredRecipientDetails: [ContactField]
-    public let merchantCapability: MerchantCapability
-    
+    public var disbursementItem: SummaryItem
+    public var instantOutFee: SummaryItem?
+    public var requiredRecipientDetails: [ContactField]
+    public var merchantCapability: MerchantCapability
+
     public init(country: String, currency: String, paymentSummaryItems: [SummaryItem], disbursementItem: SummaryItem, instantOutFee: SummaryItem? = nil, requiredRecipientDetails: [ContactField], merchantCapability: MerchantCapability) throws {
         self.country = country
         self.currency = currency
@@ -198,28 +208,22 @@ public struct DisbursementTransaction {
 }
 
 public struct RecurringPaymentTransaction {
-    public let country: String
-    public let currency: String
+    public var country: String
+    public var currency: String
     public var paymentSummaryItems: [SummaryItem]
-    public let paymentDescription: String
-    public let regularBilling: PKRecurringPaymentSummaryItem
-    public let managementURL: URL
+    public var paymentDescription: String
+    public var regularBilling: PKRecurringPaymentSummaryItem
+    public var managementURL: URL
     public var trialBilling: PKRecurringPaymentSummaryItem?
     public var billingAgreement: String?
     
-    public init(country: String, currency: String, paymentSummaryItems: [SummaryItem], paymentDescription: String, regularBilling: PKRecurringPaymentSummaryItem, managementURL: String) throws {
+    public init(country: String, currency: String, paymentSummaryItems: [SummaryItem], paymentDescription: String, regularBilling: PKRecurringPaymentSummaryItem, managementURL: URL) throws {
         self.country = country
         self.currency = currency
         self.paymentSummaryItems = paymentSummaryItems
         self.paymentDescription = paymentDescription
         self.regularBilling = regularBilling
-        self.managementURL = URL(string: managementURL)!
-        
-        // TODO: leaving commented for now - it may be a subscription with no line items
-        // 1. Ensure at least one line item is provided
-        // guard paymentSummaryItems.count > 0 else {
-        //     throw EvervaultError.InvalidTransactionError
-        // }
+        self.managementURL = managementURL
     }
     
     @available(iOS 16.0, *)
@@ -230,12 +234,6 @@ public struct RecurringPaymentTransaction {
         self.paymentDescription = paymentDescription
         self.regularBilling = regularBilling
         self.managementURL = managementURL
-        
-        // TODO: leaving commented for now - it may be a subscription with no line items
-        // 1. Ensure at least one line item is provided
-        // guard paymentSummaryItems.count > 0 else {
-        //     throw EvervaultError.InvalidTransactionError
-        // }
         
         // Ensure valid currency
         guard currency.isISOCurrency else {

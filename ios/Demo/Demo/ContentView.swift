@@ -26,7 +26,7 @@ fileprivate func buildTransaction(type: TransactionType) -> EvervaultPayment.Tra
                 .emailAddress,
                 .phoneNumber,
             ],
-            merchantCapability: MerchantCapability.instantFundsOut
+            merchantCapability: .instantFundsOut
         ))
     case .oneOff:
         return try! .oneOffPayment(.init(
@@ -57,7 +57,7 @@ fileprivate func buildTransaction(type: TransactionType) -> EvervaultPayment.Tra
             label: "Pro Subscription",
             amount: 5.00
         )
-        recurringBilling.intervalUnit = NSCalendar.Unit.month
+        recurringBilling.intervalUnit = .month
         recurringBilling.intervalCount = 2
         var dateComponent = DateComponents()
         dateComponent.day = 7
@@ -66,17 +66,17 @@ fileprivate func buildTransaction(type: TransactionType) -> EvervaultPayment.Tra
         let trialBilling = PKRecurringPaymentSummaryItem(label: "Trial", amount: 0)
         trialBilling.startDate = nil // Now
         
-        var recurringBillingRequest = try! RecurringPaymentTransaction.init(
+        var recurringBillingRequest = try! RecurringPaymentTransaction(
             country: "IE",
             currency: "EUR",
             paymentSummaryItems: [],
             paymentDescription: "Recurring payment example.",
             regularBilling: recurringBilling,
-            managementURL: "https://www.merchant.com/manage-subscriptions",
+            managementURL: URL(string: "https://www.merchant.com/manage-subscriptions")!,
         )
         recurringBillingRequest.billingAgreement = "https://www.merchant.com/billing-agreement"
         recurringBillingRequest.trialBilling = trialBilling
-        return Transaction.recurringPayment(recurringBillingRequest)
+        return .recurringPayment(recurringBillingRequest)
     }
 }
 
@@ -89,12 +89,11 @@ fileprivate func getUpdatedTransaction(_ newAddress: ShippingContact, transactio
 
     switch transaction {
     case .oneOffPayment(let oneOff):
-        var summaryItems = [SummaryItem(label: "Shipping", amount: shippingCost)]
-        summaryItems = summaryItems + oneOff.paymentSummaryItems
-        
+        var summaryItems = [SummaryItem(label: "Shipping", amount: shippingCost)] + oneOff.paymentSummaryItems
+
         // Remove the old "Total" line item
-        summaryItems.popLast()
-        
+        _ = summaryItems.popLast()
+
         // Calculate the new total
         let newTotal = summaryItems
             .map { $0.amount.amount as Decimal }
@@ -179,6 +178,9 @@ struct TransactionHandler : View {
                     buttonStyle: .whiteOutline,
                     buttonType: .checkout,
                     authorizedResponse: $applePayResponse,
+                    prepareTransaction: { transaction in
+                        print("Preparing Transaction")
+                    },
                     onShippingAddressChange: { newAddress in
                         let updatedSummaryItems = getUpdatedTransaction(newAddress, transaction: self.transaction)
                         return updatedSummaryItems
