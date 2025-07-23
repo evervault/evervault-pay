@@ -8,7 +8,7 @@ on:
       - '.github/**'
 
 jobs:
-  Build Device:
+  Build-Device:
     name: Build Device
     runs-on: macos-15
 
@@ -30,7 +30,7 @@ jobs:
           file_to_build=`echo $file_to_build | awk '{$1=$1;print}'`
           xcodebuild build -scheme "$scheme" -"$filetype_parameter" "$file_to_build" -sdk iphoneos | xcpretty && exit ${PIPESTATUS[0]}
 
-  Build Simulator:
+  Build-Simulator:
     name: Build and Test default scheme using any available iPhone simulator
     runs-on: macos-15
 
