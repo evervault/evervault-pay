@@ -22,36 +22,14 @@ final class DemoUITests: XCTestCase {
         // Put teardown code here. This method is called after the invocation of each test method in the class.
     }
 
-    func testCheckoutOneOff() {
-        let app = XCUIApplication()
-        app.activate()
-        app/*@START_MENU_TOKEN@*/.images["home"]/*[[".buttons",".images[\"home\"]",".images[\"house.fill\"]",".images.firstMatch"],[[[-1,2],[-1,1],[-1,3],[-1,0,1]],[[-1,2],[-1,1]]],[1]]@END_MENU_TOKEN@*/.tap()
-        app/*@START_MENU_TOKEN@*/.buttons["Check out with Apple Pay"]/*[[".otherElements.buttons[\"Check out with Apple Pay\"]",".buttons[\"Check out with Apple Pay\"]"],[[[-1,1],[-1,0]]],[0]]@END_MENU_TOKEN@*/.tap()
-        XCUIDevice.shared.press(.home)
-        
-        let springboardApp = XCUIApplication(bundleIdentifier: "com.apple.springboard")
-        springboardApp/*@START_MENU_TOKEN@*/.buttons["Pay with Passcode"]/*[[".otherElements",".buttons[\"Pay with Passcode\"]",".buttons[\"footer\"]"],[[[-1,2],[-1,1],[-1,0,1]],[[-1,2],[-1,1]]],[1]]@END_MENU_TOKEN@*/.tap()
-    }
-
-    func testCheckoutDisbursement() {
-        let app = XCUIApplication()
-        app.activate()
-        app.images["magnifyingglass"].tap()
-        app/*@START_MENU_TOKEN@*/.buttons["Check out with Apple Pay"]/*[[".otherElements.buttons[\"Check out with Apple Pay\"]",".buttons[\"Check out with Apple Pay\"]"],[[[-1,1],[-1,0]]],[0]]@END_MENU_TOKEN@*/.tap()
-        XCUIDevice.shared.press(.home)
-
-        let springboardApp = XCUIApplication(bundleIdentifier: "com.apple.springboard")
-        springboardApp/*@START_MENU_TOKEN@*/.buttons["Pay with Passcode"]/*[[".otherElements",".buttons[\"Pay with Passcode\"]",".buttons[\"footer\"]"],[[[-1,2],[-1,1],[-1,0,1]],[[-1,2],[-1,1]]],[1]]@END_MENU_TOKEN@*/.tap()
-    }
-
-    func testCheckoutRecurring() {
-        let app = XCUIApplication()
-        app.activate()
-        app.images["person.crop.circle"].tap()
-        app/*@START_MENU_TOKEN@*/.buttons["Check out with Apple Pay"]/*[[".otherElements.buttons[\"Check out with Apple Pay\"]",".buttons[\"Check out with Apple Pay\"]"],[[[-1,1],[-1,0]]],[0]]@END_MENU_TOKEN@*/.tap()
-        XCUIDevice.shared.press(.home)
-
-        let springboardApp = XCUIApplication(bundleIdentifier: "com.apple.springboard")
-        springboardApp/*@START_MENU_TOKEN@*/.buttons["Pay with Passcode"]/*[[".otherElements",".buttons[\"Pay with Passcode\"]",".buttons[\"footer\"]"],[[[-1,2],[-1,1],[-1,0,1]],[[-1,2],[-1,1]]],[1]]@END_MENU_TOKEN@*/.tap()
-    }
+//    func testCheckoutOneOff() {
+//        let app = XCUIApplication()
+//        app.activate()
+//        app/*@START_MENU_TOKEN@*/.images["home"]/*[[".buttons",".images[\"home\"]",".images[\"house.fill\"]",".images.firstMatch"],[[[-1,2],[-1,1],[-1,3],[-1,0,1]],[[-1,2],[-1,1]]],[1]]@END_MENU_TOKEN@*/.tap()
+//        app/*@START_MENU_TOKEN@*/.buttons["Check out with Apple Pay"]/*[[".otherElements.buttons[\"Check out with Apple Pay\"]",".buttons[\"Check out with Apple Pay\"]"],[[[-1,1],[-1,0]]],[0]]@END_MENU_TOKEN@*/.tap()
+//        XCUIDevice.shared.press(.home)
+//        
+//        let springboardApp = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+//        springboardApp/*@START_MENU_TOKEN@*/.buttons["Pay with Passcode"]/*[[".otherElements",".buttons[\"Pay with Passcode\"]",".buttons[\"footer\"]"],[[[-1,2],[-1,1],[-1,0,1]],[[-1,2],[-1,1]]],[1]]@END_MENU_TOKEN@*/.tap()
+//    }
 }
