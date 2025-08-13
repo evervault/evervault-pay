@@ -15,6 +15,7 @@ import com.evervault.googlepay.Config
 import com.evervault.googlepay.CardResponse
 import com.evervault.googlepay.EvervaultButtonTheme
 import com.evervault.googlepay.EvervaultButtonType
+import com.evervault.googlepay.EvervaultConstants
 import com.evervault.googlepay.EvervaultPayViewModel
 import com.evervault.googlepay.EvervaultPayViewModelFactory
 import com.evervault.googlepay.NetworkTokenResponse
@@ -28,8 +29,9 @@ class MainActivity : AppCompatActivity() {
         EvervaultPayViewModelFactory(
             application,
             Config(
-                appId = "app_1234567890",
-                merchantId = "merchant_1234567890",
+                environment = EvervaultConstants.ENVIRONMENT_TEST,
+                appId = BuildConfig.EVERVAULT_APP_ID,
+                merchantId = BuildConfig.EVERVAULT_MERCHANT_ID,
                 supportedNetworks = listOf(
                     CardNetwork.VISA,
                     CardNetwork.MASTERCARD

@@ -1,11 +1,9 @@
 package com.evervault.googlepay
 
 import android.app.Application
-import android.content.Context
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.evervault.payments.R
 import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.common.api.CommonStatusCodes
 import com.google.android.gms.common.api.ResolvableApiException
@@ -34,9 +32,6 @@ import org.json.JSONObject
 import java.io.IOException
 import kotlin.coroutines.resume
 import java.lang.reflect.Type
-
-internal fun Context.evervaultBaseUrl(): String =
-    getString(R.string.evervault_base_url)
 
 // Handle decoding between FPAN and DPAN repsonse types
 class TokenResponseAdapter : JsonDeserializer<TokenResponse> {
@@ -97,7 +92,11 @@ class EvervaultPayViewModel(application: Application, val config: Config) : Andr
         createPaymentsClient(application, config.environment)
     }
 
-    private val apiClient = EvervaultPayAPI(application.evervaultBaseUrl(), config.appId)
+    private val apiClient = EvervaultPayAPI(when (config.environment) {
+        EvervaultConstants.ENVIRONMENT_TEST -> Constants.API_BASE_URL_TEST
+        EvervaultConstants.ENVIRONMENT_PRODUCTION -> Constants.API_BASE_URL_PRODUCTION
+        else -> Constants.API_BASE_URL_PRODUCTION
+    }, config.appId)
 
     fun start() {
         if (this.isStarted) return
