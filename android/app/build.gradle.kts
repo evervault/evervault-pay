@@ -1,7 +1,27 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.compose.compiler)
+}
+
+val localProperties = Properties().apply {
+    val localFile = rootProject.file("local.properties")
+    if (localFile.exists()) {
+        load(FileInputStream(localFile))
+    }
+}
+
+val evervaultAppId: String = localProperties.getProperty("EVERVAULT_APP_ID") ?: ""
+val evervaultMerchantId: String = localProperties.getProperty("EVERVAULT_MERCHANT_ID") ?: ""
+
+android {
+    defaultConfig {
+        buildConfigField("String", "EVERVAULT_APP_ID", "\"$evervaultAppId\"")
+        buildConfigField("String", "EVERVAULT_MERCHANT_ID", "\"$evervaultMerchantId\"")
+    }
 }
 
 android {
@@ -21,6 +41,7 @@ android {
     buildFeatures {
         compose = true
         viewBinding = true
+        buildConfig = true
     }
 
     buildTypes {

@@ -1,6 +1,5 @@
 package com.evervault.samplepayapp
 
-import android.content.Intent
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.compose.setContent
@@ -16,6 +15,7 @@ import com.evervault.googlepay.Config
 import com.evervault.googlepay.CardResponse
 import com.evervault.googlepay.EvervaultButtonTheme
 import com.evervault.googlepay.EvervaultButtonType
+import com.evervault.googlepay.EvervaultConstants
 import com.evervault.googlepay.EvervaultPayViewModel
 import com.evervault.googlepay.EvervaultPayViewModelFactory
 import com.evervault.googlepay.NetworkTokenResponse
@@ -29,8 +29,9 @@ class MainActivity : AppCompatActivity() {
         EvervaultPayViewModelFactory(
             application,
             Config(
-                appId = "app_1234567890",
-                merchantId = "merchant_1234567890",
+                environment = EvervaultConstants.ENVIRONMENT_TEST,
+                appId = BuildConfig.EVERVAULT_APP_ID,
+                merchantId = BuildConfig.EVERVAULT_MERCHANT_ID,
                 supportedNetworks = listOf(
                     CardNetwork.VISA,
                     CardNetwork.MASTERCARD
@@ -41,6 +42,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
         val transaction = Transaction(
             country = "GB",
             currency = "GBP",
@@ -50,6 +52,7 @@ class MainActivity : AppCompatActivity() {
                 LineItem("Something small", Amount("04.99")),
             )
         )
+
         setContent {
             LaunchedEffect(Unit) {
                 model.start()
@@ -75,14 +78,10 @@ class MainActivity : AppCompatActivity() {
                         }
                     }
                 }
+
                 is PaymentState.Error -> Text("Error: ${state.message}")
                 is PaymentState.NotStarted -> CircularProgressIndicator()
             }
         }
-    }
-
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        model.handlePaymentDataIntent(requestCode, resultCode, data)
     }
 }

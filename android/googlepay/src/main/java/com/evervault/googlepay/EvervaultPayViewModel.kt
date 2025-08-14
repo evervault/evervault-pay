@@ -1,18 +1,15 @@
 package com.evervault.googlepay
 
-import android.app.Activity
 import android.app.Application
-import android.content.Context
-import android.content.Intent
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.evervault.payments.R
 import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.common.api.CommonStatusCodes
-import com.google.android.gms.wallet.AutoResolveHelper
+import com.google.android.gms.common.api.ResolvableApiException
 import com.google.android.gms.wallet.IsReadyToPayRequest
 import com.google.android.gms.wallet.PaymentData
+import com.google.android.gms.wallet.PaymentDataRequest
 import com.google.android.gms.wallet.PaymentsClient
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
@@ -29,14 +26,12 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.tasks.await
 import okhttp3.ResponseBody
+import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
 import java.io.IOException
 import kotlin.coroutines.resume
 import java.lang.reflect.Type
-
-internal fun Context.evervaultBaseUrl(): String =
-    getString(R.string.evervault_base_url)
 
 // Handle decoding between FPAN and DPAN repsonse types
 class TokenResponseAdapter : JsonDeserializer<TokenResponse> {
@@ -67,18 +62,18 @@ class TokenResponseAdapter : JsonDeserializer<TokenResponse> {
 class EvervaultPayViewModel(application: Application, val config: Config) : AndroidViewModel(application) {
     /**
      * The name of the payment processor/gateway.
-     **/
+    **/
     val PAYMENT_GATEWAY_TOKENIZATION_NAME = Constants.GATEWAY_TOKENIZATION_NAME
 
     /**
-     * Custom parameters required by the processor/gateway.
-     * In many cases, your processor / gateway will only require a gatewayMerchantId.
-     * Please refer to your processor's documentation for more information. The number of parameters
-     * required and their names vary depending on the processor.
-     */
+    * Custom parameters required by the processor/gateway.
+    * In many cases, your processor / gateway will only require a gatewayMerchantId.
+    * Please refer to your processor's documentation for more information. The number of parameters
+    * required and their names vary depending on the processor.
+    */
     val PAYMENT_GATEWAY_TOKENIZATION_PARAMETERS = mapOf(
         "gateway" to PAYMENT_GATEWAY_TOKENIZATION_NAME,
-        "gatewayMerchantId" to config.merchantId
+         "gatewayMerchantId" to config.merchantId
     )
 
     companion object {
@@ -89,21 +84,22 @@ class EvervaultPayViewModel(application: Application, val config: Config) : Andr
     private val _paymentState: MutableStateFlow<PaymentState> = MutableStateFlow(PaymentState.NotStarted)
     val paymentState: StateFlow<PaymentState> = _paymentState.asStateFlow()
 
-    // To prevent spam clicking and queueing payment sheets, lock the button
     var isClickable = MutableStateFlow(true)
-
-    // A client for interacting with the Google Pay API.
-    internal val paymentsClient: PaymentsClient by lazy { createPaymentsClient(application, config.environment) }
-
     private var isStarted = false
     private fun started() = this.isStarted
 
-    fun start() {
-        if (this.isStarted) {
-            // Only supports starting once.
-            return
-        }
+    internal val paymentsClient: PaymentsClient by lazy {
+        createPaymentsClient(application, config.environment)
+    }
 
+    private val apiClient = EvervaultPayAPI(when (config.environment) {
+        EvervaultConstants.ENVIRONMENT_TEST -> Constants.API_BASE_URL_TEST
+        EvervaultConstants.ENVIRONMENT_PRODUCTION -> Constants.API_BASE_URL_PRODUCTION
+        else -> Constants.API_BASE_URL_PRODUCTION
+    }, config.appId)
+
+    fun start() {
+        if (this.isStarted) return
         this.isStarted = true
 
         viewModelScope.launch {
@@ -111,12 +107,12 @@ class EvervaultPayViewModel(application: Application, val config: Config) : Andr
         }
     }
 
-    private val apiClient = EvervaultPayAPI(application.evervaultBaseUrl(), config.appId)
-
-    // Update the error state and unlock the button
-    private fun updateErrorStateAndUnlock(errorCode: Int, message: String?) {
-        _paymentState.update { PaymentState.Error(errorCode, message)}
-        isClickable.update { current -> !current }
+    suspend fun isAvailable(): Boolean {
+        return try {
+            fetchCanUseGooglePay()
+        } catch (e: Exception) {
+            false
+        }
     }
 
     suspend fun getMerchantName(): String = suspendCancellableCoroutine { cont ->
@@ -125,7 +121,7 @@ class EvervaultPayViewModel(application: Application, val config: Config) : Andr
             object : EvervaultPayAPICallback {
                 override fun onFailure(e: IOException) {
                     Log.e(LOG_TAG, "An exception occurred while fetching the merchant", e)
-                    updateErrorStateAndUnlock(CommonStatusCodes.INTERNAL_ERROR, e.message)
+                    _paymentState.update { PaymentState.Error(CommonStatusCodes.INTERNAL_ERROR, e.message) }
                     cont.cancel()
                 }
 
@@ -134,7 +130,7 @@ class EvervaultPayViewModel(application: Application, val config: Config) : Andr
                         val merchant = Gson().fromJson(response.string(), Merchant::class.java)
                         cont.resume(merchant.name)
                     } catch (e: Exception) {
-                        updateErrorStateAndUnlock(CommonStatusCodes.INTERNAL_ERROR, e.message)
+                        _paymentState.update { PaymentState.Error(CommonStatusCodes.INTERNAL_ERROR, e.message) }
                         cont.cancel()
                     }
                 }
@@ -142,77 +138,57 @@ class EvervaultPayViewModel(application: Application, val config: Config) : Andr
         )
     }
 
-    fun handlePaymentDataIntent(requestCode: Int, resultCode: Int, data: Intent?) {
-        if (requestCode != LOAD_PAYMENT_DATA_REQUEST_CODE) return
-
-        // Unlock the button when complete
-        this.isClickable.update { current -> !current }
-
-        when (resultCode) {
-            Activity.RESULT_OK -> {
-                val paymentData = PaymentData.getFromIntent(data!!)
-                if (paymentData != null) {
-                    setPaymentData(paymentData)
-                } else {
-                    handleError(CommonStatusCodes.INTERNAL_ERROR, "No payment data")
-                }
-            }
-            Activity.RESULT_CANCELED -> {
-                Log.w(LOG_TAG, "Payment cancelled by user")
-            }
-            AutoResolveHelper.RESULT_ERROR -> {
-                val status = AutoResolveHelper.getStatusFromIntent(data!!)
-                handleError(status?.statusCode ?: CommonStatusCodes.INTERNAL_ERROR,
-                    status?.statusMessage)
-                }
-            }
-        }
-
     /**
-     * Determine the user's ability to pay with a payment method supported by your app and display
-     * a Google Pay payment button.
-    ) */
-    private suspend fun verifyGooglePayReadiness() {
-        if (!this.started()) {
-            return _paymentState.update { PaymentState.Error(CommonStatusCodes.DEVELOPER_ERROR, "Must call 'start' before calling this method") }
-        }
-
-        val newUiState: PaymentState = try {
-            if (fetchCanUseGooglePay()) {
-                PaymentState.Available
-            } else {
-                PaymentState.Unavailable
-            }
-        } catch (exception: ApiException) {
-            PaymentState.Error(exception.statusCode, exception.message)
-        }
-
-        _paymentState.update { newUiState }
-    }
-
-    /**
-     * Determine the user's ability to pay with a payment method supported by your app.
-     * You must call 'start' before calling this method.
-    ) */
-    private suspend fun fetchCanUseGooglePay(): Boolean {
-        val request = IsReadyToPayRequest.fromJson(isReadyToPayRequest(this).toString())
-        return this.paymentsClient.isReadyToPay(request).await()
-    }
-
-    /**
-     * At this stage, the user has already seen a popup informing them an error occurred. Normally,
-     * only logging is required.
-     *
-     * @param statusCode will hold the value of any constant from CommonStatusCode or one of the
-     * WalletConstants.ERROR_CODE_* constants.
-     * @see [
-     * Wallet Constants Library](https://developers.google.com/android/reference/com/google/android/gms/wallet/WalletConstants)
+     * Build the Google Pay PaymentDataRequest for the given transaction.
      */
-    private fun handleError(statusCode: Int, message: String?) {
-        Log.e(LOG_TAG, "Error code: $statusCode, Message: $message")
+    suspend fun createPaymentRequest(transaction: Transaction): PaymentDataRequest {
+        val merchantName = getMerchantName()
+
+        // https://developers.google.com/pay/api/web/reference/request-objects#TransactionInfo
+        val paymentDataRequestJson = baseRequest
+            .put("allowedPaymentMethods", allowedPaymentMethods(this))
+            .put(
+                "transactionInfo", JSONObject()
+                    .put("displayItems", JSONArray(transaction.lineItems.map {
+                        JSONObject()
+                            .put("label", it.label)
+                            .put("type", "LINE_ITEM")
+                            .put("price", it.amount.amount)
+                            .put("status", "FINAL")
+                    }))
+                    .put("totalPriceLabel", "Total")
+                    .put("totalPrice", transaction.total.amount)
+                    .put("totalPriceStatus", "FINAL")
+                    .put("countryCode", transaction.country)
+                    .put("currencyCode", transaction.currency)
+            )
+            .put("merchantInfo", JSONObject().put("merchantName", merchantName))
+
+        return PaymentDataRequest.fromJson(paymentDataRequestJson.toString())
     }
 
-    private fun setPaymentData(paymentData: PaymentData) {
+    /**
+     * Fetches the `PaymentResult` after doing the token exchange from Evervault.
+     */
+    suspend fun getPaymentData(transaction: Transaction): PaymentResult {
+        return try {
+            val request = createPaymentRequest(transaction)
+            val task = paymentsClient.loadPaymentData(request)
+
+            try {
+                val paymentData = task.await()
+                PaymentResult.Success(paymentData)
+            } catch (e: ResolvableApiException) {
+                PaymentResult.Resolvable(e.resolution)
+            } catch (e: Exception) {
+                PaymentResult.Failure(e)
+            }
+        } catch (e: Exception) {
+            PaymentResult.Failure(e)
+        }
+    }
+
+    fun handlePaymentData(paymentData: PaymentData) {
         this.apiClient.fetchCryptogram(paymentData, config.merchantId, object : EvervaultPayAPICallback {
             override fun onFailure(e: IOException) {
                 Log.e(LOG_TAG, "An exception occured while fetching the cryptogram", e)
@@ -241,20 +217,36 @@ class EvervaultPayViewModel(application: Application, val config: Config) : Andr
         })
     }
 
+    private suspend fun verifyGooglePayReadiness() {
+        if (!this.started()) {
+            return _paymentState.update { PaymentState.Error(CommonStatusCodes.DEVELOPER_ERROR, "Must call 'start' first") }
+        }
+
+        val newUiState: PaymentState = try {
+            if (fetchCanUseGooglePay()) PaymentState.Available else PaymentState.Unavailable
+        } catch (exception: ApiException) {
+            PaymentState.Error(exception.statusCode, exception.message)
+        }
+
+        _paymentState.update { newUiState }
+    }
+
+    private suspend fun fetchCanUseGooglePay(): Boolean {
+        val request = IsReadyToPayRequest.fromJson(isReadyToPayRequest(this).toString())
+        return paymentsClient.isReadyToPay(request).await()
+    }
+
     private fun extractPaymentBillingName(paymentData: PaymentData): BillingAddress? {
         val paymentInformation = paymentData.toJson()
-
-        try {
-            // Token will be null if PaymentDataRequest was not constructed using fromJson(String).
+        return try {
             val paymentMethodData = JSONObject(paymentInformation).getJSONObject("paymentMethodData")
             val billingAddress = paymentMethodData
                 .getJSONObject("info")
                 .getJSONObject("billingAddress")
-            return Gson().fromJson(billingAddress.toString(), BillingAddress::class.java)
+            Gson().fromJson(billingAddress.toString(), BillingAddress::class.java)
         } catch (error: JSONException) {
             Log.e(LOG_TAG, "Error: $error")
+            null
         }
-
-        return null
     }
 }
