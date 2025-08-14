@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "com.evervault.payments" // Maven group ID
-version = "android-v0.0.3" // Bump per release
+version = "android-v0.0.23" // Bump per release
 
 android {
     namespace = "com.evervault.payments"
