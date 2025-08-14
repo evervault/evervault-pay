@@ -168,7 +168,7 @@ class EvervaultPayViewModel(application: Application, val config: Config) : Andr
     }
 
     /**
-     * Returns a PaymentResult without invoking AutoResolveHelper.
+     * Fetches the `PaymentResult` after doing the token exchange from Evervault.
      */
     suspend fun getPaymentData(transaction: Transaction): PaymentResult {
         return try {
