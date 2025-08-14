@@ -144,6 +144,7 @@ class EvervaultPayViewModel(application: Application, val config: Config) : Andr
     suspend fun createPaymentRequest(transaction: Transaction): PaymentDataRequest {
         val merchantName = getMerchantName()
 
+        // https://developers.google.com/pay/api/web/reference/request-objects#TransactionInfo
         val paymentDataRequestJson = baseRequest
             .put("allowedPaymentMethods", allowedPaymentMethods(this))
             .put(
