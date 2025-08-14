@@ -22,12 +22,12 @@ sealed interface TokenResponse {
 }
 
 data class GooglePayCard(
-    val brand: String?,
-    val funding: String?,
-    val segment: String?,
-    val country: String?,
-    val currency: String?,
-    val issuer: String?
+    val brand: String? = null,
+    val funding: String? = null,
+    val segment: String? = null,
+    val country: String? = null,
+    val currency: String? = null,
+    val issuer: String? = null,
 )
 
 data class NetworkTokenResponse(
@@ -35,21 +35,21 @@ data class NetworkTokenResponse(
     val token: PaymentToken,
     val cryptogram: String,
     val eci: String,
-    override var billingAddress: BillingAddress?,
+    override var billingAddress: BillingAddress? = null,
 ) : TokenResponse
 
 data class FpanCardDetails(
     val number: String,
     val expiry: CardExpiry,
-    val brand: String?,
-    val funding: String?,
-    val segment: String?,
-    val country: String?,
-    val currency: String?,
-    val issuer: String?
+    val brand: String? = null,
+    val funding: String? = null,
+    val segment: String? = null,
+    val country: String? = null,
+    val currency: String? = null,
+    val issuer: String? = null,
 )
 
 data class CardResponse(
     val card: FpanCardDetails,
-    override var billingAddress: BillingAddress?
+    override var billingAddress: BillingAddress? = null,
 ) : TokenResponse
