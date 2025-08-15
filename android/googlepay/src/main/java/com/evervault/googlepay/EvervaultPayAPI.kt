@@ -1,10 +1,17 @@
 package com.evervault.googlepay
 
-import android.content.Context
 import android.os.Handler
 import android.os.Looper
-import com.evervault.payments.R
+import com.google.gson.Gson
+import com.google.gson.GsonBuilder
+import com.google.gson.JsonDeserializationContext
+import com.google.gson.JsonDeserializer
+import com.google.gson.JsonElement
+import com.google.gson.JsonParseException
+import com.google.gson.JsonSyntaxException
 import com.google.android.gms.wallet.PaymentData
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okio.IOException
@@ -98,5 +105,25 @@ class EvervaultPayAPI(private val baseUrl: String, private val appUuid: String) 
                 }
             }
         })
+    }
+
+    suspend fun fetchSDKConfig(appId: String): SDKConfig {
+        val request = Request.Builder()
+            .url("${baseUrl}/frontend/sdk/config")
+            .method("GET", null)
+            .addHeader("Content-Type", "application/json")
+            .addHeader("x-evervault-app-id", appId)
+            .build()
+
+        return withContext(Dispatchers.IO) {
+            client.newCall(request).execute().let {
+                if (!it.isSuccessful) {
+                    SDKConfig(false)
+                } else {
+                    val gson = GsonBuilder().create()
+                    gson.fromJson(it.body?.string(), SDKConfig::class.java)
+                }
+            }
+        }
     }
 }
