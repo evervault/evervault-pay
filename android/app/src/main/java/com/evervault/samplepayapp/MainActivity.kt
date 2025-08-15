@@ -27,9 +27,8 @@ import com.evervault.googlepay.Transaction
 class MainActivity : AppCompatActivity() {
 
     private val model: EvervaultPayViewModel by viewModels {
-        // Use staging for the test app.
-        EvervaultCustomConfig.apiBaseUrl = "https://api.evervault.io"
-
+        // Optional: Override the API Base URL when needed
+        // here by setting `EvervaultCustomConfig.apiBaseUrl`
         EvervaultPayViewModelFactory(
             application,
             Config(
