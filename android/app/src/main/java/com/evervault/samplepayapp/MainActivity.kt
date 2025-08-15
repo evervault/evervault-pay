@@ -16,6 +16,7 @@ import com.evervault.googlepay.CardResponse
 import com.evervault.googlepay.EvervaultButtonTheme
 import com.evervault.googlepay.EvervaultButtonType
 import com.evervault.googlepay.EvervaultConstants
+import com.evervault.googlepay.EvervaultCustomConfig
 import com.evervault.googlepay.EvervaultPayViewModel
 import com.evervault.googlepay.EvervaultPayViewModelFactory
 import com.evervault.googlepay.NetworkTokenResponse
@@ -26,10 +27,12 @@ import com.evervault.googlepay.Transaction
 class MainActivity : AppCompatActivity() {
 
     private val model: EvervaultPayViewModel by viewModels {
+        // Use staging for the test app.
+        EvervaultCustomConfig.apiBaseUrl = "https://api.evervault.io"
+
         EvervaultPayViewModelFactory(
             application,
             Config(
-                environment = EvervaultConstants.ENVIRONMENT_TEST,
                 appId = BuildConfig.EVERVAULT_APP_ID,
                 merchantId = BuildConfig.EVERVAULT_MERCHANT_ID,
                 supportedNetworks = listOf(

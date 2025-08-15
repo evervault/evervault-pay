@@ -1,6 +1,9 @@
 package com.evervault.googlepay
 
 import android.app.Application
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -10,7 +13,6 @@ import com.google.android.gms.common.api.ResolvableApiException
 import com.google.android.gms.wallet.IsReadyToPayRequest
 import com.google.android.gms.wallet.PaymentData
 import com.google.android.gms.wallet.PaymentDataRequest
-import com.google.android.gms.wallet.PaymentsClient
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonDeserializationContext
@@ -88,15 +90,26 @@ class EvervaultPayViewModel(application: Application, val config: Config) : Andr
     private var isStarted = false
     private fun started() = this.isStarted
 
-    internal val paymentsClient: PaymentsClient by lazy {
-        createPaymentsClient(application, config.environment)
+    internal val sdkConfig by lazy {
+        CoroutineScope(Dispatchers.IO).async {
+            apiClient.fetchSDKConfig(config.appId)
+        }
     }
 
-    private val apiClient = EvervaultPayAPI(when (config.environment) {
-        EvervaultConstants.ENVIRONMENT_TEST -> Constants.API_BASE_URL_TEST
-        EvervaultConstants.ENVIRONMENT_PRODUCTION -> Constants.API_BASE_URL_PRODUCTION
-        else -> Constants.API_BASE_URL_PRODUCTION
-    }, config.appId)
+    internal val paymentsClient by lazy {
+        CoroutineScope(Dispatchers.IO).async {
+            // Create the local google pay client based on if it's an Evervault sandbox app or not.
+            createPaymentsClient(
+                application, if (sdkConfig.await().is_sandbox) {
+                    EvervaultConstants.ENVIRONMENT_TEST
+                } else {
+                    EvervaultConstants.ENVIRONMENT_PRODUCTION
+                }
+            )
+        }
+    }
+
+    private val apiClient = EvervaultPayAPI(EvervaultCustomConfig.apiBaseUrl, config.appId)
 
     fun start() {
         if (this.isStarted) return
@@ -173,7 +186,7 @@ class EvervaultPayViewModel(application: Application, val config: Config) : Andr
     suspend fun getPaymentData(transaction: Transaction): PaymentResult {
         return try {
             val request = createPaymentRequest(transaction)
-            val task = paymentsClient.loadPaymentData(request)
+            val task = paymentsClient.await().loadPaymentData(request)
 
             try {
                 val paymentData = task.await()
@@ -233,7 +246,7 @@ class EvervaultPayViewModel(application: Application, val config: Config) : Andr
 
     private suspend fun fetchCanUseGooglePay(): Boolean {
         val request = IsReadyToPayRequest.fromJson(isReadyToPayRequest(this).toString())
-        return paymentsClient.isReadyToPay(request).await()
+        return paymentsClient.await().isReadyToPay(request).await()
     }
 
     private fun extractPaymentBillingName(paymentData: PaymentData): BillingAddress? {
