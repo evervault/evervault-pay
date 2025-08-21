@@ -15,7 +15,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Lint
-        working-directory: ios
         run: |
           pod lib lint
 
