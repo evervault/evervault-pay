@@ -1,0 +1,22 @@
+name: Cocoapods
+
+on:
+  push:
+    tags:
+      - 'ios-*'
+
+jobs:
+  Deploy:
+    name: Publish
+    runs-on: macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Lint
+        working-directory: ios
+        run: |
+          pod spec lint
+      - name: Push
+        working-directory: ios
+        run: |
+          pod trunk push
