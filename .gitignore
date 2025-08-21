@@ -2,8 +2,6 @@
 # IOS #
 #######
 
-**/*.DS_Store
-
 #ignore swiftpm
 **/.swiftpm
 
@@ -24,3 +22,10 @@
 
 # Ignore config overrides
 android/app/src/main/res/values/config.xml
+
+###########
+# Other   #
+##########
+.direnv
+**/*.swp
+**/*.DS_Store
