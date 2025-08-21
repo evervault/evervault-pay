@@ -5,6 +5,7 @@ on:
     paths:
       - 'ios/**'
       - '.github/**'
+      - '**/*.podspec'
 
 jobs:
   Pod-Lint:

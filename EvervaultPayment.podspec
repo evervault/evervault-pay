@@ -11,7 +11,7 @@ Pod::Spec.new do |spec|
   spec.homepage     = "https://evervault.com"
   spec.license      = { :type => "MIT", :file => "LICENSE" }
   spec.author       = { "Evervault" => "support@evervault.com" }
-  spec.platform     = :ios, "15.0"
+  spec.platform     = :ios, '15.0'
   spec.source       = { :git => "https://github.com/evervault/evervault-pay.git", :tag => "#{spec.version}" }
   
   spec.source_files = "ios/EvervaultPayment/Sources/EvervaultPayment/**/*.swift"
