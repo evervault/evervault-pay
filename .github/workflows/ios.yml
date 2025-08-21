@@ -14,9 +14,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Update Specs Repo
+        run: pod repo update
       - name: Lint
-        run: |
-          pod lib lint
+        run: pod lib lint
 
   Build-Device:
     name: Build Device
