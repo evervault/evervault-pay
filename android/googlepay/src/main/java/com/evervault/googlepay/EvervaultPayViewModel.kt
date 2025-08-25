@@ -215,12 +215,9 @@ class EvervaultPayViewModel(application: Application, val config: Config) : Andr
                         .registerTypeAdapter(TokenResponse::class.java, TokenResponseAdapter())
                         .create()
                     val tokenResponse = gson.fromJson(raw, TokenResponse::class.java)
+                    tokenResponse.billingAddress = extractPaymentBillingName(paymentData)
 
-                    val payState = extractPaymentBillingName(paymentData)?.let {
-                        tokenResponse.billingAddress = it
-                        PaymentState.PaymentCompleted(response = tokenResponse)
-                    } ?: PaymentState.Error(CommonStatusCodes.INTERNAL_ERROR)
-                    _paymentState.update { payState }
+                    _paymentState.update { PaymentState.PaymentCompleted(response = tokenResponse) }
                 } catch (_: JsonSyntaxException) {
                     _paymentState.update {
                         PaymentState.Error(CommonStatusCodes.INTERNAL_ERROR, "Error decoding payment token data")
