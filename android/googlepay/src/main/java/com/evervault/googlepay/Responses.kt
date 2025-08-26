@@ -9,7 +9,7 @@ data class CardExpiry(
 data class PaymentToken(
     val number: String,
     val expiry: CardExpiry,
-    val token_service_provider: String
+    val tokenServiceProvider: String
 )
 
 data class Merchant(
