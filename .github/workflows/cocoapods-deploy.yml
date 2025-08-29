@@ -16,7 +16,7 @@ jobs:
         run: pod repo update
       - name: Lint
         run: |
-          pod spec lint
+          pod lib lint
       - name: Push
         run: |
           pod trunk push
