@@ -93,7 +93,7 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
 
     // MARK: Coordinator
 
-    public class Coordinator: NSObject, EvervaultPaymentViewDelegate {
+    public class Coordinator: NSObject, EvervaultPaymentViewDelegate, @unchecked Sendable {
         let parent: EvervaultPaymentViewRepresentable
 
         public init(parent: EvervaultPaymentViewRepresentable) {

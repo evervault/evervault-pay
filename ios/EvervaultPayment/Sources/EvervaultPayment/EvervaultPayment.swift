@@ -132,7 +132,10 @@ public class EvervaultPaymentView: UIView {
         self.delegate?.evervaultPaymentView(self, prepareTransaction: &self.transaction)
         
         do {
-            let rootVC = UIApplication.shared.windows.first(where: { $0.isKeyWindow })?.rootViewController
+            let rootVC = UIApplication.shared.connectedScenes
+                .compactMap { $0 as? UIWindowScene }
+                .flatMap { $0.windows }
+                .first(where: { $0.isKeyWindow })?.rootViewController
             
             switch self.transaction {
             case let .oneOffPayment(oneOffTransaction):

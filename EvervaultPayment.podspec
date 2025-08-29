@@ -15,7 +15,7 @@ Pod::Spec.new do |spec|
   spec.source       = { :git => "https://github.com/evervault/evervault-pay.git", :tag => "#{spec.version}" }
   
   spec.source_files = "ios/EvervaultPayment/Sources/EvervaultPayment/**/*.swift"
-  spec.swift_version = "5.7"
+  spec.swift_version = "5.9"
   
   spec.frameworks   = "PassKit", "Foundation", "UIKit"
   
@@ -23,8 +23,16 @@ Pod::Spec.new do |spec|
   
   spec.social_media_url = "https://twitter.com/evervault"
   
-  # Ensure the pod works with both static and dynamic linking
-  spec.static_framework = false
+  # Use static framework to avoid linker issues
+  spec.static_framework = true
+  
+  # Add build settings to fix linker issues
+  spec.pod_target_xcconfig = {
+    #'DEFINES_MODULE' => 'YES',
+    #'SWIFT_VERSION' => '5.9',
+    #'IPHONEOS_DEPLOYMENT_TARGET' => '15.0',
+    #'OTHER_LDFLAGS' => '-weak_framework PassKit'
+  }
   
   # Add any test files if they exist
   # spec.test_spec 'Tests' do |test_spec|
