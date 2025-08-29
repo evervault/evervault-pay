@@ -157,14 +157,14 @@ public class EvervaultPaymentView: UIView {
                 
                 if #available(iOS 17.0, *) {
                     let paymentRequest = self.buildPaymentRequest(transaction: disbursementTransaction)
-                    let vc = PKPaymentAuthorizationViewController(disbursementRequest: paymentRequest)
+                    let vc: PKPaymentAuthorizationViewController?  = PKPaymentAuthorizationViewController(disbursementRequest: paymentRequest)
                     if vc == nil {
                         throw EvervaultError.ApplePayPaymentSheetError
                     }
-                    vc.delegate = self
-                    
+                    vc?.delegate = self
+
                     // Present the Payment Sheet from the frontmost window
-                    rootVC?.present(vc, animated: true)
+                    rootVC?.present(vc!, animated: true)
                 } else {
                     throw EvervaultError.UnsupportedVersionError
                 }
@@ -334,7 +334,7 @@ extension EvervaultPaymentView : PKPaymentAuthorizationViewControllerDelegate {
     }
     
     @MainActor
-    public func paymentAuthorizationViewController(_ controller: PKPaymentAuthorizationViewController, didSelectPaymentMethod paymentMethod: PKPaymentMethod) async -> PKPaymentRequestPaymentMethodUpdate {
+    public func paymentAuthorizationViewController(_ controller: PKPaymentAuthorizationViewController, didSelect paymentMethod: PKPaymentMethod) async -> PKPaymentRequestPaymentMethodUpdate {
         return await self.delegate?.evervaultPaymentView(self, didUpdatePaymentMethod: paymentMethod) ?? PKPaymentRequestPaymentMethodUpdate(paymentSummaryItems: self.getPaymentSummaryItems())
     }
 }

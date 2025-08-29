@@ -114,14 +114,14 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
         }
 
         nonisolated public func evervaultPaymentView(_ view: EvervaultPaymentView, didSelectShippingContact contact: PKContact) async -> PKPaymentRequestShippingContactUpdate? {
-            if let handler = self.parent.onShippingAddressChangeCallback {
-                let updatedLineItems = await handler(contact)
+            if let handler = await self.parent.onShippingAddressChangeCallback {
+                let updatedLineItems = handler(contact)
                 return PKPaymentRequestShippingContactUpdate(
                     errors: nil,
                     paymentSummaryItems: updatedLineItems.map{ item in
                         PKPaymentSummaryItem(label: item.label, amount: item.amount.amount)
                     },
-                    shippingMethods: getShippingMethods(transaction: view.transaction)
+                    shippingMethods: await self.getShippingMethods(transaction: view.transaction)
                 )
             }
 
@@ -129,8 +129,8 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
         }
 
         public func evervaultPaymentView(_ view: EvervaultPaymentView, didUpdatePaymentMethod paymentMethod: PKPaymentMethod) async -> PKPaymentRequestPaymentMethodUpdate? {
-            if let handler = self.parent.onPaymentMethodChangeCallback {
-                return await handler(paymentMethod)
+            if let handler = await self.parent.onPaymentMethodChangeCallback {
+                return handler(paymentMethod)
             }
 
             return nil
@@ -146,10 +146,10 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
         private func getShippingMethods(transaction: Transaction) -> [PKShippingMethod] {
             switch transaction {
                 case .oneOffPayment(let paymentRequest):
-                    return paymentRequest.shippingMethods ?? []
-                case .recurringPayment(let paymentRequest):
+                    return paymentRequest.shippingMethods
+                case .recurringPayment(_):
                     return []
-                case .disbursement(let paymentRequest):
+                case .disbursement(_):
                     return []
             }
         }
