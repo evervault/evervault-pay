@@ -29,3 +29,4 @@ android/app/src/main/res/values/config.xml
 .direnv
 **/*.swp
 **/*.DS_Store
+.idea/

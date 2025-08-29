@@ -2,6 +2,10 @@ package com.evervault.googlepay
 
 import android.app.Activity
 import android.content.Context
+import android.util.Log
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -87,7 +91,7 @@ private fun baseCardPaymentMethod(model: EvervaultPayViewModel): JSONObject =
 private fun cardPaymentMethod(model: EvervaultPayViewModel) = baseCardPaymentMethod(model)
     .put("tokenizationSpecification", gatewayTokenizationSpecification(model))
 
-private fun allowedPaymentMethods(model: EvervaultPayViewModel) = JSONArray().put(cardPaymentMethod(model))
+internal fun allowedPaymentMethods(model: EvervaultPayViewModel) = JSONArray().put(cardPaymentMethod(model))
 
 /**
  * Create a Google Pay API base request object with properties used in all requests.
@@ -95,7 +99,7 @@ private fun allowedPaymentMethods(model: EvervaultPayViewModel) = JSONArray().pu
  * @return Google Pay API base request object.
  * @throws JSONException
  */
-private val baseRequest = JSONObject()
+internal val baseRequest = JSONObject()
     .put("apiVersion", 2)
     .put("apiVersionMinor", 0)
 
@@ -142,44 +146,38 @@ fun EvervaultPaymentButton(
     val activity = LocalContext.current as Activity
     val scope = rememberCoroutineScope()
 
-    val isClickable by model.isClickable
-        .collectAsState(initial = false)
+    val isClickable by model.isClickable.collectAsState(initial = false)
+
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val data = PaymentData.getFromIntent(result.data!!)
+            if (data != null) {
+                model.handlePaymentData(data)
+            }
+        }
+    }
 
     val onClickHandler = onClick@{
-        // Lock the button if it has been clicked and sheet is displaying
-        if(!model.isClickable.value) return@onClick
-        model.isClickable.update { current -> !current }
+        if (!model.isClickable.value) return@onClick
+        model.isClickable.update { false }
 
         scope.launch {
-            val merchantName = model.getMerchantName()
-
-            // https://developers.google.com/pay/api/web/reference/request-objects#TransactionInfo
-            val paymentDataRequestJson = baseRequest
-                .put("allowedPaymentMethods", allowedPaymentMethods(model))
-                .put(
-                    "transactionInfo", JSONObject()
-                        .put("displayItems", JSONArray(paymentRequest.lineItems.map {
-                            JSONObject()
-                                .put("label", it.label)
-                                .put("type", "LINE_ITEM")
-                                .put("price", it.amount.amount)
-                                .put("status", "FINAL")
-                        }))
-                        .put("totalPriceLabel", "Total")
-                        .put("totalPrice", paymentRequest.total.amount)
-                        .put("totalPriceStatus", "FINAL")
-                        .put("countryCode", paymentRequest.country)
-                        .put("currencyCode", paymentRequest.currency)
-                )
-                .put("merchantInfo", JSONObject().put("merchantName", merchantName))
-            val request = PaymentDataRequest.fromJson(paymentDataRequestJson.toString())
-
-            val task: Task<PaymentData> = model.paymentsClient.loadPaymentData(request)
-            AutoResolveHelper.resolveTask(
-                task,
-                activity,
-                EvervaultPayViewModel.LOAD_PAYMENT_DATA_REQUEST_CODE
-            )
+            when (val result = model.getPaymentData(paymentRequest)) {
+                is PaymentResult.Success -> {
+                    model.handlePaymentData(result.paymentData)
+                    model.isClickable.update { true }
+                }
+                is PaymentResult.Resolvable -> {
+                    val request = IntentSenderRequest.Builder(result.intentSender).build()
+                    launcher.launch(request)
+                }
+                is PaymentResult.Failure -> {
+                    model.isClickable.update { true }
+                    Log.e(EvervaultPayViewModel.LOG_TAG, "Payment failed", result.throwable)
+                }
+            }
         }
     }
 
