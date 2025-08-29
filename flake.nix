@@ -29,6 +29,7 @@
         default = pkgs.mkShell {
           # The Nix packages provided in the environment
           packages = with pkgs; [
+            nodejs_20
             openjdk17
             cocoapods
           ];
@@ -46,10 +47,13 @@
               export PATH="$ANDROID_HOME/emulator:$ANDROID_HOME/tools:$ANDROID_HOME/tools/bin:$ANDROID_HOME/platform-tools:$PATH"
               echo "[INFO] ANDROID_HOME set to $ANDROID_HOME"
 
-              export SDKROOT="$(xcrun --sdk iphoneos --show-sdk-path || true)"
+              export SDKROOT="$(xcrun --sdk iphoneos --show-sdk-path 2>/dev/null || true)"
               echo "[INFO] Xcode SDK root: $SDKROOT"
               echo "[INFO] clang path: $(which clang)"
             fi
+
+            # Use system installed tools first.
+            export PATH="/usr/bin:$PATH"
           '';
           };
       });

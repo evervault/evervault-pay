@@ -23,19 +23,5 @@ Pod::Spec.new do |spec|
   
   spec.social_media_url = "https://twitter.com/evervault"
   
-  # Use static framework to avoid linker issues
   spec.static_framework = true
-  
-  # Add build settings to fix linker issues
-  spec.pod_target_xcconfig = {
-    #'DEFINES_MODULE' => 'YES',
-    #'SWIFT_VERSION' => '5.9',
-    #'IPHONEOS_DEPLOYMENT_TARGET' => '15.0',
-    #'OTHER_LDFLAGS' => '-weak_framework PassKit'
-  }
-  
-  # Add any test files if they exist
-  # spec.test_spec 'Tests' do |test_spec|
-  #   test_spec.source_files = 'Tests/**/*.swift'
-  # end
 end
