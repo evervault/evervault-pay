@@ -1,5 +1,5 @@
 {
-  description = "JS Monorepo";
+  description = "Evervault Pay SDK";
 
   # Flake inputs
   inputs = {
