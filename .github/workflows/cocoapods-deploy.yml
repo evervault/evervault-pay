@@ -2,8 +2,8 @@ name: Cocoapods
 
 on:
   push:
-    tags:
-      - 'ios-*'
+    tags-ignore:
+      - 'android-*'
 
 jobs:
   Deploy:
