@@ -1,6 +1,6 @@
 Pod::Spec.new do |spec|
   spec.name         = "EvervaultPayment"
-  spec.version      = "0.0.22"
+  spec.version      = "0.0.23"
   spec.summary      = "Evervault Pay SDK for iOS - Secure Apple Pay integration with Evervault encryption"
   spec.description  = <<-DESC
     The Evervault Pay SDK for iOS provides a secure way to integrate Apple Pay into your iOS applications.
