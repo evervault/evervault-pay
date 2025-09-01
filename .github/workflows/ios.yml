@@ -69,7 +69,8 @@ jobs:
           xcode-version: latest-stable
       - name: Boot simulator
         run: |
-          xcrun simctl boot "$DEVICE_NAME" || exit 1
+          xcrun simctl list
+          xcrun simctl boot "$DEVICE_NAME"
           xcrun simctl bootstatus "$DEVICE_NAME"
       - name: Test
         working-directory: ios/Demo
