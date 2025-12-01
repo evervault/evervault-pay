@@ -36,6 +36,8 @@ data class NetworkTokenResponse(
     val cryptogram: String,
     val eci: String,
     override var billingAddress: BillingAddress? = null,
+    val messageId: String? = null,
+    val messageExpiration: String? = null,
 ) : TokenResponse
 
 data class FpanCardDetails(
@@ -52,4 +54,6 @@ data class FpanCardDetails(
 data class CardResponse(
     val card: FpanCardDetails,
     override var billingAddress: BillingAddress? = null,
+    val messageId: String? = null,
+    val messageExpiration: String? = null,
 ) : TokenResponse
