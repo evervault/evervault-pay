@@ -7,6 +7,29 @@ on:
       - '.github/**'
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: gradle
+    - name: Grant execute permission for gradlew
+      working-directory: android
+      run: chmod +x gradlew
+    - name: Run lint with Gradle
+      working-directory: android
+      run: ./gradlew :googlepay:lint
+    - name: Upload lint report
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: lint-report
+        path: android/googlepay/build/reports/lint-results-*.html
+      
   build:
     runs-on: ubuntu-latest
     steps:
