@@ -13,7 +13,7 @@ android {
     compileSdk = 33
 
     defaultConfig {
-        minSdk = 26
+        minSdk = 24
         // targetSdk = 33
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles("consumer-rules.pro")
@@ -48,7 +48,7 @@ android {
     }
     defaultConfig {
         aarMetadata {
-            minCompileSdk = 26
+            minCompileSdk = 24
         }
         // Temporary until upgrade to 34
         configurations.all {
