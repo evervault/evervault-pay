@@ -208,10 +208,11 @@ public class EvervaultPaymentView: UIView {
         paymentRequest.shippingType = transaction.shippingType
         paymentRequest.shippingMethods = transaction.shippingMethods
         paymentRequest.requiredShippingContactFields = transaction.requiredShippingContactFields
-        
+        paymentRequest.requiredBillingContactFields = transaction.requestPayerDetails
+
         return paymentRequest
     }
-    
+
     @available(iOS 17.0, *)
     private func buildPaymentRequest(transaction: DisbursementTransaction) -> PKDisbursementRequest {
         let paymentRequest = PKDisbursementRequest()
@@ -271,7 +272,8 @@ public class EvervaultPaymentView: UIView {
         recurring.trialBilling = transaction.trialBilling
         recurring.billingAgreement = transaction.billingAgreement
         paymentRequest.recurringPaymentRequest = recurring
-        
+        paymentRequest.requiredBillingContactFields = transaction.requestPayerDetails
+
         return paymentRequest
     }
     
