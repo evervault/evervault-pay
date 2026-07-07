@@ -48,6 +48,25 @@ final class ApplePayContactTests: XCTestCase {
         XCTAssertEqual(result?.postalAddress?.isoCountryCode, "IE")
     }
 
+    func testEmptyPhoneticNameCollapsesToNil() {
+        let contact = PKContact()
+
+        var name = PersonNameComponents()
+        name.givenName = "Ana"
+        name.familyName = "M"
+        // Simulator's synthetic Apple Pay test contact hands back a non-nil
+        // phoneticRepresentation with empty fields rather than nil outright.
+        name.phoneticRepresentation = PersonNameComponents()
+        contact.name = name
+
+        let result = ApplePayContact(contact)
+
+        XCTAssertEqual(result?.givenName, "Ana")
+        XCTAssertEqual(result?.familyName, "M")
+        XCTAssertNil(result?.phoneticGivenName)
+        XCTAssertNil(result?.phoneticFamilyName)
+    }
+
     func testMissingFieldsMapToNil() {
         let contact = PKContact()
         contact.emailAddress = "only-email@example.com"

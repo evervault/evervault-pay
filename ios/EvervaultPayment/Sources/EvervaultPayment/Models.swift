@@ -42,6 +42,11 @@ public struct ApplePayCard: Codable, Sendable, Equatable {
     public let issuer: String?
 }
 
+private func nilIfEmpty(_ value: String?) -> String? {
+    guard let value, !value.isEmpty else { return nil }
+    return value
+}
+
 public struct ApplePayPostalAddress: Codable, Sendable, Equatable {
     public let street: String?
     public let city: String?
@@ -51,12 +56,12 @@ public struct ApplePayPostalAddress: Codable, Sendable, Equatable {
     public let isoCountryCode: String?
 
     init(_ address: CNPostalAddress) {
-        self.street = address.street.isEmpty ? nil : address.street
-        self.city = address.city.isEmpty ? nil : address.city
-        self.state = address.state.isEmpty ? nil : address.state
-        self.postalCode = address.postalCode.isEmpty ? nil : address.postalCode
-        self.country = address.country.isEmpty ? nil : address.country
-        self.isoCountryCode = address.isoCountryCode.isEmpty ? nil : address.isoCountryCode
+        self.street = nilIfEmpty(address.street)
+        self.city = nilIfEmpty(address.city)
+        self.state = nilIfEmpty(address.state)
+        self.postalCode = nilIfEmpty(address.postalCode)
+        self.country = nilIfEmpty(address.country)
+        self.isoCountryCode = nilIfEmpty(address.isoCountryCode)
     }
 }
 
@@ -71,12 +76,12 @@ public struct ApplePayContact: Codable, Sendable, Equatable {
 
     init?(_ contact: PKContact?) {
         guard let contact else { return nil }
-        self.givenName = contact.name?.givenName
-        self.familyName = contact.name?.familyName
-        self.phoneticGivenName = contact.name?.phoneticRepresentation?.givenName
-        self.phoneticFamilyName = contact.name?.phoneticRepresentation?.familyName
-        self.emailAddress = contact.emailAddress
-        self.phoneNumber = contact.phoneNumber?.stringValue
+        self.givenName = nilIfEmpty(contact.name?.givenName)
+        self.familyName = nilIfEmpty(contact.name?.familyName)
+        self.phoneticGivenName = nilIfEmpty(contact.name?.phoneticRepresentation?.givenName)
+        self.phoneticFamilyName = nilIfEmpty(contact.name?.phoneticRepresentation?.familyName)
+        self.emailAddress = nilIfEmpty(contact.emailAddress)
+        self.phoneNumber = nilIfEmpty(contact.phoneNumber?.stringValue)
         self.postalAddress = contact.postalAddress.map(ApplePayPostalAddress.init)
     }
 }
