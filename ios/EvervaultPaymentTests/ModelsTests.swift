@@ -67,6 +67,24 @@ final class ApplePayContactTests: XCTestCase {
         XCTAssertNil(result?.phoneticFamilyName)
     }
 
+    func testEmptyNameEmailAndPhoneCollapseToNil() {
+        let contact = PKContact()
+
+        var name = PersonNameComponents()
+        name.givenName = ""
+        name.familyName = ""
+        contact.name = name
+        contact.emailAddress = ""
+        contact.phoneNumber = CNPhoneNumber(stringValue: "")
+
+        let result = ApplePayContact(contact)
+
+        XCTAssertNil(result?.givenName)
+        XCTAssertNil(result?.familyName)
+        XCTAssertNil(result?.emailAddress)
+        XCTAssertNil(result?.phoneNumber)
+    }
+
     func testMissingFieldsMapToNil() {
         let contact = PKContact()
         contact.emailAddress = "only-email@example.com"
@@ -191,5 +209,28 @@ final class ApplePayResponseEnrichedTests: XCTestCase {
         XCTAssertNil(enriched.billingContact)
         XCTAssertNil(enriched.shippingContact)
         XCTAssertEqual(enriched.transactionType, .disbursement)
+    }
+}
+
+final class ApplePayResponseDecodingTests: XCTestCase {
+    func testDecodesBackendJSONWithoutNewFields() throws {
+        let json = """
+        {
+          "networkToken": {"number": "ev:abc", "expiry": {"month": "12", "year": "30"}, "rawExpiry": "12/30", "tokenServiceProvider": "Apple"},
+          "card": {"brand": "visa"},
+          "cryptogram": "ev:cryptogram",
+          "eci": "5",
+          "paymentDataType": "3DSecure",
+          "deviceManufacturerIdentifier": "device-id"
+        }
+        """.data(using: .utf8)!
+
+        let decoded = try JSONDecoder().decode(ApplePayResponse.self, from: json)
+
+        XCTAssertEqual(decoded.networkToken.number, "ev:abc")
+        XCTAssertEqual(decoded.card.brand, "visa")
+        XCTAssertNil(decoded.billingContact)
+        XCTAssertNil(decoded.shippingContact)
+        XCTAssertNil(decoded.transactionType)
     }
 }
