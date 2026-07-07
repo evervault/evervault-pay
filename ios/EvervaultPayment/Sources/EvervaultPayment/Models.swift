@@ -79,14 +79,16 @@ public struct OneOffPaymentTransaction {
     public var shippingType: PKShippingType
     public var shippingMethods: [PKShippingMethod]
     public var requiredShippingContactFields: Set<ContactField>
+    public var requestPayerDetails: Set<ContactField>
 
-    public init(country: String, currency: String, paymentSummaryItems: [SummaryItem]) throws {
+    public init(country: String, currency: String, paymentSummaryItems: [SummaryItem], requestPayerDetails: Set<ContactField> = []) throws {
         self.country = country
         self.currency = currency
         self.paymentSummaryItems = paymentSummaryItems
         self.shippingType = .shipping
         self.shippingMethods = []
         self.requiredShippingContactFields = []
+        self.requestPayerDetails = requestPayerDetails
 
         // Ensure at least one line item is provided
         guard paymentSummaryItems.count > 0 else {
@@ -94,34 +96,36 @@ public struct OneOffPaymentTransaction {
         }
     }
 
-    public init(country: String, currency: String, paymentSummaryItems: [SummaryItem], shippingType: PKShippingType, shippingMethods: [PKShippingMethod], requiredShippingContactFields: Set<ContactField>) throws {
+    public init(country: String, currency: String, paymentSummaryItems: [SummaryItem], shippingType: PKShippingType, shippingMethods: [PKShippingMethod], requiredShippingContactFields: Set<ContactField>, requestPayerDetails: Set<ContactField> = []) throws {
         self.country = country
         self.currency = currency
         self.paymentSummaryItems = paymentSummaryItems
         self.shippingType = shippingType
         self.shippingMethods = shippingMethods
         self.requiredShippingContactFields = requiredShippingContactFields
+        self.requestPayerDetails = requestPayerDetails
 
         // Ensure at least one line item is provided
         guard paymentSummaryItems.count > 0 else {
             throw EvervaultError.InvalidTransactionError
         }
     }
-    
+
     @available(iOS 16, *)
-    public init(country: Locale.Region, currency: Locale.Currency, paymentSummaryItems: [SummaryItem]) throws {
+    public init(country: Locale.Region, currency: Locale.Currency, paymentSummaryItems: [SummaryItem], requestPayerDetails: Set<ContactField> = []) throws {
         self.country = country.identifier
         self.currency = currency.identifier
         self.paymentSummaryItems = paymentSummaryItems
         self.shippingType = .shipping
         self.shippingMethods = []
         self.requiredShippingContactFields = []
+        self.requestPayerDetails = requestPayerDetails
 
         // Ensure at least one line item is provided
         guard paymentSummaryItems.count > 0 else {
             throw EvervaultError.InvalidTransactionError
         }
-        
+
         // Ensure valid currency
         guard currency.isISOCurrency else {
             throw EvervaultError.InvalidCurrencyError
@@ -131,21 +135,22 @@ public struct OneOffPaymentTransaction {
             throw EvervaultError.InvalidCountryError
         }
     }
-    
+
     @available(iOS 16, *)
-    public init(country: Locale.Region, currency: Locale.Currency, paymentSummaryItems: [SummaryItem], shippingType: PKShippingType, shippingMethods: [PKShippingMethod], requiredShippingContactFields: Set<ContactField>) throws {
+    public init(country: Locale.Region, currency: Locale.Currency, paymentSummaryItems: [SummaryItem], shippingType: PKShippingType, shippingMethods: [PKShippingMethod], requiredShippingContactFields: Set<ContactField>, requestPayerDetails: Set<ContactField> = []) throws {
         self.country = country.identifier
         self.currency = currency.identifier
         self.paymentSummaryItems = paymentSummaryItems
         self.shippingType = shippingType
         self.shippingMethods = shippingMethods
         self.requiredShippingContactFields = requiredShippingContactFields
+        self.requestPayerDetails = requestPayerDetails
 
         // Ensure at least one line item is provided
         guard paymentSummaryItems.count > 0 else {
             throw EvervaultError.InvalidTransactionError
         }
-        
+
         // Ensure valid currency
         guard currency.isISOCurrency else {
             throw EvervaultError.InvalidCurrencyError
@@ -216,25 +221,28 @@ public struct RecurringPaymentTransaction {
     public var managementURL: URL
     public var trialBilling: PKRecurringPaymentSummaryItem?
     public var billingAgreement: String?
-    
-    public init(country: String, currency: String, paymentSummaryItems: [SummaryItem] = [], paymentDescription: String, regularBilling: PKRecurringPaymentSummaryItem, managementURL: URL) throws {
+    public var requestPayerDetails: Set<ContactField>
+
+    public init(country: String, currency: String, paymentSummaryItems: [SummaryItem] = [], paymentDescription: String, regularBilling: PKRecurringPaymentSummaryItem, managementURL: URL, requestPayerDetails: Set<ContactField> = []) throws {
         self.country = country
         self.currency = currency
         self.paymentSummaryItems = paymentSummaryItems
         self.paymentDescription = paymentDescription
         self.regularBilling = regularBilling
         self.managementURL = managementURL
+        self.requestPayerDetails = requestPayerDetails
     }
-    
+
     @available(iOS 16.0, *)
-    public init(country: Locale.Region, currency: Locale.Currency, paymentSummaryItems: [SummaryItem] = [], paymentDescription: String, regularBilling: PKRecurringPaymentSummaryItem, managementURL: URL) throws {
+    public init(country: Locale.Region, currency: Locale.Currency, paymentSummaryItems: [SummaryItem] = [], paymentDescription: String, regularBilling: PKRecurringPaymentSummaryItem, managementURL: URL, requestPayerDetails: Set<ContactField> = []) throws {
         self.country = country.identifier
         self.currency = currency.identifier
         self.paymentSummaryItems = paymentSummaryItems
         self.paymentDescription = paymentDescription
         self.regularBilling = regularBilling
         self.managementURL = managementURL
-        
+        self.requestPayerDetails = requestPayerDetails
+
         // Ensure valid currency
         guard currency.isISOCurrency else {
             throw EvervaultError.InvalidCurrencyError
