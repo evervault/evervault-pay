@@ -1,5 +1,6 @@
 import PassKit
 import Foundation
+import Contacts
 
 public typealias Network = PKPaymentNetwork
 
@@ -41,6 +42,62 @@ public struct ApplePayCard: Codable, Sendable, Equatable {
     public let issuer: String?
 }
 
+public struct ApplePayPostalAddress: Codable, Sendable, Equatable {
+    public let street: String?
+    public let city: String?
+    public let state: String?
+    public let postalCode: String?
+    public let country: String?
+    public let isoCountryCode: String?
+
+    init(_ address: CNPostalAddress) {
+        self.street = address.street.isEmpty ? nil : address.street
+        self.city = address.city.isEmpty ? nil : address.city
+        self.state = address.state.isEmpty ? nil : address.state
+        self.postalCode = address.postalCode.isEmpty ? nil : address.postalCode
+        self.country = address.country.isEmpty ? nil : address.country
+        self.isoCountryCode = address.isoCountryCode.isEmpty ? nil : address.isoCountryCode
+    }
+}
+
+public struct ApplePayContact: Codable, Sendable, Equatable {
+    public let givenName: String?
+    public let familyName: String?
+    public let phoneticGivenName: String?
+    public let phoneticFamilyName: String?
+    public let emailAddress: String?
+    public let phoneNumber: String?
+    public let postalAddress: ApplePayPostalAddress?
+
+    init?(_ contact: PKContact?) {
+        guard let contact else { return nil }
+        self.givenName = contact.name?.givenName
+        self.familyName = contact.name?.familyName
+        self.phoneticGivenName = contact.name?.phoneticRepresentation?.givenName
+        self.phoneticFamilyName = contact.name?.phoneticRepresentation?.familyName
+        self.emailAddress = contact.emailAddress
+        self.phoneNumber = contact.phoneNumber?.stringValue
+        self.postalAddress = contact.postalAddress.map(ApplePayPostalAddress.init)
+    }
+}
+
+public enum ApplePayTransactionType: String, Codable, Sendable, Equatable {
+    case oneOff
+    case recurring
+    case disbursement
+
+    init(_ transaction: Transaction) {
+        switch transaction {
+        case .oneOffPayment:
+            self = .oneOff
+        case .recurringPayment:
+            self = .recurring
+        case .disbursement:
+            self = .disbursement
+        }
+    }
+}
+
 public struct ApplePayResponse: Codable, Sendable, Equatable {
     public let networkToken: ApplePayNetworkToken
     public let card: ApplePayCard
@@ -48,6 +105,35 @@ public struct ApplePayResponse: Codable, Sendable, Equatable {
     public let eci: String?
     public let paymentDataType: String
     public let deviceManufacturerIdentifier: String
+    public let billingContact: ApplePayContact?
+    public let shippingContact: ApplePayContact?
+    public let transactionType: ApplePayTransactionType?
+
+    init(networkToken: ApplePayNetworkToken, card: ApplePayCard, cryptogram: String, eci: String?, paymentDataType: String, deviceManufacturerIdentifier: String, billingContact: ApplePayContact? = nil, shippingContact: ApplePayContact? = nil, transactionType: ApplePayTransactionType? = nil) {
+        self.networkToken = networkToken
+        self.card = card
+        self.cryptogram = cryptogram
+        self.eci = eci
+        self.paymentDataType = paymentDataType
+        self.deviceManufacturerIdentifier = deviceManufacturerIdentifier
+        self.billingContact = billingContact
+        self.shippingContact = shippingContact
+        self.transactionType = transactionType
+    }
+
+    func enriched(billingContact: ApplePayContact?, shippingContact: ApplePayContact?, transactionType: ApplePayTransactionType) -> ApplePayResponse {
+        ApplePayResponse(
+            networkToken: networkToken,
+            card: card,
+            cryptogram: cryptogram,
+            eci: eci,
+            paymentDataType: paymentDataType,
+            deviceManufacturerIdentifier: deviceManufacturerIdentifier,
+            billingContact: billingContact,
+            shippingContact: shippingContact,
+            transactionType: transactionType
+        )
+    }
 }
 
 /// Amount wrapper around NSDecimalNumber

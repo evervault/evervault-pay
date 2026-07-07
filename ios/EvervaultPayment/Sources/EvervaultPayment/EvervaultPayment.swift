@@ -303,9 +303,14 @@ extension EvervaultPaymentView : PKPaymentAuthorizationViewControllerDelegate {
         do {
             // Send the token to the Evervault backend for decryption and re-encryption with Evervault Encryption
             let decoded = try await EvervaultApi.sendPaymentToken(appUuid, payment)
+            let enriched = decoded?.enriched(
+                billingContact: ApplePayContact(payment.billingContact),
+                shippingContact: ApplePayContact(payment.shippingContact),
+                transactionType: ApplePayTransactionType(self.transaction)
+            )
             await MainActor.run {
                 // Notify the delegate on the main actor
-                self.delegate?.evervaultPaymentView(self, didAuthorizePayment: decoded)
+                self.delegate?.evervaultPaymentView(self, didAuthorizePayment: enriched)
             }
             
             // Tell Apple Pay the payment was successful
