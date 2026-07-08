@@ -49,6 +49,28 @@ jobs:
           file_to_build=`echo $file_to_build | awk '{$1=$1;print}'`
           xcodebuild build -scheme "$scheme" -"$filetype_parameter" "$file_to_build" -sdk iphoneos CODE_SIGNING_ALLOWED=NO | xcpretty && exit ${PIPESTATUS[0]}
 
+  Test-Package:
+    name: Test EvervaultPayment package
+    runs-on: macos-15
+    env:
+      DEVICE_NAME: "iPhone 16"
+    steps:
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Boot simulator
+        run: |
+          xcrun simctl list
+          xcrun simctl boot "$DEVICE_NAME"
+          xcrun simctl bootstatus "$DEVICE_NAME"
+      - name: Test
+        env:
+          platform: ${{ 'iOS Simulator' }}
+        run: |
+          xcodebuild test -scheme EvervaultPayment -destination "platform=$platform,name=$DEVICE_NAME"
+
   Build-Simulator:
     name: Build and Test default scheme using any available iPhone simulator
     runs-on: macos-15
