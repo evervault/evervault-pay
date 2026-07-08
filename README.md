@@ -19,6 +19,13 @@ For the most up-to-date documentation, visit the SDK references on Evervault for
 
 This project includes sample applications for both Apple Pay and Google Pay in their respective directories. 
 
+## Releasing a new version
+
+See the platform-specific release instructions:
+
+* [iOS](ios/README.md#releasing-a-new-version)
+* [Android](android/README.md#releasing-a-new-version)
+
 ## Contributing
 Bug reports and pull requests are welcome on GitHub at https://github.com/evervault/evervault-pay/issues.
 
