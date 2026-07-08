@@ -16,7 +16,7 @@ jobs:
     runs-on: macos-15
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1.7.0
         with:
           xcode-version: latest-stable
@@ -33,7 +33,7 @@ jobs:
         with:
           xcode-version: latest-stable
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Inject Entitlements File
         working-directory: ios/Demo/Demo
         run: |
@@ -62,7 +62,7 @@ jobs:
         with:
           xcode-version: latest-stable
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Boot simulator
         run: |
           xcrun simctl list
@@ -84,7 +84,7 @@ jobs:
         with:
           xcode-version: latest-stable
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Inject Entitlements File
         working-directory: ios/Demo/Demo
         run: |
