@@ -5,6 +5,9 @@ on:
     tags-ignore:
       - 'android-*'
 
+permissions:
+  contents: read
+
 jobs:
   Deploy:
     name: Publish
