@@ -142,18 +142,23 @@ struct TransactionHandler : View {
         self.transaction = buildTransaction(type: type)
     }
 
+    private let supportedNetworks: [Network] = [.visa, .masterCard, .amex]
+
     var body: some View {
+        let availability = EvervaultPaymentViewRepresentable.availability(supportedNetworks: supportedNetworks)
+
         VStack(spacing: 20) {
             Text(self.name)
             Spacer()
-            if EvervaultPaymentViewRepresentable.availability(supportedNetworks: [.visa, .masterCard, .amex]) != .unsupported {
+            if availability != .unsupported {
                 EvervaultPaymentViewRepresentable(
                     appId: "YOUR_EVERVAULT_APP_ID",
                     appleMerchantId: "YOUR_APPLE_MERCHANT_ID",
                     transaction: self.transaction,
-                    supportedNetworks: [.visa, .masterCard, .amex],
+                    supportedNetworks: supportedNetworks,
                     buttonStyle: .whiteOutline,
-                    buttonType: .checkout,
+                    // No provisioned card yet: prompt the user to set one up instead of a normal buy button.
+                    buttonType: availability == .unavailable ? .setUp : .checkout,
                     authorizedResponse: $applePayResponse) { result in
                         switch result {
                         case .success(_):
