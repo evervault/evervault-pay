@@ -234,3 +234,25 @@ final class ApplePayResponseDecodingTests: XCTestCase {
         XCTAssertNil(decoded.transactionType)
     }
 }
+
+final class ApplePayAvailabilityTests: XCTestCase {
+    func testUnsupportedWhenDeviceCannotMakePayments() {
+        let availability = EvervaultPaymentView.evaluateAvailability(canMakePayments: false, canMakePaymentsWithNetworks: false)
+        XCTAssertEqual(availability, .unsupported)
+    }
+
+    func testUnsupportedWhenDeviceCannotMakePaymentsEvenIfNetworksMatch() {
+        let availability = EvervaultPaymentView.evaluateAvailability(canMakePayments: false, canMakePaymentsWithNetworks: true)
+        XCTAssertEqual(availability, .unsupported)
+    }
+
+    func testUnavailableWhenDeviceSupportsButHasNoProvisionedCard() {
+        let availability = EvervaultPaymentView.evaluateAvailability(canMakePayments: true, canMakePaymentsWithNetworks: false)
+        XCTAssertEqual(availability, .unavailable)
+    }
+
+    func testAvailableWhenDeviceSupportsAndHasProvisionedCard() {
+        let availability = EvervaultPaymentView.evaluateAvailability(canMakePayments: true, canMakePaymentsWithNetworks: true)
+        XCTAssertEqual(availability, .available)
+    }
+}
