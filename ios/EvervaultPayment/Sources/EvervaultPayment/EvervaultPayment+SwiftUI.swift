@@ -53,8 +53,16 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
     private var onPaymentMethodChangeCallback: ((_ paymentMethod: PKPaymentMethod) -> PKPaymentRequestPaymentMethodUpdate)?
     private var prepareTransactionCallback: ((_ transaction: inout Transaction) -> Void)?
 
+    @available(*, deprecated, message: "Use availability(supportedNetworks:) instead")
     public static func isAvailable() -> Bool {
         return PKPaymentAuthorizationViewController.canMakePayments()
+    }
+
+    /// Returns the three-state Apple Pay availability for the given supported card networks:
+    /// `.unsupported` if the device can't do Apple Pay at all, `.unavailable` if it can but has
+    /// no provisioned card on a supported network, `.available` otherwise.
+    public static func availability(supportedNetworks: [Network]) -> ApplePayAvailability {
+        return EvervaultPaymentView.availability(supportedNetworks: supportedNetworks)
     }
 
     public static func supportsDisbursements() -> Bool {
