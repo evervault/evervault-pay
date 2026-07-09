@@ -146,7 +146,7 @@ struct TransactionHandler : View {
         VStack(spacing: 20) {
             Text(self.name)
             Spacer()
-            if EvervaultPaymentViewRepresentable.isAvailable() {
+            if EvervaultPaymentViewRepresentable.availability(supportedNetworks: [.visa, .masterCard, .amex]) != .unsupported {
                 EvervaultPaymentViewRepresentable(
                     appId: "YOUR_EVERVAULT_APP_ID",
                     appleMerchantId: "YOUR_APPLE_MERCHANT_ID",

@@ -41,7 +41,7 @@ public enum EvervaultError: Error, LocalizedError {
 }
 
 /// The three possible states of Apple Pay availability on a device.
-public enum ApplePayAvailability {
+public enum ApplePayAvailability: Equatable {
     case available
     case unavailable
     case unsupported
