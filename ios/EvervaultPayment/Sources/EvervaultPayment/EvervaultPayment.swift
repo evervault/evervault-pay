@@ -167,6 +167,16 @@ public class EvervaultPaymentView: UIView {
         }
     }
 
+    /// What to record as this tap's outcome, given the merchant's authorization disposition. Split out for testing.
+    static func dispositionOutcome(for disposition: AuthorizationDisposition) -> Result<Void, EvervaultError> {
+        switch disposition {
+        case .success:
+            return .success(())
+        case .failure(let reason):
+            return .failure(.MerchantDeclinedError(reason: reason))
+        }
+    }
+
     // MARK: Layout
     
     /// Set the intrinsic size of this component to the underlying button size
@@ -380,19 +390,19 @@ extension EvervaultPaymentView : PKPaymentAuthorizationViewControllerDelegate {
 
             // Give the merchant a chance to approve or reject the decrypted payment before we report success.
             let disposition = await self.delegate?.evervaultPaymentView(self, authorize: enriched) ?? .success
-            switch disposition {
+            let dispositionOutcome = EvervaultPaymentView.dispositionOutcome(for: disposition)
+            switch dispositionOutcome {
             case .success:
                 await MainActor.run {
-                    self.tapAuthorizationOutcome = .success(())
+                    self.tapAuthorizationOutcome = dispositionOutcome
                 }
                 // Tell Apple Pay the payment was successful
                 return PKPaymentAuthorizationResult(status: .success, errors: nil)
-            case .failure(let reason):
-                let evError = EvervaultError.MerchantDeclinedError(reason: reason)
+            case .failure(let evError):
                 await MainActor.run {
                     // Notify the delegate on the main actor
                     self.delegate?.evervaultPaymentView(self, didFinishWithResult: .failure(evError))
-                    self.tapAuthorizationOutcome = .failure(evError)
+                    self.tapAuthorizationOutcome = dispositionOutcome
                 }
                 // The merchant rejected the payment: surface back to Apple Pay as a failure
                 return PKPaymentAuthorizationResult(status: .failure, errors: [evError])
