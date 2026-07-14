@@ -273,3 +273,40 @@ final class AuthorizationVerdictTests: XCTestCase {
         XCTAssertEqual(verdict, .cancelled)
     }
 }
+
+final class DispositionOutcomeTests: XCTestCase {
+    func testSuccessDispositionMapsToSuccessOutcome() {
+        let outcome = EvervaultPaymentView.dispositionOutcome(for: .success)
+        guard case .success = outcome else {
+            return XCTFail("Expected .success, got \(outcome)")
+        }
+    }
+
+    func testFailureDispositionWithReasonMapsToMerchantDeclinedError() {
+        let outcome = EvervaultPaymentView.dispositionOutcome(for: .failure(reason: "Prepaid cards are not accepted"))
+        guard case .failure(.MerchantDeclinedError(let reason)) = outcome else {
+            return XCTFail("Expected .failure(.MerchantDeclinedError), got \(outcome)")
+        }
+        XCTAssertEqual(reason, "Prepaid cards are not accepted")
+    }
+
+    func testFailureDispositionWithNilReasonMapsToMerchantDeclinedErrorWithNilReason() {
+        let outcome = EvervaultPaymentView.dispositionOutcome(for: .failure(reason: nil))
+        guard case .failure(.MerchantDeclinedError(let reason)) = outcome else {
+            return XCTFail("Expected .failure(.MerchantDeclinedError), got \(outcome)")
+        }
+        XCTAssertNil(reason)
+    }
+}
+
+final class MerchantDeclinedErrorTests: XCTestCase {
+    func testErrorDescriptionIncludesReasonWhenProvided() {
+        let error = EvervaultError.MerchantDeclinedError(reason: "Prepaid cards are not accepted")
+        XCTAssertEqual(error.errorDescription, "Merchant declined the payment: Prepaid cards are not accepted")
+    }
+
+    func testErrorDescriptionOmitsColonWhenReasonIsNil() {
+        let error = EvervaultError.MerchantDeclinedError(reason: nil)
+        XCTAssertEqual(error.errorDescription, "Merchant declined the payment.")
+    }
+}
