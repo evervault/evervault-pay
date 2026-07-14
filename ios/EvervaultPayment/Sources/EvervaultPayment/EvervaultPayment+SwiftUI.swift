@@ -52,6 +52,7 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
     private var onShippingAddressChangeCallback: ((_ shippingContact: PKContact) -> [SummaryItem])?
     private var onPaymentMethodChangeCallback: ((_ paymentMethod: PKPaymentMethod) -> PKPaymentRequestPaymentMethodUpdate)?
     private var prepareTransactionCallback: ((_ transaction: inout Transaction) -> Void)?
+    private var onCancelCallback: (() -> Void)?
 
     @available(*, deprecated, message: "Use availability(supportedNetworks:) instead")
     public static func isAvailable() -> Bool {
@@ -121,6 +122,12 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
             }
         }
 
+        nonisolated public func evervaultPaymentViewDidCancel(_ view: EvervaultPaymentView) {
+            DispatchQueue.main.async {
+                self.parent.onCancelCallback?()
+            }
+        }
+
         nonisolated public func evervaultPaymentView(_ view: EvervaultPaymentView, didSelectShippingContact contact: PKContact) async -> PKPaymentRequestShippingContactUpdate? {
             if let handler = await self.parent.onShippingAddressChangeCallback {
                 let updatedLineItems = handler(contact)
@@ -178,6 +185,13 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
     public func onPaymentMethodChange(_ action: @escaping (PKPaymentMethod) -> PKPaymentRequestPaymentMethodUpdate) -> EvervaultPaymentViewRepresentable {
         var copy = self
         copy.onPaymentMethodChangeCallback = action
+        return copy
+    }
+
+    /// Called when the buyer dismisses the sheet without ever authorizing a payment, distinct from `onResult`'s success/failure.
+    public func onCancel(_ action: @escaping () -> Void) -> EvervaultPaymentViewRepresentable {
+        var copy = self
+        copy.onCancelCallback = action
         return copy
     }
 }
