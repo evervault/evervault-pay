@@ -15,7 +15,7 @@ public enum EvervaultError: Error, LocalizedError {
     case UnsupportedVersionError
     case ApplePayAuthorizationError(underlying: Error)
     case InternalError(underlying: Error)
-    case MerchantDeclinedError(reason: String)
+    case MerchantDeclinedError(reason: String?)
     
     public var errorDescription: String? {
         switch self {
@@ -38,7 +38,11 @@ public enum EvervaultError: Error, LocalizedError {
         case .ApplePayAuthorizationError(underlying: let underlying):
             return "Apple Pay failed to authorize: \(underlying)"
         case .MerchantDeclinedError(let reason):
-            return "Merchant declined the payment: \(reason)"
+            if let reason {
+                return "Merchant declined the payment: \(reason)"
+            } else {
+                return "Merchant declined the payment."
+            }
         }
     }
 }
@@ -383,7 +387,8 @@ extension EvervaultPaymentView : PKPaymentAuthorizationViewControllerDelegate {
                 }
                 // Tell Apple Pay the payment was successful
                 return PKPaymentAuthorizationResult(status: .success, errors: nil)
-            case .failure(let evError):
+            case .failure(let reason):
+                let evError = EvervaultError.MerchantDeclinedError(reason: reason)
                 await MainActor.run {
                     // Notify the delegate on the main actor
                     self.delegate?.evervaultPaymentView(self, didFinishWithResult: .failure(evError))
