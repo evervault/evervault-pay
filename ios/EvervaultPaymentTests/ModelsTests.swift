@@ -237,22 +237,22 @@ final class ApplePayResponseDecodingTests: XCTestCase {
 
 final class ApplePayAvailabilityTests: XCTestCase {
     func testUnsupportedWhenDeviceCannotMakePayments() {
-        let availability = EvervaultPaymentView.evaluateAvailability(canMakePayments: false, canMakePaymentsWithNetworks: false)
+        let availability = EvervaultPaymentView.evaluateAvailability(deviceSupportsApplePay: false, hasCardForSupportedNetworks: false)
         XCTAssertEqual(availability, .unsupported)
     }
 
     func testUnsupportedWhenDeviceCannotMakePaymentsEvenIfNetworksMatch() {
-        let availability = EvervaultPaymentView.evaluateAvailability(canMakePayments: false, canMakePaymentsWithNetworks: true)
+        let availability = EvervaultPaymentView.evaluateAvailability(deviceSupportsApplePay: false, hasCardForSupportedNetworks: true)
         XCTAssertEqual(availability, .unsupported)
     }
 
     func testUnavailableWhenDeviceSupportsButHasNoProvisionedCard() {
-        let availability = EvervaultPaymentView.evaluateAvailability(canMakePayments: true, canMakePaymentsWithNetworks: false)
+        let availability = EvervaultPaymentView.evaluateAvailability(deviceSupportsApplePay: true, hasCardForSupportedNetworks: false)
         XCTAssertEqual(availability, .unavailable)
     }
 
     func testAvailableWhenDeviceSupportsAndHasProvisionedCard() {
-        let availability = EvervaultPaymentView.evaluateAvailability(canMakePayments: true, canMakePaymentsWithNetworks: true)
+        let availability = EvervaultPaymentView.evaluateAvailability(deviceSupportsApplePay: true, hasCardForSupportedNetworks: true)
         XCTAssertEqual(availability, .available)
     }
 }

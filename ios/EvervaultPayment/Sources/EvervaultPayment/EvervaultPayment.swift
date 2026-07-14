@@ -119,16 +119,16 @@ public class EvervaultPaymentView: UIView {
     /// no provisioned card on a supported network, `.available` otherwise.
     public static func availability(supportedNetworks: [Network]) -> ApplePayAvailability {
         return evaluateAvailability(
-            canMakePayments: PKPaymentAuthorizationViewController.canMakePayments(),
-            canMakePaymentsWithNetworks: PKPaymentAuthorizationViewController.canMakePayments(usingNetworks: supportedNetworks)
+            deviceSupportsApplePay: PKPaymentAuthorizationViewController.canMakePayments(),
+            hasCardForSupportedNetworks: PKPaymentAuthorizationViewController.canMakePayments(usingNetworks: supportedNetworks)
         )
     }
 
-    static func evaluateAvailability(canMakePayments: Bool, canMakePaymentsWithNetworks: Bool) -> ApplePayAvailability {
-        if !canMakePayments {
+    static func evaluateAvailability(deviceSupportsApplePay: Bool, hasCardForSupportedNetworks: Bool) -> ApplePayAvailability {
+        if !deviceSupportsApplePay {
             return .unsupported
         }
-        if !canMakePaymentsWithNetworks {
+        if !hasCardForSupportedNetworks {
             return .unavailable
         }
         return .available
