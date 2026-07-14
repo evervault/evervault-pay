@@ -370,7 +370,16 @@ extension EvervaultPaymentView : PKPaymentAuthorizationViewControllerDelegate {
     nonisolated public func paymentAuthorizationViewControllerDidFinish(_ controller: PKPaymentAuthorizationViewController) {
         DispatchQueue.main.async { [weak self] in
             if let self = self {
-                self.delegate?.evervaultPaymentView(self, didFinishWithResult: .success(()))
+                switch self.tapAuthorizationOutcome {
+                case .success:
+                    self.delegate?.evervaultPaymentView(self, didFinishWithResult: .success(()))
+                case .failure:
+                    // Already reported at the point of failure.
+                    break
+                case .none:
+                    // The sheet was closed without an authorization attempt ever completing: a genuine cancel.
+                    self.delegate?.evervaultPaymentViewDidCancel(self)
+                }
             }
             controller.dismiss(animated: true)
         }
@@ -405,7 +414,10 @@ public protocol EvervaultPaymentViewDelegate : AnyObject {
     
     /// Fired when the payment sheet is fully dismissed
     func evervaultPaymentView(_ view: EvervaultPaymentView, didFinishWithResult result: Result<Void, EvervaultError>)
-    
+
+    /// Fired when the buyer dismisses the sheet without ever authorizing a payment (e.g. taps Cancel), distinct from `didFinishWithResult`'s success/failure.
+    func evervaultPaymentViewDidCancel(_ view: EvervaultPaymentView)
+
     /// Called after the user taps the Apple Pay button, but before the modal is displayed.  The delegate can modify the transaction in-place.
     func evervaultPaymentView(_ view: EvervaultPaymentView, prepareTransaction transaction: inout Transaction)
 }
@@ -415,11 +427,15 @@ extension EvervaultPaymentViewDelegate {
     public func evervaultPaymentView(_ view: EvervaultPaymentView, prepareTransaction transaction: inout Transaction) {
         // Do nothing
     }
-    
+
     func evervaultPaymentView(_ view: EvervaultPaymentView, didFinishWithResult result: Result<Void, EvervaultError>) {
         // Do nothing
     }
-    
+
+    public func evervaultPaymentViewDidCancel(_ view: EvervaultPaymentView) {
+        // Do nothing
+    }
+
     public func evervaultPaymentView(_ view: EvervaultPaymentView, didSelectShippingContact: PKContact) async -> PKPaymentRequestShippingContactUpdate? {
         return nil
     }
