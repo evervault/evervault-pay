@@ -57,7 +57,13 @@ public class EvervaultPaymentView: UIView {
     public let supportedNetworks: [Network]
     public let buttonType: ButtonType
     public let buttonStyle: ButtonStyle
-    
+
+    /// Outcome of the current authorization attempt for Apple Pay sheet (shown on tapping the pay button).
+    /// Reset to `nil` at the top of `didTapPay()`, before a new sheet is presented;
+    /// set to `.success`/`.failure` once `didAuthorizePayment` resolves. 
+    /// If still `nil` when the sheet finishes, the buyer dismissed it without ever authorizing — a genuine cancel.
+    private var tapAuthorizationOutcome: Result<Void, EvervaultError>?
+
     public weak var delegate: EvervaultPaymentViewDelegate? {
         didSet {
             // Verify Apple Pay is available on device
@@ -156,6 +162,9 @@ public class EvervaultPaymentView: UIView {
     
     /// Tapped handler to start the Apple Pay sheet
     @objc private func didTapPay() {
+        // Reset before a new attempt.
+        self.tapAuthorizationOutcome = nil
+
         // Update the transaction in place.
         self.delegate?.evervaultPaymentView(self, prepareTransaction: &self.transaction)
         
