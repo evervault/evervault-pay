@@ -139,7 +139,27 @@ public class EvervaultPaymentView: UIView {
         }
         return .available
     }
-    
+
+    /// The verdict on how the current authorization attempt resolved, given how (or whether) `didAuthorizePayment` fired.
+    enum AuthorizationVerdict: Equatable {
+        case success
+        case cancelled
+        case failureAlreadyReported
+    }
+
+    /// Pure decision logic behind `paymentAuthorizationViewControllerDidFinish`, split out for testing without a live PassKit sheet.
+    static func authorizationVerdict(for outcome: Result<Void, EvervaultError>?) -> AuthorizationVerdict {
+        switch outcome {
+        case .success:
+            return .success
+        case .failure:
+            // Already reported at the point of failure.
+            return .failureAlreadyReported
+        case .none:
+            return .cancelled
+        }
+    }
+
     // MARK: Layout
     
     /// Set the intrinsic size of this component to the underlying button size
@@ -370,14 +390,12 @@ extension EvervaultPaymentView : PKPaymentAuthorizationViewControllerDelegate {
     nonisolated public func paymentAuthorizationViewControllerDidFinish(_ controller: PKPaymentAuthorizationViewController) {
         DispatchQueue.main.async { [weak self] in
             if let self = self {
-                switch self.tapAuthorizationOutcome {
+                switch EvervaultPaymentView.authorizationVerdict(for: self.tapAuthorizationOutcome) {
                 case .success:
                     self.delegate?.evervaultPaymentView(self, didFinishWithResult: .success(()))
-                case .failure:
-                    // Already reported at the point of failure.
+                case .failureAlreadyReported:
                     break
-                case .none:
-                    // The sheet was closed without an authorization attempt ever completing: a genuine cancel.
+                case .cancelled:
                     self.delegate?.evervaultPaymentViewDidCancel(self)
                 }
             }
