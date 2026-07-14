@@ -423,7 +423,10 @@ extension EvervaultPaymentView : PKPaymentAuthorizationViewControllerDelegate {
 public protocol EvervaultPaymentViewDelegate : AnyObject {
     /// Fired when a payment is authorized (but before dismissal)
     func evervaultPaymentView(_ view: EvervaultPaymentView, didAuthorizePayment result: ApplePayResponse?)
-    
+
+    /// Called after a payment is decrypted, letting the merchant approve or reject it before the sheet reports success. Defaults to `.success` when not implemented.
+    func evervaultPaymentView(_ view: EvervaultPaymentView, authorize result: ApplePayResponse?) async -> AuthorizationDisposition
+
     /// Called when the user updates the shipping method.  The delegate returns an optional update which could include things like the re-calculated cost including shipping.
     func evervaultPaymentView(_ view: EvervaultPaymentView, didSelectShippingContact: PKContact) async -> PKPaymentRequestShippingContactUpdate?
     
@@ -452,6 +455,10 @@ extension EvervaultPaymentViewDelegate {
 
     public func evervaultPaymentViewDidCancel(_ view: EvervaultPaymentView) {
         // Do nothing
+    }
+
+    public func evervaultPaymentView(_ view: EvervaultPaymentView, authorize result: ApplePayResponse?) async -> AuthorizationDisposition {
+        return .success
     }
 
     public func evervaultPaymentView(_ view: EvervaultPaymentView, didSelectShippingContact: PKContact) async -> PKPaymentRequestShippingContactUpdate? {

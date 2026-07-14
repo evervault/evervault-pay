@@ -144,6 +144,12 @@ public struct ApplePayResponse: Codable, Sendable, Equatable {
     }
 }
 
+/// The merchant's decision on whether to authorize a decrypted payment, returned from the authorize hook.
+public enum AuthorizationDisposition {
+    case success
+    case failure(EvervaultError)
+}
+
 /// Amount wrapper around NSDecimalNumber
 /// Allows us to accept ints, floats, etc. in the future if we want
 public struct Amount {
