@@ -168,7 +168,7 @@ public class EvervaultPaymentView: UIView {
     }
 
     /// What to record as this tap's outcome, given the merchant's authorization disposition. Split out for testing.
-    static func dispositionOutcome(for disposition: AuthorizationDisposition) -> Result<Void, EvervaultError> {
+    static func resolveDisposition(for disposition: AuthorizationDisposition) -> Result<Void, EvervaultError> {
         switch disposition {
         case .success:
             return .success(())
@@ -390,7 +390,7 @@ extension EvervaultPaymentView : PKPaymentAuthorizationViewControllerDelegate {
 
             // Give the merchant a chance to approve or reject the decrypted payment before we report success.
             let disposition = await self.delegate?.evervaultPaymentView(self, authorize: enriched) ?? .success
-            let dispositionOutcome = EvervaultPaymentView.dispositionOutcome(for: disposition)
+            let dispositionOutcome = EvervaultPaymentView.resolveDisposition(for: disposition)
             switch dispositionOutcome {
             case .success:
                 await MainActor.run {
@@ -482,7 +482,7 @@ extension EvervaultPaymentViewDelegate {
         // Do nothing
     }
 
-    func evervaultPaymentView(_ view: EvervaultPaymentView, didFinishWithResult result: Result<Void, EvervaultError>) {
+    public func evervaultPaymentView(_ view: EvervaultPaymentView, didFinishWithResult result: Result<Void, EvervaultError>) {
         // Do nothing
     }
 
