@@ -349,14 +349,17 @@ extension EvervaultPaymentView : PKPaymentAuthorizationViewControllerDelegate {
             await MainActor.run {
                 // Notify the delegate on the main actor
                 self.delegate?.evervaultPaymentView(self, didAuthorizePayment: enriched)
+                self.tapAuthorizationOutcome = .success(())
             }
-            
+
             // Tell Apple Pay the payment was successful
             return PKPaymentAuthorizationResult(status: .success, errors: nil)
         } catch {
+            let evError = EvervaultError.ApplePayAuthorizationError(underlying: error)
             await MainActor.run {
                 // Notify the delegate on the main actor
-                self.delegate?.evervaultPaymentView(self, didFinishWithResult: .failure(.ApplePayAuthorizationError(underlying: error)))
+                self.delegate?.evervaultPaymentView(self, didFinishWithResult: .failure(evError))
+                self.tapAuthorizationOutcome = .failure(evError)
             }
             // On error, surface back to Apple Pay
             return PKPaymentAuthorizationResult(status: .failure, errors: [error])
