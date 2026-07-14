@@ -40,6 +40,13 @@ public enum EvervaultError: Error, LocalizedError {
     }
 }
 
+/// The three possible states of Apple Pay availability on a device.
+public enum ApplePayAvailability: String, Codable, Sendable, Equatable {
+    case available
+    case unavailable
+    case unsupported
+}
+
 // MARK: - Apple Pay View
 
 /// A UIView that wraps Apple Pay button and handles full payment flow.
@@ -54,7 +61,7 @@ public class EvervaultPaymentView: UIView {
     public weak var delegate: EvervaultPaymentViewDelegate? {
         didSet {
             // Verify Apple Pay is available on device
-            if !EvervaultPaymentView.isAvailable() {
+            if !PKPaymentAuthorizationViewController.canMakePayments() {
                 self.delegate?.evervaultPaymentView(self, didFinishWithResult: .failure(.ApplePayUnavailableError))
             }
         }
@@ -102,8 +109,29 @@ public class EvervaultPaymentView: UIView {
     }
     
     /// Public check for Apple Pay availability
+    @available(*, deprecated, message: "Use availability(supportedNetworks:) instead")
     public static func isAvailable() -> Bool {
         return PKPaymentAuthorizationViewController.canMakePayments()
+    }
+
+    /// Returns the three-state Apple Pay availability for the given supported card networks:
+    /// `.unsupported` if the device can't do Apple Pay at all, `.unavailable` if it can but has
+    /// no provisioned card on a supported network, `.available` otherwise.
+    public static func availability(supportedNetworks: [Network]) -> ApplePayAvailability {
+        return evaluateAvailability(
+            deviceSupportsApplePay: PKPaymentAuthorizationViewController.canMakePayments(),
+            hasCardForSupportedNetworks: PKPaymentAuthorizationViewController.canMakePayments(usingNetworks: supportedNetworks)
+        )
+    }
+
+    static func evaluateAvailability(deviceSupportsApplePay: Bool, hasCardForSupportedNetworks: Bool) -> ApplePayAvailability {
+        if !deviceSupportsApplePay {
+            return .unsupported
+        }
+        if !hasCardForSupportedNetworks {
+            return .unavailable
+        }
+        return .available
     }
     
     // MARK: Layout
