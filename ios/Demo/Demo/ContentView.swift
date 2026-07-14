@@ -178,6 +178,12 @@ struct TransactionHandler : View {
                         print("Preparing transaction")
                     }.onCancel {
                         print("Payment sheet cancelled")
+                    }.onAuthorize { response in
+                        // Example merchant rule: reject prepaid cards.
+                        if response?.card.funding == "prepaid" {
+                            return .failure(.MerchantDeclinedError(reason: "Prepaid cards are not accepted"))
+                        }
+                        return .success
                     }
             } else {
                 Text("Not available")
