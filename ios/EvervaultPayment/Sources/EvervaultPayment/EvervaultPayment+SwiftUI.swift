@@ -53,6 +53,7 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
     private var onPaymentMethodChangeCallback: ((_ paymentMethod: PKPaymentMethod) -> PKPaymentRequestPaymentMethodUpdate)?
     private var prepareTransactionCallback: ((_ transaction: inout Transaction) -> Void)?
     private var onCancelCallback: (() -> Void)?
+    private var onAuthorizeCallback: ((_ result: ApplePayResponse?) async -> AuthorizationDisposition)?
 
     @available(*, deprecated, message: "Use availability(supportedNetworks:) instead")
     public static func isAvailable() -> Bool {
@@ -114,6 +115,14 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
             DispatchQueue.main.async {
                 self.parent.authorizedResponse = result
             }
+        }
+
+        public func evervaultPaymentView(_ view: EvervaultPaymentView, authorize result: ApplePayResponse?) async -> AuthorizationDisposition {
+            if let handler = self.parent.onAuthorizeCallback {
+                return await handler(result)
+            }
+
+            return .success
         }
 
         nonisolated public func evervaultPaymentView(_ view: EvervaultPaymentView, didFinishWithResult result: Result<Void, EvervaultError>) {
@@ -192,6 +201,13 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
     public func onCancel(_ action: @escaping () -> Void) -> EvervaultPaymentViewRepresentable {
         var copy = self
         copy.onCancelCallback = action
+        return copy
+    }
+
+    /// Called after a payment is decrypted, letting you return `.success` or `.failure` to accept or reject it before the sheet reports success.
+    public func onAuthorize(_ action: @escaping (ApplePayResponse?) async -> AuthorizationDisposition) -> EvervaultPaymentViewRepresentable {
+        var copy = self
+        copy.onAuthorizeCallback = action
         return copy
     }
 }
