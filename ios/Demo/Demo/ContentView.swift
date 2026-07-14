@@ -134,6 +134,10 @@ struct TransactionHandler : View {
 
     @State
     private var applePayResponse: ApplePayResponse? = nil
+    @State
+    private var showErrorAlert = false
+    @State
+    private var errorMessage = ""
     private let transaction: EvervaultPayment.Transaction
 
     init(name: String, type: TransactionType) {
@@ -169,6 +173,8 @@ struct TransactionHandler : View {
                             break
                         case let .failure(error):
                             print("Payment sheet error: \(error.localizedDescription)")
+                            errorMessage = error.localizedDescription
+                            showErrorAlert = true
                             break
                         }
                     }
@@ -188,6 +194,11 @@ struct TransactionHandler : View {
             } else {
                 Text("Not available")
             }
+        }
+        .alert("Payment Failed", isPresented: $showErrorAlert) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text(errorMessage)
         }
     }
 }
