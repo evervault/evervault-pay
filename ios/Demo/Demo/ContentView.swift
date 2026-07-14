@@ -181,7 +181,7 @@ struct TransactionHandler : View {
                     }.onAuthorize { response in
                         // Example merchant rule: reject prepaid cards.
                         if response?.card.funding == "prepaid" {
-                            return .failure(.MerchantDeclinedError(reason: "Prepaid cards are not accepted"))
+                            return .failure(reason: "Prepaid cards are not accepted")
                         }
                         return .success
                     }
