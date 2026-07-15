@@ -274,16 +274,16 @@ final class AuthorizationVerdictTests: XCTestCase {
     }
 }
 
-final class DispositionOutcomeTests: XCTestCase {
+final class ResolveDispositionTests: XCTestCase {
     func testSuccessDispositionMapsToSuccessOutcome() {
-        let outcome = EvervaultPaymentView.dispositionOutcome(for: .success)
+        let outcome = EvervaultPaymentView.resolveDisposition(for: .success)
         guard case .success = outcome else {
             return XCTFail("Expected .success, got \(outcome)")
         }
     }
 
     func testFailureDispositionWithReasonMapsToMerchantDeclinedError() {
-        let outcome = EvervaultPaymentView.dispositionOutcome(for: .failure(reason: "Prepaid cards are not accepted"))
+        let outcome = EvervaultPaymentView.resolveDisposition(for: .failure(reason: "Prepaid cards are not accepted"))
         guard case .failure(.MerchantDeclinedError(let reason)) = outcome else {
             return XCTFail("Expected .failure(.MerchantDeclinedError), got \(outcome)")
         }
@@ -291,7 +291,7 @@ final class DispositionOutcomeTests: XCTestCase {
     }
 
     func testFailureDispositionWithNilReasonMapsToMerchantDeclinedErrorWithNilReason() {
-        let outcome = EvervaultPaymentView.dispositionOutcome(for: .failure(reason: nil))
+        let outcome = EvervaultPaymentView.resolveDisposition(for: .failure(reason: nil))
         guard case .failure(.MerchantDeclinedError(let reason)) = outcome else {
             return XCTFail("Expected .failure(.MerchantDeclinedError), got \(outcome)")
         }
