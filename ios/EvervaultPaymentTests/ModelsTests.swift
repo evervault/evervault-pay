@@ -256,3 +256,20 @@ final class ApplePayAvailabilityTests: XCTestCase {
         XCTAssertEqual(availability, .available)
     }
 }
+
+final class AuthorizationVerdictTests: XCTestCase {
+    func testSuccessWhenAuthorizationSucceeded() {
+        let verdict = EvervaultPaymentView.authorizationVerdict(for: .success(()))
+        XCTAssertEqual(verdict, .success)
+    }
+
+    func testFailureAlreadyReportedWhenAuthorizationFailed() {
+        let verdict = EvervaultPaymentView.authorizationVerdict(for: .failure(.ApplePayUnavailableError))
+        XCTAssertEqual(verdict, .failureAlreadyReported)
+    }
+
+    func testCancelledWhenNoAuthorizationAttemptCompleted() {
+        let verdict = EvervaultPaymentView.authorizationVerdict(for: nil)
+        XCTAssertEqual(verdict, .cancelled)
+    }
+}

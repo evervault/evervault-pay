@@ -162,7 +162,7 @@ struct TransactionHandler : View {
                     authorizedResponse: $applePayResponse) { result in
                         switch result {
                         case .success(_):
-                            print("Payment sheet dismissed")
+                            print("Payment sheet dismissed with success")
                             if (applePayResponse != nil) {
                                 // Send to PSP via Relay on your backend
                             }
@@ -176,6 +176,8 @@ struct TransactionHandler : View {
                         return getUpdatedTransaction(newAddress, transaction: self.transaction)
                     }.prepareTransaction { transaction in
                         print("Preparing transaction")
+                    }.onCancel {
+                        print("Payment sheet cancelled")
                     }
             } else {
                 Text("Not available")
