@@ -117,6 +117,7 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
             }
         }
 
+        @MainActor
         public func evervaultPaymentView(_ view: EvervaultPaymentView, authorize result: ApplePayResponse?) async -> AuthorizationDisposition {
             if let handler = self.parent.onAuthorizeCallback {
                 return await handler(result)

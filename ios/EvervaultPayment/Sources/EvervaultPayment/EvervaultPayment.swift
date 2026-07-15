@@ -137,7 +137,7 @@ public class EvervaultPaymentView: UIView {
         )
     }
 
-    static func evaluateAvailability(deviceSupportsApplePay: Bool, hasCardForSupportedNetworks: Bool) -> ApplePayAvailability {
+    nonisolated static func evaluateAvailability(deviceSupportsApplePay: Bool, hasCardForSupportedNetworks: Bool) -> ApplePayAvailability {
         if !deviceSupportsApplePay {
             return .unsupported
         }
@@ -155,7 +155,7 @@ public class EvervaultPaymentView: UIView {
     }
 
     /// Pure decision logic behind `paymentAuthorizationViewControllerDidFinish`, split out for testing without a live PassKit sheet.
-    static func authorizationVerdict(for outcome: Result<Void, EvervaultError>?) -> AuthorizationVerdict {
+    nonisolated static func authorizationVerdict(for outcome: Result<Void, EvervaultError>?) -> AuthorizationVerdict {
         switch outcome {
         case .success:
             return .success
@@ -168,7 +168,7 @@ public class EvervaultPaymentView: UIView {
     }
 
     /// What to record as this tap's outcome, given the merchant's authorization disposition. Split out for testing.
-    static func resolveDisposition(for disposition: AuthorizationDisposition) -> Result<Void, EvervaultError> {
+    nonisolated static func resolveDisposition(for disposition: AuthorizationDisposition) -> Result<Void, EvervaultError> {
         switch disposition {
         case .success:
             return .success(())
