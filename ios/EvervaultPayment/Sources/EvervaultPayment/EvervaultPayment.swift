@@ -15,7 +15,7 @@ public enum EvervaultError: Error, LocalizedError {
     case UnsupportedVersionError
     case ApplePayAuthorizationError(underlying: Error)
     case InternalError(underlying: Error)
-    case MerchantDeclinedError(reason: String?)
+    case MerchantDeclinedError(underlying: Error?)
     
     public var errorDescription: String? {
         switch self {
@@ -37,9 +37,9 @@ public enum EvervaultError: Error, LocalizedError {
             return "Some functionality is not available on this version of iOS"
         case .ApplePayAuthorizationError(underlying: let underlying):
             return "Apple Pay failed to authorize: \(underlying)"
-        case .MerchantDeclinedError(let reason):
-            if let reason {
-                return "Merchant declined the payment: \(reason)"
+        case .MerchantDeclinedError(let underlying):
+            if let underlying {
+                return "Merchant declined the payment: \(underlying)"
             } else {
                 return "Merchant declined the payment."
             }
@@ -172,8 +172,8 @@ public class EvervaultPaymentView: UIView {
         switch disposition {
         case .success:
             return .success(())
-        case .failure(let reason):
-            return .failure(.MerchantDeclinedError(reason: reason))
+        case .failure(let underlying):
+            return .failure(.MerchantDeclinedError(underlying: underlying))
         }
     }
 

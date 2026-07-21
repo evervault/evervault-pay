@@ -128,6 +128,19 @@ enum TransactionType {
     case disbursement
 }
 
+// Example merchant-owned error type, passed to `shouldAuthorize`'s `.failure(underlying:)`.
+// Since it's just an `Error`, the merchant's own downstream code can `switch` over it exhaustively.
+enum DeclineReason: Error, LocalizedError {
+    case prepaidCardNotAccepted
+
+    var errorDescription: String? {
+        switch self {
+        case .prepaidCardNotAccepted:
+            return "Prepaid cards are not accepted"
+        }
+    }
+}
+
 struct TransactionHandler : View {
     let name: String
     let type: TransactionType
@@ -191,7 +204,7 @@ struct TransactionHandler : View {
                     }.shouldAuthorize { response in
                         // Example merchant rule: reject prepaid cards.
                         if response?.card.funding == "prepaid" {
-                            return .failure(reason: "Prepaid cards are not accepted")
+                            return .failure(underlying: DeclineReason.prepaidCardNotAccepted)
                         }
                         return .success
                     }
