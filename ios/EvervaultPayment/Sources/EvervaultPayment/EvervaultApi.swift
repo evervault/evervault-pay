@@ -18,7 +18,8 @@ struct EvervaultApi {
                                 cryptogram: "ev:Tk9D:vUVeybXqrA9Ds4rZ...=:$",
                                 eci: "5",
                                 paymentDataType: "oneOff",
-                                deviceManufacturerIdentifier: "string")
+                                deviceManufacturerIdentifier: "string",
+                                transactionId: "5ee9e294a2e79032ca7529b2050c2a878187c54a54f07559cff8281fb9b4716c")
 #else
         var request = URLRequest(url: url)
         request.httpMethod = "POST"

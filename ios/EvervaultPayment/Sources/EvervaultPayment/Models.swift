@@ -110,17 +110,19 @@ public struct ApplePayResponse: Codable, Sendable, Equatable {
     public let eci: String?
     public let paymentDataType: String
     public let deviceManufacturerIdentifier: String
+    public let transactionId: String?
     public let billingContact: ApplePayContact?
     public let shippingContact: ApplePayContact?
     public let transactionType: ApplePayTransactionType?
 
-    init(networkToken: ApplePayNetworkToken, card: ApplePayCard, cryptogram: String, eci: String?, paymentDataType: String, deviceManufacturerIdentifier: String, billingContact: ApplePayContact? = nil, shippingContact: ApplePayContact? = nil, transactionType: ApplePayTransactionType? = nil) {
+    init(networkToken: ApplePayNetworkToken, card: ApplePayCard, cryptogram: String, eci: String?, paymentDataType: String, deviceManufacturerIdentifier: String, transactionId: String? = nil, billingContact: ApplePayContact? = nil, shippingContact: ApplePayContact? = nil, transactionType: ApplePayTransactionType? = nil) {
         self.networkToken = networkToken
         self.card = card
         self.cryptogram = cryptogram
         self.eci = eci
         self.paymentDataType = paymentDataType
         self.deviceManufacturerIdentifier = deviceManufacturerIdentifier
+        self.transactionId = transactionId
         self.billingContact = billingContact
         self.shippingContact = shippingContact
         self.transactionType = transactionType
@@ -134,6 +136,7 @@ public struct ApplePayResponse: Codable, Sendable, Equatable {
             eci: eci,
             paymentDataType: paymentDataType,
             deviceManufacturerIdentifier: deviceManufacturerIdentifier,
+            transactionId: transactionId,
             billingContact: billingContact,
             shippingContact: shippingContact,
             transactionType: transactionType

@@ -166,7 +166,8 @@ final class ApplePayResponseEnrichedTests: XCTestCase {
             cryptogram: "ev:cryptogram",
             eci: "5",
             paymentDataType: "3DSecure",
-            deviceManufacturerIdentifier: "device-id"
+            deviceManufacturerIdentifier: "device-id",
+            transactionId: "test-transaction-id-abc123"
         )
     }
 
@@ -191,6 +192,7 @@ final class ApplePayResponseEnrichedTests: XCTestCase {
         XCTAssertEqual(enriched.eci, base.eci)
         XCTAssertEqual(enriched.paymentDataType, base.paymentDataType)
         XCTAssertEqual(enriched.deviceManufacturerIdentifier, base.deviceManufacturerIdentifier)
+        XCTAssertEqual(enriched.transactionId, base.transactionId)
 
         XCTAssertNil(base.billingContact)
         XCTAssertNil(base.shippingContact)
@@ -232,6 +234,25 @@ final class ApplePayResponseDecodingTests: XCTestCase {
         XCTAssertNil(decoded.billingContact)
         XCTAssertNil(decoded.shippingContact)
         XCTAssertNil(decoded.transactionType)
+        XCTAssertNil(decoded.transactionId)
+    }
+
+    func testDecodesTransactionIdWhenPresent() throws {
+        let json = """
+        {
+          "networkToken": {"number": "ev:abc", "expiry": {"month": "12", "year": "30"}, "rawExpiry": "12/30", "tokenServiceProvider": "Apple"},
+          "card": {"brand": "visa"},
+          "cryptogram": "ev:cryptogram",
+          "eci": "5",
+          "paymentDataType": "3DSecure",
+          "deviceManufacturerIdentifier": "device-id",
+          "transactionId": "test-transaction-id-abc123"
+        }
+        """.data(using: .utf8)!
+
+        let decoded = try JSONDecoder().decode(ApplePayResponse.self, from: json)
+
+        XCTAssertEqual(decoded.transactionId, "test-transaction-id-abc123")
     }
 }
 
