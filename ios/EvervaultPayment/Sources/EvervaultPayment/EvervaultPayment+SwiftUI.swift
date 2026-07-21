@@ -119,11 +119,7 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
 
         @MainActor
         public func evervaultPaymentView(_ view: EvervaultPaymentView, shouldAuthorize result: ApplePayResponse?) async -> AuthorizationDisposition {
-            if let handler = self.parent.shouldAuthorizeCallback {
-                return await handler(result)
-            }
-
-            return .success
+            return await self.parent.shouldAuthorizeCallback?(result) ?? .success
         }
 
         nonisolated public func evervaultPaymentView(_ view: EvervaultPaymentView, didFinishWithResult result: Result<Void, EvervaultError>) {
@@ -205,7 +201,7 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
         return copy
     }
 
-    /// Called after a payment is decrypted, letting you return `.success` or `.failure` to accept or reject it before the sheet reports success.
+    /// Called after a payment is authorized, letting you return `.success` or `.failure` to accept or reject it before the sheet reports success.
     public func shouldAuthorize(_ action: @escaping (ApplePayResponse?) async -> AuthorizationDisposition) -> EvervaultPaymentViewRepresentable {
         var copy = self
         copy.shouldAuthorizeCallback = action
