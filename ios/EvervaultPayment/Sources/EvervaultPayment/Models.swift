@@ -141,7 +141,7 @@ public struct ApplePayResponse: Codable, Sendable, Equatable {
     }
 }
 
-/// The merchant's decision on whether to authorize a decrypted payment, returned from the authorize hook.
+/// The merchant's decision on whether to approve the payment, returned from the `shouldAuthorize` hook.
 /// The SDK reports a rejection as `EvervaultError.MerchantDeclinedError`, using `reason` as its message when provided.
 public enum AuthorizationDisposition {
     case success
