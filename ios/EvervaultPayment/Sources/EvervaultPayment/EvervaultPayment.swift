@@ -389,7 +389,7 @@ extension EvervaultPaymentView : PKPaymentAuthorizationViewControllerDelegate {
             }
 
             // Give the merchant a chance to approve or reject the decrypted payment before we report success.
-            let disposition = await self.delegate?.evervaultPaymentView(self, shouldAuthorize: enriched) ?? .success
+            let disposition = await self.delegate?.evervaultPaymentView(self, shouldAuthorize: enriched) ?? .success(())
             let dispositionOutcome = EvervaultPaymentView.resolveDisposition(for: disposition)
             switch dispositionOutcome {
             case .success:
@@ -491,7 +491,7 @@ extension EvervaultPaymentViewDelegate {
     }
 
     public func evervaultPaymentView(_ view: EvervaultPaymentView, shouldAuthorize result: ApplePayResponse?) async -> AuthorizationDisposition {
-        return .success
+        return .success(())
     }
 
     public func evervaultPaymentView(_ view: EvervaultPaymentView, didSelectShippingContact: PKContact) async -> PKPaymentRequestShippingContactUpdate? {

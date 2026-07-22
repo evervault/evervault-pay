@@ -119,7 +119,7 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
 
         @MainActor
         public func evervaultPaymentView(_ view: EvervaultPaymentView, shouldAuthorize result: ApplePayResponse?) async -> AuthorizationDisposition {
-            return await self.parent.shouldAuthorizeCallback?(result) ?? .success
+            return await self.parent.shouldAuthorizeCallback?(result) ?? .success(())
         }
 
         nonisolated public func evervaultPaymentView(_ view: EvervaultPaymentView, didFinishWithResult result: Result<Void, EvervaultError>) {

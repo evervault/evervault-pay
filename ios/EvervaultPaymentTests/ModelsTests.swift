@@ -302,26 +302,18 @@ private struct TestDeclineReason: Error, Equatable, CustomStringConvertible {
 
 final class ResolveDispositionTests: XCTestCase {
     func testSuccessDispositionMapsToSuccessOutcome() {
-        let outcome = EvervaultPaymentView.resolveDisposition(for: .success)
+        let outcome = EvervaultPaymentView.resolveDisposition(for: .success(()))
         guard case .success = outcome else {
             return XCTFail("Expected .success, got \(outcome)")
         }
     }
 
-    func testFailureDispositionWithUnderlyingMapsToMerchantDeclinedError() {
-        let outcome = EvervaultPaymentView.resolveDisposition(for: .failure(underlying: TestDeclineReason(message: "Prepaid cards are not accepted")))
+    func testFailureDispositionMapsToMerchantDeclinedError() {
+        let outcome = EvervaultPaymentView.resolveDisposition(for: .failure(TestDeclineReason(message: "Prepaid cards are not accepted")))
         guard case .failure(.MerchantDeclinedError(let underlying)) = outcome else {
             return XCTFail("Expected .failure(.MerchantDeclinedError), got \(outcome)")
         }
         XCTAssertEqual(underlying as? TestDeclineReason, TestDeclineReason(message: "Prepaid cards are not accepted"))
-    }
-
-    func testFailureDispositionWithNilUnderlyingMapsToMerchantDeclinedErrorWithNilUnderlying() {
-        let outcome = EvervaultPaymentView.resolveDisposition(for: .failure(underlying: nil))
-        guard case .failure(.MerchantDeclinedError(let underlying)) = outcome else {
-            return XCTFail("Expected .failure(.MerchantDeclinedError), got \(outcome)")
-        }
-        XCTAssertNil(underlying)
     }
 }
 
