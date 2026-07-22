@@ -148,7 +148,11 @@ struct TransactionHandler : View {
     @State
     private var applePayResponse: ApplePayResponse? = nil
     @State
-    private var errorMessage: String? = nil
+    private var errorMessage: String? = nil {
+        didSet {
+            self.isShowingError = self.errorMessage != nil
+        }
+    }
     private let transaction: EvervaultPayment.Transaction
 
     init(name: String, type: TransactionType) {
@@ -159,12 +163,8 @@ struct TransactionHandler : View {
 
     private let supportedNetworks: [Network] = [.visa, .masterCard, .amex]
 
-    private var isShowingError: Binding<Bool> {
-        Binding(
-            get: { errorMessage != nil },
-            set: { isPresented in if !isPresented { errorMessage = nil } }
-        )
-    }
+    @State
+    private var isShowingError: Bool = false
 
     var body: some View {
         let availability = EvervaultPaymentViewRepresentable.availability(supportedNetworks: supportedNetworks)
@@ -204,15 +204,15 @@ struct TransactionHandler : View {
                     }.shouldAuthorize { response in
                         // Example merchant rule: reject prepaid cards.
                         if response?.card.funding == "prepaid" {
-                            return .failure(underlying: DeclineReason.prepaidCardNotAccepted)
+                            return .failure(DeclineReason.prepaidCardNotAccepted)
                         }
-                        return .success
+                        return .success(())
                     }
             } else {
                 Text("Not available")
             }
         }
-        .alert("Payment Failed", isPresented: isShowingError) {
+        .alert("Payment Failed", isPresented: $isShowingError) {
             Button("OK", role: .cancel) { }
         } message: {
             Text(errorMessage ?? "")

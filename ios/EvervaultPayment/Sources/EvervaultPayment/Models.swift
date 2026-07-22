@@ -144,10 +144,7 @@ public struct ApplePayResponse: Codable, Sendable, Equatable {
 /// The merchant's decision on whether to approve the payment, returned from the `shouldAuthorize` hook.
 /// The SDK reports a rejection as `EvervaultError.MerchantDeclinedError`, wrapping `underlying` when provided.
 /// Pass your own `Error`-conforming type here if you want exhaustive `switch` handling downstream in `onResult`.
-public enum AuthorizationDisposition {
-    case success
-    case failure(underlying: Error?)
-}
+public typealias AuthorizationDisposition = Result<(), Error>
 
 /// Amount wrapper around NSDecimalNumber
 /// Allows us to accept ints, floats, etc. in the future if we want
