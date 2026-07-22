@@ -15,8 +15,7 @@ public enum EvervaultError: Error, LocalizedError {
     case UnsupportedVersionError
     case ApplePayAuthorizationError(underlying: Error)
     case InternalError(underlying: Error)
-    case MerchantDeclinedError(underlying: Error?)
-    
+
     public var errorDescription: String? {
         switch self {
         case .InvalidTransactionError:
@@ -37,12 +36,6 @@ public enum EvervaultError: Error, LocalizedError {
             return "Some functionality is not available on this version of iOS"
         case .ApplePayAuthorizationError(underlying: let underlying):
             return "Apple Pay failed to authorize: \(underlying)"
-        case .MerchantDeclinedError(let underlying):
-            if let underlying {
-                return "Merchant declined the payment: \(underlying)"
-            } else {
-                return "Merchant declined the payment."
-            }
         }
     }
 }
@@ -65,11 +58,13 @@ public class EvervaultPaymentView: UIView {
     public let buttonType: ButtonType
     public let buttonStyle: ButtonStyle
 
-    /// Outcome of the current authorization attempt for Apple Pay sheet (shown on tapping the pay button).
+    /// Whether a definite outcome (success, SDK failure, or merchant decline) has already been reported
+    /// to the delegate for the current authorization attempt - the specific error, if any, doesn't matter
+    /// here, only whether something was already reported.
     /// Reset to `nil` at the top of `didTapPay()`, before a new sheet is presented;
-    /// set to `.success`/`.failure` once `didAuthorizePayment` resolves. 
+    /// set once `didAuthorizePayment` resolves to whichever outcome was reported.
     /// If still `nil` when the sheet finishes, the buyer dismissed it without ever authorizing — a genuine cancel.
-    private var tapAuthorizationOutcome: Result<Void, EvervaultError>?
+    private var tapAuthorizationOutcome: Result<Void, Error>?
 
     public weak var delegate: EvervaultPaymentViewDelegate? {
         didSet {
@@ -155,25 +150,15 @@ public class EvervaultPaymentView: UIView {
     }
 
     /// Pure decision logic behind `paymentAuthorizationViewControllerDidFinish`, split out for testing without a live PassKit sheet.
-    nonisolated static func authorizationVerdict(for outcome: Result<Void, EvervaultError>?) -> AuthorizationVerdict {
+    nonisolated static func authorizationVerdict(for outcome: Result<Void, Error>?) -> AuthorizationVerdict {
         switch outcome {
         case .success:
             return .success
         case .failure:
-            // Already reported at the point of failure.
+            // Already reported at the point of failure/decline.
             return .failureAlreadyReported
         case .none:
             return .cancelled
-        }
-    }
-
-    /// What to record as this tap's outcome, given the merchant's authorization disposition. Split out for testing.
-    nonisolated static func resolveDisposition(for disposition: AuthorizationDisposition) -> Result<Void, EvervaultError> {
-        switch disposition {
-        case .success:
-            return .success(())
-        case .failure(let underlying):
-            return .failure(.MerchantDeclinedError(underlying: underlying))
         }
     }
 
@@ -390,22 +375,21 @@ extension EvervaultPaymentView : PKPaymentAuthorizationViewControllerDelegate {
 
             // Give the merchant a chance to approve or reject the decrypted payment before we report success.
             let disposition = await self.delegate?.evervaultPaymentView(self, shouldAuthorize: enriched) ?? .success(())
-            let dispositionOutcome = EvervaultPaymentView.resolveDisposition(for: disposition)
-            switch dispositionOutcome {
+            switch disposition {
             case .success:
                 await MainActor.run {
-                    self.tapAuthorizationOutcome = dispositionOutcome
+                    self.tapAuthorizationOutcome = .success(())
                 }
                 // Tell Apple Pay the payment was successful
                 return PKPaymentAuthorizationResult(status: .success, errors: nil)
-            case .failure(let evError):
+            case .failure(let reason):
                 await MainActor.run {
                     // Notify the delegate on the main actor
-                    self.delegate?.evervaultPaymentView(self, didFinishWithResult: .failure(evError))
-                    self.tapAuthorizationOutcome = dispositionOutcome
+                    self.delegate?.evervaultPaymentView(self, didDeclinePayment: reason)
+                    self.tapAuthorizationOutcome = .failure(reason)
                 }
                 // The merchant rejected the payment: surface back to Apple Pay as a failure
-                return PKPaymentAuthorizationResult(status: .failure, errors: [evError])
+                return PKPaymentAuthorizationResult(status: .failure, errors: [reason])
             }
         } catch {
             let evError = EvervaultError.ApplePayAuthorizationError(underlying: error)
@@ -462,15 +446,19 @@ public protocol EvervaultPaymentViewDelegate : AnyObject {
 
     /// Called when the user updates the shipping method.  The delegate returns an optional update which could include things like the re-calculated cost including shipping.
     func evervaultPaymentView(_ view: EvervaultPaymentView, didSelectShippingContact: PKContact) async -> PKPaymentRequestShippingContactUpdate?
-    
+
     /// Called when the user updates the payment method.
     func evervaultPaymentView(_ view: EvervaultPaymentView, didUpdatePaymentMethod paymentMethod: PKPaymentMethod) async -> PKPaymentRequestPaymentMethodUpdate?
-    
-    /// Fired when the payment sheet is fully dismissed
+
+    /// Fired when the payment sheet is fully dismissed with a genuine SDK-level outcome (not a merchant decline or buyer cancel)
     func evervaultPaymentView(_ view: EvervaultPaymentView, didFinishWithResult result: Result<Void, EvervaultError>)
 
     /// Fired when the buyer dismisses the sheet without ever authorizing a payment (e.g. taps Cancel), distinct from `didFinishWithResult`'s success/failure.
     func evervaultPaymentViewDidCancel(_ view: EvervaultPaymentView)
+
+    /// Fired when the merchant rejects an authorized payment by returning `.failure(reason)` from `shouldAuthorize`, wrapping the reason they returned.
+    /// Distinct from `didFinishWithResult`, which only reports genuine SDK-level outcomes.
+    func evervaultPaymentView(_ view: EvervaultPaymentView, didDeclinePayment reason: Error)
 
     /// Called after the user taps the Apple Pay button, but before the modal is displayed.  The delegate can modify the transaction in-place.
     func evervaultPaymentView(_ view: EvervaultPaymentView, prepareTransaction transaction: inout Transaction)
@@ -487,6 +475,10 @@ extension EvervaultPaymentViewDelegate {
     }
 
     public func evervaultPaymentViewDidCancel(_ view: EvervaultPaymentView) {
+        // Do nothing
+    }
+
+    public func evervaultPaymentView(_ view: EvervaultPaymentView, didDeclinePayment reason: Error) {
         // Do nothing
     }
 

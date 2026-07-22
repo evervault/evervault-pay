@@ -201,6 +201,9 @@ struct TransactionHandler : View {
                         print("Preparing transaction")
                     }.onCancel {
                         print("Payment sheet cancelled")
+                    }.onDecline { reason in
+                        print("Payment declined: \(reason.localizedDescription)")
+                        errorMessage = reason.localizedDescription
                     }.shouldAuthorize { response in
                         // Example merchant rule: reject prepaid cards.
                         if response?.card.funding == "prepaid" {

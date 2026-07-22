@@ -53,6 +53,7 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
     private var onPaymentMethodChangeCallback: ((_ paymentMethod: PKPaymentMethod) -> PKPaymentRequestPaymentMethodUpdate)?
     private var prepareTransactionCallback: ((_ transaction: inout Transaction) -> Void)?
     private var onCancelCallback: (() -> Void)?
+    private var onDeclineCallback: ((_ reason: Error) -> Void)?
     private var shouldAuthorizeCallback: ((_ result: ApplePayResponse?) async -> AuthorizationDisposition)?
 
     @available(*, deprecated, message: "Use availability(supportedNetworks:) instead")
@@ -134,6 +135,12 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
             }
         }
 
+        nonisolated public func evervaultPaymentView(_ view: EvervaultPaymentView, didDeclinePayment reason: Error) {
+            DispatchQueue.main.async {
+                self.parent.onDeclineCallback?(reason)
+            }
+        }
+
         nonisolated public func evervaultPaymentView(_ view: EvervaultPaymentView, didSelectShippingContact contact: PKContact) async -> PKPaymentRequestShippingContactUpdate? {
             if let handler = await self.parent.onShippingAddressChangeCallback {
                 let updatedLineItems = handler(contact)
@@ -198,6 +205,13 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
     public func onCancel(_ action: @escaping () -> Void) -> EvervaultPaymentViewRepresentable {
         var copy = self
         copy.onCancelCallback = action
+        return copy
+    }
+
+    /// Called when you reject an authorized payment by returning `.failure(reason)` from `shouldAuthorize`, distinct from `onResult`'s SDK-level success/failure.
+    public func onDecline(_ action: @escaping (Error) -> Void) -> EvervaultPaymentViewRepresentable {
+        var copy = self
+        copy.onDeclineCallback = action
         return copy
     }
 
