@@ -128,12 +128,27 @@ enum TransactionType {
     case disbursement
 }
 
+// Example merchant-owned error type, passed to `shouldAuthorize`'s `.failure(_:)`.
+// Since it's just an `Error`, the merchant's own downstream code can `switch` over it exhaustively.
+enum DeclineReason: Error, LocalizedError {
+    case prepaidCardNotAccepted
+
+    var errorDescription: String? {
+        switch self {
+        case .prepaidCardNotAccepted:
+            return "Prepaid cards are not accepted"
+        }
+    }
+}
+
 struct TransactionHandler : View {
     let name: String
     let type: TransactionType
 
     @State
     private var applePayResponse: ApplePayResponse? = nil
+    @State
+    private var errorMessage: String? = nil
     private let transaction: EvervaultPayment.Transaction
 
     init(name: String, type: TransactionType) {
@@ -143,6 +158,13 @@ struct TransactionHandler : View {
     }
 
     private let supportedNetworks: [Network] = [.visa, .masterCard, .amex]
+
+    private var isShowingError: Binding<Bool> {
+        Binding(
+            get: { errorMessage != nil },
+            set: { isPresented in if !isPresented { errorMessage = nil } }
+        )
+    }
 
     var body: some View {
         let availability = EvervaultPaymentViewRepresentable.availability(supportedNetworks: supportedNetworks)
@@ -169,6 +191,7 @@ struct TransactionHandler : View {
                             break
                         case let .failure(error):
                             print("Payment sheet error: \(error.localizedDescription)")
+                            errorMessage = error.localizedDescription
                             break
                         }
                     }
@@ -178,10 +201,24 @@ struct TransactionHandler : View {
                         print("Preparing transaction")
                     }.onCancel {
                         print("Payment sheet cancelled")
+                    }.onDecline { reason in
+                        print("Payment declined: \(reason.localizedDescription)")
+                        errorMessage = reason.localizedDescription
+                    }.shouldAuthorize { response in
+                        // Example merchant rule: reject prepaid cards.
+                        if response?.card.funding == "prepaid" {
+                            return .failure(DeclineReason.prepaidCardNotAccepted)
+                        }
+                        return .success(())
                     }
             } else {
                 Text("Not available")
             }
+        }
+        .alert("Payment Failed", isPresented: isShowingError) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text(errorMessage ?? "")
         }
     }
 }

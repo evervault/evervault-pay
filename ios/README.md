@@ -1,3 +1,20 @@
+## Building the Demo app locally
+
+`Demo/Demo.entitlements` isn't committed (`**/*.entitlements` is gitignored — it holds your own Apple Pay merchant ID, which is tied to your Apple Developer account). Both the Debug and Release configs point at this single file, so create it yourself before building:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>com.apple.developer.in-app-payments</key>
+	<array>
+		<string>merchant.your.bundle.id</string>
+	</array>
+</dict>
+</plist>
+```
+
 ## Releasing a new version
 
 1. Bump `spec.version` in [`EvervaultPayment.podspec`](../EvervaultPayment.podspec) (could be done in the same PR as your change, or as its own separate version-bump PR — there's no technical requirement either way; a separate PR just lets you batch several merged changes into one release instead of releasing on every merge)

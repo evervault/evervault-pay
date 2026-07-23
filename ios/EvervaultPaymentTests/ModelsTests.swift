@@ -278,6 +278,8 @@ final class ApplePayAvailabilityTests: XCTestCase {
     }
 }
 
+private struct TestDeclineReason: Error {}
+
 final class AuthorizationVerdictTests: XCTestCase {
     func testSuccessWhenAuthorizationSucceeded() {
         let verdict = EvervaultPaymentView.authorizationVerdict(for: .success(()))
@@ -285,12 +287,96 @@ final class AuthorizationVerdictTests: XCTestCase {
     }
 
     func testFailureAlreadyReportedWhenAuthorizationFailed() {
-        let verdict = EvervaultPaymentView.authorizationVerdict(for: .failure(.ApplePayUnavailableError))
+        let verdict = EvervaultPaymentView.authorizationVerdict(for: .failure(EvervaultError.ApplePayUnavailableError))
+        XCTAssertEqual(verdict, .failureAlreadyReported)
+    }
+
+    func testFailureAlreadyReportedWhenDeclined() {
+        // Declines carry the merchant's own error type, not an EvervaultError - the verdict doesn't
+        // care about the concrete type, only that something was already reported.
+        let verdict = EvervaultPaymentView.authorizationVerdict(for: .failure(TestDeclineReason()))
         XCTAssertEqual(verdict, .failureAlreadyReported)
     }
 
     func testCancelledWhenNoAuthorizationAttemptCompleted() {
         let verdict = EvervaultPaymentView.authorizationVerdict(for: nil)
         XCTAssertEqual(verdict, .cancelled)
+    }
+}
+
+private final class SpyDelegate: EvervaultPaymentViewDelegate {
+    private(set) var didFinishWithResultCalls: [Result<Void, EvervaultError>] = []
+    private(set) var didDeclinePaymentCalls: [Error] = []
+
+    func evervaultPaymentView(_ view: EvervaultPaymentView, didAuthorizePayment result: ApplePayResponse?) {}
+
+    func evervaultPaymentView(_ view: EvervaultPaymentView, didFinishWithResult result: Result<Void, EvervaultError>) {
+        didFinishWithResultCalls.append(result)
+    }
+
+    func evervaultPaymentView(_ view: EvervaultPaymentView, didDeclinePayment reason: Error) {
+        didDeclinePaymentCalls.append(reason)
+    }
+
+    func reset() {
+        didFinishWithResultCalls = []
+        didDeclinePaymentCalls = []
+    }
+}
+
+@MainActor
+private func makeViewForDispositionTests(delegate: SpyDelegate) -> EvervaultPaymentView {
+    let transaction = Transaction.oneOffPayment(try! OneOffPaymentTransaction(
+        country: "IE",
+        currency: "EUR",
+        paymentSummaryItems: [SummaryItem(label: "Total", amount: Amount("10.00"))]
+    ))
+    let view = EvervaultPaymentView(
+        appId: "test-app-id",
+        appleMerchantId: "merchant.test",
+        transaction: transaction,
+        supportedNetworks: [.visa],
+        buttonStyle: .automatic,
+        buttonType: .buy
+    )
+    view.delegate = delegate
+    // On a simulator/host with no Wallet cards, wiring up the delegate immediately fires
+    // didFinishWithResult(.ApplePayUnavailableError) - unrelated to what these tests check.
+    // Reset here so the spy starts clean before the actual test logic runs.
+    delegate.reset()
+    return view
+}
+
+@MainActor
+final class HandleAuthorizationDispositionTests: XCTestCase {
+    func testSuccessDoesNotNotifyDelegateAndReturnsSuccessResult() async {
+        let spy = SpyDelegate()
+        let view = makeViewForDispositionTests(delegate: spy)
+
+        let result = await view.handleAuthorizationDisposition(.success(()))
+
+        XCTAssertEqual(result.status, .success)
+        XCTAssertTrue(spy.didFinishWithResultCalls.isEmpty)
+        XCTAssertTrue(spy.didDeclinePaymentCalls.isEmpty)
+    }
+
+    func testFailureNotifiesDidDeclinePaymentOnlyNotDidFinishWithResult() async {
+        let spy = SpyDelegate()
+        let view = makeViewForDispositionTests(delegate: spy)
+        let reason = TestDeclineReason()
+
+        let result = await view.handleAuthorizationDisposition(.failure(reason))
+
+        XCTAssertEqual(result.status, .failure)
+        // result.errors?.first isn't checked for its exact type here. 
+        // PKPaymentAuthorizationResult is a PassKit type, and passing an error through it 
+        // changes what type comes back out - so a type check here would fail 
+        // even though we did pass a TestDeclineReason in.
+        // The didDeclinePayment check below is the trustworthy one: it receives our error
+        // directly, without going through PassKit at all.
+        XCTAssertEqual(result.errors?.count, 1)
+        XCTAssertEqual(spy.didDeclinePaymentCalls.count, 1)
+        XCTAssertTrue(spy.didDeclinePaymentCalls.first is TestDeclineReason)
+        XCTAssertTrue(spy.didFinishWithResultCalls.isEmpty)
     }
 }
