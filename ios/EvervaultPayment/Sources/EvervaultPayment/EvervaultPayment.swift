@@ -162,6 +162,25 @@ public class EvervaultPaymentView: UIView {
         }
     }
 
+    /// Notifies the delegate of the merchant's authorization disposition and reports what to tell PassKit.
+    /// Unlike `authorizationVerdict`, this has side effects (calls the delegate, mutates `tapAuthorizationOutcome`) -
+    /// split out for testing with a spy delegate, without needing a live PassKit sheet.
+    @MainActor
+    func handleAuthorizationDisposition(_ disposition: AuthorizationDisposition) -> PKPaymentAuthorizationResult {
+        switch disposition {
+        case .success:
+            self.tapAuthorizationOutcome = .success(())
+            // Tell Apple Pay the payment was successful
+            return PKPaymentAuthorizationResult(status: .success, errors: nil)
+        case .failure(let reason):
+            // Notify the delegate on the main actor
+            self.delegate?.evervaultPaymentView(self, didDeclinePayment: reason)
+            self.tapAuthorizationOutcome = .failure(reason)
+            // The merchant rejected the payment: surface back to Apple Pay as a failure
+            return PKPaymentAuthorizationResult(status: .failure, errors: [reason])
+        }
+    }
+
     // MARK: Layout
     
     /// Set the intrinsic size of this component to the underlying button size
@@ -375,22 +394,7 @@ extension EvervaultPaymentView : PKPaymentAuthorizationViewControllerDelegate {
 
             // Give the merchant a chance to approve or reject the decrypted payment before we report success.
             let disposition = await self.delegate?.evervaultPaymentView(self, shouldAuthorize: enriched) ?? .success(())
-            switch disposition {
-            case .success:
-                await MainActor.run {
-                    self.tapAuthorizationOutcome = .success(())
-                }
-                // Tell Apple Pay the payment was successful
-                return PKPaymentAuthorizationResult(status: .success, errors: nil)
-            case .failure(let reason):
-                await MainActor.run {
-                    // Notify the delegate on the main actor
-                    self.delegate?.evervaultPaymentView(self, didDeclinePayment: reason)
-                    self.tapAuthorizationOutcome = .failure(reason)
-                }
-                // The merchant rejected the payment: surface back to Apple Pay as a failure
-                return PKPaymentAuthorizationResult(status: .failure, errors: [reason])
-            }
+            return await self.handleAuthorizationDisposition(disposition)
         } catch {
             let evError = EvervaultError.ApplePayAuthorizationError(underlying: error)
             await MainActor.run {
