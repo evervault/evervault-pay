@@ -37,7 +37,7 @@ jobs:
       - name: Inject Entitlements File
         working-directory: ios/Demo/Demo
         run: |
-          echo "$IOS_TEST_ENTITLEMENTS_CONTENTS" > DemoDebug.entitlements
+          echo "$IOS_TEST_ENTITLEMENTS_CONTENTS" > Demo.entitlements
       - uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1.7.0
         with:
           xcode-version: latest-stable
@@ -88,7 +88,7 @@ jobs:
       - name: Inject Entitlements File
         working-directory: ios/Demo/Demo
         run: |
-          echo "$IOS_TEST_ENTITLEMENTS_CONTENTS" > DemoDebug.entitlements
+          echo "$IOS_TEST_ENTITLEMENTS_CONTENTS" > Demo.entitlements
       - uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1.7.0
         with:
           xcode-version: latest-stable
