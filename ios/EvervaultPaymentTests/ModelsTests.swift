@@ -299,6 +299,7 @@ final class ResolveDispositionTests: XCTestCase {
 private final class SpyDelegate: EvervaultPaymentViewDelegate {
     private(set) var didFinishWithResultCalls: [Result<Void, EvervaultError>] = []
     private(set) var didDeclinePaymentCalls: [Error] = []
+    private(set) var didCancelCallCount = 0
     /// Set by tests that need to wait for an async-dispatched delegate call (e.g. from
     /// `paymentAuthorizationViewControllerDidFinish`'s `DispatchQueue.main.async`) instead of racing it.
     var didReportExpectation: XCTestExpectation?
@@ -315,9 +316,15 @@ private final class SpyDelegate: EvervaultPaymentViewDelegate {
         didReportExpectation?.fulfill()
     }
 
+    func evervaultPaymentViewDidCancel(_ view: EvervaultPaymentView) {
+        didCancelCallCount += 1
+        didReportExpectation?.fulfill()
+    }
+
     func reset() {
         didFinishWithResultCalls = []
         didDeclinePaymentCalls = []
+        didCancelCallCount = 0
     }
 }
 
@@ -441,6 +448,39 @@ final class PaymentAuthorizationViewControllerDidFinishTests: XCTestCase {
 
         XCTAssertEqual(spy.didFinishWithResultCalls.count, 1)
         XCTAssertThrowsError(try XCTUnwrap(spy.didFinishWithResultCalls.first).get())
+        XCTAssertTrue(spy.didDeclinePaymentCalls.isEmpty)
+    }
+
+    func testSuccessReportsAfterDidFinish() async {
+        let spy = SpyDelegate()
+        let view = makeViewForDispositionTests(delegate: spy)
+
+        _ = await view.handleAuthorizationDisposition(.success(()))
+        XCTAssertTrue(spy.didFinishWithResultCalls.isEmpty, "must not fire before the sheet finishes")
+
+        let reported = expectation(description: "didFinishWithResult reported")
+        spy.didReportExpectation = reported
+        view.paymentAuthorizationViewControllerDidFinish(makeAuthorizationController())
+        await fulfillment(of: [reported], timeout: 1)
+
+        XCTAssertEqual(spy.didFinishWithResultCalls.count, 1)
+        XCTAssertNoThrow(try XCTUnwrap(spy.didFinishWithResultCalls.first).get())
+        XCTAssertTrue(spy.didDeclinePaymentCalls.isEmpty)
+    }
+
+    func testCancelReportsWhenNoAuthorizationAttemptEverCompleted() async {
+        let spy = SpyDelegate()
+        let view = makeViewForDispositionTests(delegate: spy)
+
+        // Neither handleAuthorizationDisposition nor handleAuthorizationFailure ran - tapAuthorizationOutcome
+        // stays nil, exactly as if the buyer dismissed the sheet without ever authorizing.
+        let reported = expectation(description: "evervaultPaymentViewDidCancel reported")
+        spy.didReportExpectation = reported
+        view.paymentAuthorizationViewControllerDidFinish(makeAuthorizationController())
+        await fulfillment(of: [reported], timeout: 1)
+
+        XCTAssertEqual(spy.didCancelCallCount, 1)
+        XCTAssertTrue(spy.didFinishWithResultCalls.isEmpty)
         XCTAssertTrue(spy.didDeclinePaymentCalls.isEmpty)
     }
 }
