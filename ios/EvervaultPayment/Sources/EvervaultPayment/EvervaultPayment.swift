@@ -171,20 +171,18 @@ public class EvervaultPaymentView: UIView {
         }
     }
 
-    /// Notifies the delegate of the merchant's authorization disposition and reports what to tell PassKit.
-    /// Unlike `authorizationVerdict`, this has side effects (calls the delegate, mutates `tapAuthorizationOutcome`) -
-    /// split out for testing with a spy delegate, without needing a live PassKit sheet.
+    /// Records the merchant's authorization disposition and reports what to tell PassKit.
+    /// Does NOT notify the delegate - reporting is deferred until `paymentAuthorizationViewControllerDidFinish`,
+    /// once the sheet has begun dismissing. Split out for testing with a spy delegate, without needing a live PassKit sheet.
     @MainActor
     func handleAuthorizationDisposition(_ disposition: AuthorizationDisposition) -> PKPaymentAuthorizationResult {
         switch disposition {
         case .success:
-            self.tapAuthorizationOutcome = .success(())
+            self.tapAuthorizationOutcome = .success
             // Tell Apple Pay the payment was successful
             return PKPaymentAuthorizationResult(status: .success, errors: nil)
         case .failure(let reason):
-            // Notify the delegate on the main actor
-            self.delegate?.evervaultPaymentView(self, didDeclinePayment: reason)
-            self.tapAuthorizationOutcome = .failure(reason)
+            self.tapAuthorizationOutcome = .declined(reason)
             // The merchant rejected the payment: surface back to Apple Pay as a failure
             return PKPaymentAuthorizationResult(status: .failure, errors: [reason])
         }
