@@ -152,20 +152,24 @@ public class EvervaultPaymentView: UIView {
     }
 
     /// The verdict on how the current authorization attempt resolved, given how (or whether) `didAuthorizePayment` fired.
-    enum AuthorizationVerdict: Equatable {
+    /// Carries whatever's needed to report it to the delegate - unlike `AuthorizationOutcome`, an associated
+    /// `Error`/`EvervaultError` isn't `Equatable`, so this type isn't either.
+    enum AuthorizationVerdict {
         case success
         case cancelled
-        case failureAlreadyReported
+        case declined(Error)
+        case sdkFailure(EvervaultError)
     }
 
     /// Pure decision logic behind `paymentAuthorizationViewControllerDidFinish`, split out for testing without a live PassKit sheet.
-    nonisolated static func authorizationVerdict(for outcome: Result<Void, Error>?) -> AuthorizationVerdict {
+    nonisolated static func authorizationVerdict(for outcome: AuthorizationOutcome?) -> AuthorizationVerdict {
         switch outcome {
         case .success:
             return .success
-        case .failure:
-            // Already reported at the point of failure/decline.
-            return .failureAlreadyReported
+        case .declined(let reason):
+            return .declined(reason)
+        case .sdkFailure(let error):
+            return .sdkFailure(error)
         case .none:
             return .cancelled
         }
@@ -425,8 +429,10 @@ extension EvervaultPaymentView : PKPaymentAuthorizationViewControllerDelegate {
                 switch EvervaultPaymentView.authorizationVerdict(for: self.tapAuthorizationOutcome) {
                 case .success:
                     self.delegate?.evervaultPaymentView(self, didFinishWithResult: .success(()))
-                case .failureAlreadyReported:
-                    break
+                case .declined(let reason):
+                    self.delegate?.evervaultPaymentView(self, didDeclinePayment: reason)
+                case .sdkFailure(let error):
+                    self.delegate?.evervaultPaymentView(self, didFinishWithResult: .failure(error))
                 case .cancelled:
                     self.delegate?.evervaultPaymentViewDidCancel(self)
                 }
