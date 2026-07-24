@@ -64,7 +64,7 @@ public class EvervaultPaymentView: UIView {
     /// dismissing, so it's safe for merchants to present their own UI in response.
     /// Reset to `nil` at the top of `didTapPay()`, before a new sheet is presented.
     /// If still `nil` when the sheet finishes, the buyer dismissed it without ever authorizing — a genuine cancel.
-    private var tapAuthorizationOutcome: AuthorizationOutcome?
+    private var tapAuthorizationOutcome: Result<Void, Error>?
 
     public weak var delegate: EvervaultPaymentViewDelegate? {
         didSet {
@@ -142,36 +142,28 @@ public class EvervaultPaymentView: UIView {
         return .available
     }
 
-    /// What happened when the merchant's authorization decision (or a genuine SDK failure) resolved for the
-    /// current attempt - recorded by `handleAuthorizationDisposition`/the `catch` block in `didAuthorizePayment`,
-    /// but not yet reported to the delegate.
-    enum AuthorizationOutcome {
-        case success
-        case declined(Error)
-        case sdkFailure(EvervaultError)
+    /// Marks a decline reported by the merchant via `shouldAuthorize`, so it can be recorded and later told
+    /// apart from a genuine SDK failure - always unwrapped back to `underlying` before it reaches a delegate,
+    /// so merchants only ever see their own error type, never this wrapper.
+    /// Not `public`, unlike `EvervaultError`: this is purely an SDK-internal bookkeeping detail, never part
+    /// of the delegate-facing API.
+    struct MerchantDeclinedError: Error, LocalizedError {
+        let underlying: Error
+
+        var errorDescription: String? {
+            "Merchant declined the payment: \(underlying.localizedDescription)"
+        }
     }
 
-    /// The verdict on how the current authorization attempt resolved, given how (or whether) `didAuthorizePayment` fired.
-    /// Carries whatever's needed to report it to the delegate - unlike `AuthorizationOutcome`, an associated
-    /// `Error`/`EvervaultError` isn't `Equatable`, so this type isn't either.
-    enum AuthorizationVerdict {
-        case success
-        case cancelled
-        case declined(Error)
-        case sdkFailure(EvervaultError)
-    }
-
-    /// Pure decision logic behind `paymentAuthorizationViewControllerDidFinish`, split out for testing without a live PassKit sheet.
-    nonisolated static func authorizationVerdict(for outcome: AuthorizationOutcome?) -> AuthorizationVerdict {
-        switch outcome {
+    /// Pure decision logic behind `handleAuthorizationDisposition`, split out for testing without a live PassKit sheet.
+    /// Maps the merchant's disposition onto what gets recorded in `tapAuthorizationOutcome` - a decline is wrapped
+    /// as `MerchantDeclinedError` so it can be told apart from a genuine SDK failure once it's time to report.
+    nonisolated static func resolveDisposition(for disposition: AuthorizationDisposition) -> Result<Void, Error> {
+        switch disposition {
         case .success:
-            return .success
-        case .declined(let reason):
-            return .declined(reason)
-        case .sdkFailure(let error):
-            return .sdkFailure(error)
-        case .none:
-            return .cancelled
+            return .success(())
+        case .failure(let reason):
+            return .failure(MerchantDeclinedError(underlying: reason))
         }
     }
 
@@ -180,13 +172,12 @@ public class EvervaultPaymentView: UIView {
     /// once the sheet has begun dismissing. Split out for testing with a spy delegate, without needing a live PassKit sheet.
     @MainActor
     func handleAuthorizationDisposition(_ disposition: AuthorizationDisposition) -> PKPaymentAuthorizationResult {
+        self.tapAuthorizationOutcome = EvervaultPaymentView.resolveDisposition(for: disposition)
         switch disposition {
         case .success:
-            self.tapAuthorizationOutcome = .success
             // Tell Apple Pay the payment was successful
             return PKPaymentAuthorizationResult(status: .success, errors: nil)
         case .failure(let reason):
-            self.tapAuthorizationOutcome = .declined(reason)
             // The merchant rejected the payment: surface back to Apple Pay as a failure
             return PKPaymentAuthorizationResult(status: .failure, errors: [reason])
         }
@@ -197,8 +188,7 @@ public class EvervaultPaymentView: UIView {
     /// once the sheet has begun dismissing. Split out for testing with a spy delegate, without needing a live network call.
     @MainActor
     func handleAuthorizationFailure(_ error: Error) -> PKPaymentAuthorizationResult {
-        let evError = EvervaultError.ApplePayAuthorizationError(underlying: error)
-        self.tapAuthorizationOutcome = .sdkFailure(evError)
+        self.tapAuthorizationOutcome = .failure(EvervaultError.ApplePayAuthorizationError(underlying: error))
         // On error, surface back to Apple Pay
         return PKPaymentAuthorizationResult(status: .failure, errors: [error])
     }
@@ -426,14 +416,18 @@ extension EvervaultPaymentView : PKPaymentAuthorizationViewControllerDelegate {
     nonisolated public func paymentAuthorizationViewControllerDidFinish(_ controller: PKPaymentAuthorizationViewController) {
         DispatchQueue.main.async { [weak self] in
             if let self = self {
-                switch EvervaultPaymentView.authorizationVerdict(for: self.tapAuthorizationOutcome) {
+                switch self.tapAuthorizationOutcome {
                 case .success:
                     self.delegate?.evervaultPaymentView(self, didFinishWithResult: .success(()))
-                case .declined(let reason):
-                    self.delegate?.evervaultPaymentView(self, didDeclinePayment: reason)
-                case .sdkFailure(let error):
-                    self.delegate?.evervaultPaymentView(self, didFinishWithResult: .failure(error))
-                case .cancelled:
+                case .failure(let error as MerchantDeclinedError):
+                    // Unwrap back to the merchant's own error type - onDecline always hands back exactly what they threw.
+                    self.delegate?.evervaultPaymentView(self, didDeclinePayment: error.underlying)
+                case .failure(let evError as EvervaultError):
+                    self.delegate?.evervaultPaymentView(self, didFinishWithResult: .failure(evError))
+                case .failure(let error):
+                    // handleAuthorizationFailure always stores an EvervaultError - this only matters if that invariant is ever broken.
+                    self.delegate?.evervaultPaymentView(self, didFinishWithResult: .failure(.InternalError(underlying: error)))
+                case .none:
                     self.delegate?.evervaultPaymentViewDidCancel(self)
                 }
             }
