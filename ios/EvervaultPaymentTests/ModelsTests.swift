@@ -279,6 +279,7 @@ final class ApplePayAvailabilityTests: XCTestCase {
 }
 
 private struct TestDeclineReason: Error {}
+private struct TestNetworkError: Error {}
 
 final class ResolveDispositionTests: XCTestCase {
     func testSuccessDispositionMapsToSuccessOutcome() {
@@ -385,9 +386,8 @@ final class HandleAuthorizationFailureTests: XCTestCase {
     func testDoesNotNotifyDelegateAndReturnsFailureResult() async {
         let spy = SpyDelegate()
         let view = makeViewForDispositionTests(delegate: spy)
-        struct NetworkError: Error {}
 
-        let result = await view.handleAuthorizationFailure(NetworkError())
+        let result = await view.handleAuthorizationFailure(TestNetworkError())
 
         XCTAssertEqual(result.status, .failure)
         XCTAssertEqual(result.errors?.count, 1)
@@ -410,8 +410,8 @@ private func makeAuthorizationController() -> PKPaymentAuthorizationViewControll
     return PKPaymentAuthorizationViewController(paymentRequest: request)!
 }
 
-/// onDecline/onResult's failure case must fire only once `paymentAuthorizationViewControllerDidFinish` 
-/// runs (i.e. once PassKit has decided to close the sheet), 
+/// onDecline/onResult's failure case must fire only once `paymentAuthorizationViewControllerDidFinish`
+/// runs (i.e. once PassKit has decided to close the sheet),
 /// not at the point `handleAuthorizationDisposition`/`handleAuthorizationFailure` returns.
 @MainActor
 final class PaymentAuthorizationViewControllerDidFinishTests: XCTestCase {
@@ -436,9 +436,8 @@ final class PaymentAuthorizationViewControllerDidFinishTests: XCTestCase {
     func testSdkFailureFiresOnlyAfterDidFinishNotAfterHandleFailure() async {
         let spy = SpyDelegate()
         let view = makeViewForDispositionTests(delegate: spy)
-        struct NetworkError: Error {}
 
-        _ = await view.handleAuthorizationFailure(NetworkError())
+        _ = await view.handleAuthorizationFailure(TestNetworkError())
         XCTAssertTrue(spy.didFinishWithResultCalls.isEmpty, "must not fire before the sheet finishes")
 
         let reported = expectation(description: "didFinishWithResult reported")

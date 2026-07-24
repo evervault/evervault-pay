@@ -58,12 +58,13 @@ public class EvervaultPaymentView: UIView {
     public let buttonType: ButtonType
     public let buttonStyle: ButtonStyle
 
-    /// What happened when the merchant's authorization decision (or a genuine SDK failure) resolved for the
-    /// current attempt. Recorded during `didAuthorizePayment`, but not yet reported to the delegate —
-    /// reporting is deferred until `paymentAuthorizationViewControllerDidFinish`, once the sheet has begun
-    /// dismissing, so it's safe for merchants to present their own UI in response.
-    /// Reset to `nil` at the top of `didTapPay()`, before a new sheet is presented.
-    /// If still `nil` when the sheet finishes, the buyer dismissed it without ever authorizing — a genuine cancel.
+    /// The current attempt's outcome, recorded during `didAuthorizePayment` but reported only from
+    /// `paymentAuthorizationViewControllerDidFinish` - so merchants can safely present their own UI
+    /// once the sheet actually starts dismissing.
+    /// Reset to `nil` at the top of `didTapPay()`; still `nil` at finish means a genuine cancel.
+    ///
+    /// `Error`, not a closed enum, so the wrapped errors stay `Result.get()`-testable - see the fallback
+    /// switch case in `paymentAuthorizationViewControllerDidFinish` for the cost of that choice.
     private var tapAuthorizationOutcome: Result<Void, Error>?
 
     public weak var delegate: EvervaultPaymentViewDelegate? {
@@ -142,11 +143,9 @@ public class EvervaultPaymentView: UIView {
         return .available
     }
 
-    /// Marks a decline reported by the merchant via `shouldAuthorize`, so it can be recorded and later told
-    /// apart from a genuine SDK failure - always unwrapped back to `underlying` before it reaches a delegate,
-    /// so merchants only ever see their own error type, never this wrapper.
-    /// Not `public`, unlike `EvervaultError`: this is purely an SDK-internal bookkeeping detail, never part
-    /// of the delegate-facing API.
+
+    /// Wraps a merchant decline so it can be told apart from an SDK failure once it's time to report.
+    /// Always unwrapped back to `underlying` first, and never `public` like `EvervaultError` is.
     struct MerchantDeclinedError: Error, LocalizedError {
         let underlying: Error
 
