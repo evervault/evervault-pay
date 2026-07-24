@@ -188,6 +188,17 @@ public class EvervaultPaymentView: UIView {
         }
     }
 
+    /// Records a genuine SDK-level failure (decode/network error from `didAuthorizePayment`) and reports what to tell PassKit.
+    /// Does NOT notify the delegate - reporting is deferred until `paymentAuthorizationViewControllerDidFinish`,
+    /// once the sheet has begun dismissing. Split out for testing with a spy delegate, without needing a live network call.
+    @MainActor
+    func handleAuthorizationFailure(_ error: Error) -> PKPaymentAuthorizationResult {
+        let evError = EvervaultError.ApplePayAuthorizationError(underlying: error)
+        self.tapAuthorizationOutcome = .sdkFailure(evError)
+        // On error, surface back to Apple Pay
+        return PKPaymentAuthorizationResult(status: .failure, errors: [error])
+    }
+
     // MARK: Layout
     
     /// Set the intrinsic size of this component to the underlying button size
@@ -403,14 +414,7 @@ extension EvervaultPaymentView : PKPaymentAuthorizationViewControllerDelegate {
             let disposition = await self.delegate?.evervaultPaymentView(self, shouldAuthorize: enriched) ?? .success(())
             return await self.handleAuthorizationDisposition(disposition)
         } catch {
-            let evError = EvervaultError.ApplePayAuthorizationError(underlying: error)
-            await MainActor.run {
-                // Notify the delegate on the main actor
-                self.delegate?.evervaultPaymentView(self, didFinishWithResult: .failure(evError))
-                self.tapAuthorizationOutcome = .failure(evError)
-            }
-            // On error, surface back to Apple Pay
-            return PKPaymentAuthorizationResult(status: .failure, errors: [error])
+            return await self.handleAuthorizationFailure(error)
         }
     }
     
