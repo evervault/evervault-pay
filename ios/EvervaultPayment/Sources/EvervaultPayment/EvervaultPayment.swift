@@ -425,7 +425,10 @@ extension EvervaultPaymentView : PKPaymentAuthorizationViewControllerDelegate {
                 case .failure(let evError as EvervaultError):
                     self.delegate?.evervaultPaymentView(self, didFinishWithResult: .failure(evError))
                 case .failure(let error):
-                    // handleAuthorizationFailure always stores an EvervaultError - this only matters if that invariant is ever broken.
+                    // Unreachable by construction: handleAuthorizationFailure always stores an EvervaultError,
+                    // and resolveDisposition always stores a MerchantDeclinedError. Fail loudly in debug/test
+                    // builds if a future change ever breaks that invariant, rather than silently misreporting.
+                    assertionFailure("tapAuthorizationOutcome held an unrecognized error type: \(error)")
                     self.delegate?.evervaultPaymentView(self, didFinishWithResult: .failure(.InternalError(underlying: error)))
                 case .none:
                     self.delegate?.evervaultPaymentViewDidCancel(self)
