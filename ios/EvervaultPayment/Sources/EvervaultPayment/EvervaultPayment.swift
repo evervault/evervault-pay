@@ -58,13 +58,13 @@ public class EvervaultPaymentView: UIView {
     public let buttonType: ButtonType
     public let buttonStyle: ButtonStyle
 
-    /// Whether a definite outcome (success, SDK failure, or merchant decline) has already been reported
-    /// to the delegate for the current authorization attempt - the specific error, if any, doesn't matter
-    /// here, only whether something was already reported.
-    /// Reset to `nil` at the top of `didTapPay()`, before a new sheet is presented;
-    /// set once `didAuthorizePayment` resolves to whichever outcome was reported.
+    /// What happened when the merchant's authorization decision (or a genuine SDK failure) resolved for the
+    /// current attempt. Recorded during `didAuthorizePayment`, but not yet reported to the delegate —
+    /// reporting is deferred until `paymentAuthorizationViewControllerDidFinish`, once the sheet has begun
+    /// dismissing, so it's safe for merchants to present their own UI in response.
+    /// Reset to `nil` at the top of `didTapPay()`, before a new sheet is presented.
     /// If still `nil` when the sheet finishes, the buyer dismissed it without ever authorizing — a genuine cancel.
-    private var tapAuthorizationOutcome: Result<Void, Error>?
+    private var tapAuthorizationOutcome: AuthorizationOutcome?
 
     public weak var delegate: EvervaultPaymentViewDelegate? {
         didSet {
@@ -140,6 +140,15 @@ public class EvervaultPaymentView: UIView {
             return .unavailable
         }
         return .available
+    }
+
+    /// What happened when the merchant's authorization decision (or a genuine SDK failure) resolved for the
+    /// current attempt - recorded by `handleAuthorizationDisposition`/the `catch` block in `didAuthorizePayment`,
+    /// but not yet reported to the delegate.
+    enum AuthorizationOutcome {
+        case success
+        case declined(Error)
+        case sdkFailure(EvervaultError)
     }
 
     /// The verdict on how the current authorization attempt resolved, given how (or whether) `didAuthorizePayment` fired.
