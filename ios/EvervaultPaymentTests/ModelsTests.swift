@@ -301,8 +301,7 @@ private final class SpyDelegate: EvervaultPaymentViewDelegate {
     private(set) var didFinishWithResultCalls: [Result<Void, EvervaultError>] = []
     private(set) var didDeclinePaymentCalls: [Error] = []
     private(set) var didCancelCallCount = 0
-    /// Set by tests that need to wait for an async-dispatched delegate call (e.g. from
-    /// `paymentAuthorizationViewControllerDidFinish`'s `DispatchQueue.main.async`) instead of racing it.
+    /// Lets a test await an async-dispatched delegate call instead of racing it.
     var didReportExpectation: XCTestExpectation?
 
     func evervaultPaymentView(_ view: EvervaultPaymentView, didAuthorizePayment result: ApplePayResponse?) {}
@@ -374,8 +373,7 @@ final class HandleAuthorizationDispositionTests: XCTestCase {
 
         XCTAssertEqual(result.status, .failure)
         XCTAssertEqual(result.errors?.count, 1)
-        // Reporting is deferred to paymentAuthorizationViewControllerDidFinish, once the sheet has
-        // begun dismissing - see PaymentAuthorizationViewControllerDidFinishTests below.
+        // Deferred to paymentAuthorizationViewControllerDidFinish.
         XCTAssertTrue(spy.didDeclinePaymentCalls.isEmpty)
         XCTAssertTrue(spy.didFinishWithResultCalls.isEmpty)
     }
@@ -391,8 +389,7 @@ final class HandleAuthorizationFailureTests: XCTestCase {
 
         XCTAssertEqual(result.status, .failure)
         XCTAssertEqual(result.errors?.count, 1)
-        // Reporting is deferred to paymentAuthorizationViewControllerDidFinish, once the sheet has
-        // begun dismissing - see PaymentAuthorizationViewControllerDidFinishTests below.
+        // Deferred to paymentAuthorizationViewControllerDidFinish.
         XCTAssertTrue(spy.didFinishWithResultCalls.isEmpty)
         XCTAssertTrue(spy.didDeclinePaymentCalls.isEmpty)
     }
@@ -410,9 +407,8 @@ private func makeAuthorizationController() -> PKPaymentAuthorizationViewControll
     return PKPaymentAuthorizationViewController(paymentRequest: request)!
 }
 
-/// onDecline/onResult's failure case must fire only once `paymentAuthorizationViewControllerDidFinish`
-/// runs (i.e. once PassKit has decided to close the sheet),
-/// not at the point `handleAuthorizationDisposition`/`handleAuthorizationFailure` returns.
+/// Proves reporting happens only from `paymentAuthorizationViewControllerDidFinish`,
+/// not from `handleAuthorizationDisposition`/`handleAuthorizationFailure`.
 @MainActor
 final class PaymentAuthorizationViewControllerDidFinishTests: XCTestCase {
     func testDeclineFiresOnlyAfterDidFinishNotAfterHandleDisposition() async {
@@ -471,8 +467,7 @@ final class PaymentAuthorizationViewControllerDidFinishTests: XCTestCase {
         let spy = SpyDelegate()
         let view = makeViewForDispositionTests(delegate: spy)
 
-        // Neither handleAuthorizationDisposition nor handleAuthorizationFailure ran - tapAuthorizationOutcome
-        // stays nil, exactly as if the buyer dismissed the sheet without ever authorizing.
+        // No handler ran, so tapAuthorizationOutcome stays nil.
         let reported = expectation(description: "evervaultPaymentViewDidCancel reported")
         spy.didReportExpectation = reported
         view.paymentAuthorizationViewControllerDidFinish(makeAuthorizationController())
