@@ -279,48 +279,52 @@ final class ApplePayAvailabilityTests: XCTestCase {
 }
 
 private struct TestDeclineReason: Error {}
+private struct TestNetworkError: Error {}
 
-final class AuthorizationVerdictTests: XCTestCase {
-    func testSuccessWhenAuthorizationSucceeded() {
-        let verdict = EvervaultPaymentView.authorizationVerdict(for: .success(()))
-        XCTAssertEqual(verdict, .success)
+final class ResolveDispositionTests: XCTestCase {
+    func testSuccessDispositionMapsToSuccessOutcome() {
+        let outcome = EvervaultPaymentView.resolveDisposition(for: .success(()))
+        XCTAssertNoThrow(try outcome.get())
     }
 
-    func testFailureAlreadyReportedWhenAuthorizationFailed() {
-        let verdict = EvervaultPaymentView.authorizationVerdict(for: .failure(EvervaultError.ApplePayUnavailableError))
-        XCTAssertEqual(verdict, .failureAlreadyReported)
-    }
+    func testFailureDispositionMapsToMerchantDeclinedError() {
+        let reason = TestDeclineReason()
+        let outcome = EvervaultPaymentView.resolveDisposition(for: .failure(reason))
 
-    func testFailureAlreadyReportedWhenDeclined() {
-        // Declines carry the merchant's own error type, not an EvervaultError - the verdict doesn't
-        // care about the concrete type, only that something was already reported.
-        let verdict = EvervaultPaymentView.authorizationVerdict(for: .failure(TestDeclineReason()))
-        XCTAssertEqual(verdict, .failureAlreadyReported)
-    }
-
-    func testCancelledWhenNoAuthorizationAttemptCompleted() {
-        let verdict = EvervaultPaymentView.authorizationVerdict(for: nil)
-        XCTAssertEqual(verdict, .cancelled)
+        XCTAssertThrowsError(try outcome.get()) { error in
+            XCTAssertEqual(error.localizedDescription, "Merchant declined the payment: \(reason.localizedDescription)")
+        }
     }
 }
 
 private final class SpyDelegate: EvervaultPaymentViewDelegate {
     private(set) var didFinishWithResultCalls: [Result<Void, EvervaultError>] = []
     private(set) var didDeclinePaymentCalls: [Error] = []
+    private(set) var didCancelCallCount = 0
+    /// Lets a test await an async-dispatched delegate call instead of racing it.
+    var didReportExpectation: XCTestExpectation?
 
     func evervaultPaymentView(_ view: EvervaultPaymentView, didAuthorizePayment result: ApplePayResponse?) {}
 
     func evervaultPaymentView(_ view: EvervaultPaymentView, didFinishWithResult result: Result<Void, EvervaultError>) {
         didFinishWithResultCalls.append(result)
+        didReportExpectation?.fulfill()
     }
 
     func evervaultPaymentView(_ view: EvervaultPaymentView, didDeclinePayment reason: Error) {
         didDeclinePaymentCalls.append(reason)
+        didReportExpectation?.fulfill()
+    }
+
+    func evervaultPaymentViewDidCancel(_ view: EvervaultPaymentView) {
+        didCancelCallCount += 1
+        didReportExpectation?.fulfill()
     }
 
     func reset() {
         didFinishWithResultCalls = []
         didDeclinePaymentCalls = []
+        didCancelCallCount = 0
     }
 }
 
@@ -360,7 +364,7 @@ final class HandleAuthorizationDispositionTests: XCTestCase {
         XCTAssertTrue(spy.didDeclinePaymentCalls.isEmpty)
     }
 
-    func testFailureNotifiesDidDeclinePaymentOnlyNotDidFinishWithResult() async {
+    func testFailureDoesNotNotifyDelegateAndReturnsFailureResult() async {
         let spy = SpyDelegate()
         let view = makeViewForDispositionTests(delegate: spy)
         let reason = TestDeclineReason()
@@ -368,15 +372,109 @@ final class HandleAuthorizationDispositionTests: XCTestCase {
         let result = await view.handleAuthorizationDisposition(.failure(reason))
 
         XCTAssertEqual(result.status, .failure)
-        // result.errors?.first isn't checked for its exact type here. 
-        // PKPaymentAuthorizationResult is a PassKit type, and passing an error through it 
-        // changes what type comes back out - so a type check here would fail 
-        // even though we did pass a TestDeclineReason in.
-        // The didDeclinePayment check below is the trustworthy one: it receives our error
-        // directly, without going through PassKit at all.
         XCTAssertEqual(result.errors?.count, 1)
+        // Deferred to paymentAuthorizationViewControllerDidFinish.
+        XCTAssertTrue(spy.didDeclinePaymentCalls.isEmpty)
+        XCTAssertTrue(spy.didFinishWithResultCalls.isEmpty)
+    }
+}
+
+@MainActor
+final class HandleAuthorizationFailureTests: XCTestCase {
+    func testDoesNotNotifyDelegateAndReturnsFailureResult() async {
+        let spy = SpyDelegate()
+        let view = makeViewForDispositionTests(delegate: spy)
+
+        let result = await view.handleAuthorizationFailure(TestNetworkError())
+
+        XCTAssertEqual(result.status, .failure)
+        XCTAssertEqual(result.errors?.count, 1)
+        // Deferred to paymentAuthorizationViewControllerDidFinish.
+        XCTAssertTrue(spy.didFinishWithResultCalls.isEmpty)
+        XCTAssertTrue(spy.didDeclinePaymentCalls.isEmpty)
+    }
+}
+
+@MainActor
+private func makeAuthorizationController() -> PKPaymentAuthorizationViewController {
+    let request = PKPaymentRequest()
+    request.merchantIdentifier = "merchant.test"
+    request.supportedNetworks = [.visa]
+    request.countryCode = "IE"
+    request.currencyCode = "EUR"
+    request.paymentSummaryItems = [PKPaymentSummaryItem(label: "Total", amount: NSDecimalNumber(string: "10.00"))]
+    request.merchantCapabilities = .threeDSecure
+    return PKPaymentAuthorizationViewController(paymentRequest: request)!
+}
+
+/// Proves reporting happens only from `paymentAuthorizationViewControllerDidFinish`,
+/// not from `handleAuthorizationDisposition`/`handleAuthorizationFailure`.
+@MainActor
+final class PaymentAuthorizationViewControllerDidFinishTests: XCTestCase {
+    func testDeclineFiresOnlyAfterDidFinishNotAfterHandleDisposition() async {
+        let spy = SpyDelegate()
+        let view = makeViewForDispositionTests(delegate: spy)
+        let reason = TestDeclineReason()
+
+        _ = await view.handleAuthorizationDisposition(.failure(reason))
+        XCTAssertTrue(spy.didDeclinePaymentCalls.isEmpty, "must not fire before the sheet finishes")
+
+        let reported = expectation(description: "didDeclinePayment reported")
+        spy.didReportExpectation = reported
+        view.paymentAuthorizationViewControllerDidFinish(makeAuthorizationController())
+        await fulfillment(of: [reported], timeout: 1)
+
         XCTAssertEqual(spy.didDeclinePaymentCalls.count, 1)
         XCTAssertTrue(spy.didDeclinePaymentCalls.first is TestDeclineReason)
         XCTAssertTrue(spy.didFinishWithResultCalls.isEmpty)
+    }
+
+    func testSdkFailureFiresOnlyAfterDidFinishNotAfterHandleFailure() async {
+        let spy = SpyDelegate()
+        let view = makeViewForDispositionTests(delegate: spy)
+
+        _ = await view.handleAuthorizationFailure(TestNetworkError())
+        XCTAssertTrue(spy.didFinishWithResultCalls.isEmpty, "must not fire before the sheet finishes")
+
+        let reported = expectation(description: "didFinishWithResult reported")
+        spy.didReportExpectation = reported
+        view.paymentAuthorizationViewControllerDidFinish(makeAuthorizationController())
+        await fulfillment(of: [reported], timeout: 1)
+
+        XCTAssertEqual(spy.didFinishWithResultCalls.count, 1)
+        XCTAssertThrowsError(try XCTUnwrap(spy.didFinishWithResultCalls.first).get())
+        XCTAssertTrue(spy.didDeclinePaymentCalls.isEmpty)
+    }
+
+    func testSuccessReportsAfterDidFinish() async {
+        let spy = SpyDelegate()
+        let view = makeViewForDispositionTests(delegate: spy)
+
+        _ = await view.handleAuthorizationDisposition(.success(()))
+        XCTAssertTrue(spy.didFinishWithResultCalls.isEmpty, "must not fire before the sheet finishes")
+
+        let reported = expectation(description: "didFinishWithResult reported")
+        spy.didReportExpectation = reported
+        view.paymentAuthorizationViewControllerDidFinish(makeAuthorizationController())
+        await fulfillment(of: [reported], timeout: 1)
+
+        XCTAssertEqual(spy.didFinishWithResultCalls.count, 1)
+        XCTAssertNoThrow(try XCTUnwrap(spy.didFinishWithResultCalls.first).get())
+        XCTAssertTrue(spy.didDeclinePaymentCalls.isEmpty)
+    }
+
+    func testCancelReportsWhenNoAuthorizationAttemptEverCompleted() async {
+        let spy = SpyDelegate()
+        let view = makeViewForDispositionTests(delegate: spy)
+
+        // No handler ran, so tapAuthorizationOutcome stays nil.
+        let reported = expectation(description: "evervaultPaymentViewDidCancel reported")
+        spy.didReportExpectation = reported
+        view.paymentAuthorizationViewControllerDidFinish(makeAuthorizationController())
+        await fulfillment(of: [reported], timeout: 1)
+
+        XCTAssertEqual(spy.didCancelCallCount, 1)
+        XCTAssertTrue(spy.didFinishWithResultCalls.isEmpty)
+        XCTAssertTrue(spy.didDeclinePaymentCalls.isEmpty)
     }
 }
