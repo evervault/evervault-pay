@@ -285,6 +285,8 @@ public class EvervaultPaymentView: UIView {
         paymentRequest.shippingMethods = transaction.shippingMethods
         paymentRequest.requiredShippingContactFields = transaction.requiredShippingContactFields
         paymentRequest.requiredBillingContactFields = transaction.requestPayerDetails
+        paymentRequest.supportsCouponCode = transaction.supportsCouponCode
+        paymentRequest.couponCode = transaction.couponCode
 
         return paymentRequest
     }
@@ -349,6 +351,8 @@ public class EvervaultPaymentView: UIView {
         recurring.billingAgreement = transaction.billingAgreement
         paymentRequest.recurringPaymentRequest = recurring
         paymentRequest.requiredBillingContactFields = transaction.requestPayerDetails
+        paymentRequest.supportsCouponCode = transaction.supportsCouponCode
+        paymentRequest.couponCode = transaction.couponCode
 
         return paymentRequest
     }
@@ -436,6 +440,14 @@ extension EvervaultPaymentView : PKPaymentAuthorizationViewControllerDelegate {
     public func paymentAuthorizationViewController(_ controller: PKPaymentAuthorizationViewController, didSelect paymentMethod: PKPaymentMethod) async -> PKPaymentRequestPaymentMethodUpdate {
         return await self.delegate?.evervaultPaymentView(self, didUpdatePaymentMethod: paymentMethod) ?? PKPaymentRequestPaymentMethodUpdate(paymentSummaryItems: self.getPaymentSummaryItems())
     }
+
+    @MainActor
+    public func paymentAuthorizationViewController(
+        _ controller: PKPaymentAuthorizationViewController,
+        didChangeCouponCode couponCode: String
+    ) async -> PKPaymentRequestCouponCodeUpdate {
+        return await self.delegate?.evervaultPaymentView(self, didChangeCouponCode: couponCode) ?? PKPaymentRequestCouponCodeUpdate(paymentSummaryItems: self.getPaymentSummaryItems())
+    }
 }
 
 // MARK: - Delegate Protocol
@@ -453,6 +465,9 @@ public protocol EvervaultPaymentViewDelegate : AnyObject {
 
     /// Called when the user updates the payment method.
     func evervaultPaymentView(_ view: EvervaultPaymentView, didUpdatePaymentMethod paymentMethod: PKPaymentMethod) async -> PKPaymentRequestPaymentMethodUpdate?
+
+    /// Called when the user changes the coupon code on the Apple Pay sheet (only shown when `supportsCouponCode` is set on the transaction). The delegate returns an update with the re-calculated summary items, and can supply errors (e.g. via `PKPaymentRequest.paymentCouponCodeInvalidError`) to reject the code.
+    func evervaultPaymentView(_ view: EvervaultPaymentView, didChangeCouponCode couponCode: String) async -> PKPaymentRequestCouponCodeUpdate?
 
     /// Fired when the payment sheet is fully dismissed with a genuine SDK-level outcome (not a merchant decline or buyer cancel)
     func evervaultPaymentView(_ view: EvervaultPaymentView, didFinishWithResult result: Result<Void, EvervaultError>)
@@ -495,6 +510,10 @@ extension EvervaultPaymentViewDelegate {
     }
     
     public func evervaultPaymentView(_ view: EvervaultPaymentView, didUpdatePaymentMethod paymentMethod: PKPaymentMethod) async -> PKPaymentRequestPaymentMethodUpdate? {
+        return nil
+    }
+
+    public func evervaultPaymentView(_ view: EvervaultPaymentView, didChangeCouponCode couponCode: String) async -> PKPaymentRequestCouponCodeUpdate? {
         return nil
     }
 }
