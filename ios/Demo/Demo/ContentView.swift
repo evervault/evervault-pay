@@ -186,8 +186,8 @@ fileprivate func getCouponCodeUpdate(_ couponCode: String, transaction: Evervaul
                 paymentSummaryItems: items,
                 shippingMethods: []
             )
-            // Explicitly reset to the undiscounted billing, in case a valid coupon was applied
-            // earlier and the buyer then typed an invalid one.
+            // PassKit treats nil as "no change" for recurring payments. Reset explicitly to
+            // prevent an outdated discount from silently sticking around.
             update.recurringPaymentRequest = recurringRequest(regularBilling: recurring.regularBilling)
             return update
         }

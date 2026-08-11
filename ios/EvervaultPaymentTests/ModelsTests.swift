@@ -335,11 +335,14 @@ private final class SpyDelegate: EvervaultPaymentViewDelegate {
 }
 
 @MainActor
-private func makeViewForDispositionTests(delegate: SpyDelegate) -> EvervaultPaymentView {
+private func makeViewForDispositionTests(
+    delegate: SpyDelegate,
+    paymentSummaryItems: [SummaryItem] = [SummaryItem(label: "Total", amount: Amount("10.00"))]
+) -> EvervaultPaymentView {
     let transaction = Transaction.oneOffPayment(try! OneOffPaymentTransaction(
         country: "IE",
         currency: "EUR",
-        paymentSummaryItems: [SummaryItem(label: "Total", amount: Amount("10.00"))]
+        paymentSummaryItems: paymentSummaryItems
     ))
     let view = EvervaultPaymentView(
         appId: "test-app-id",
@@ -514,5 +517,23 @@ final class CouponCodeDelegateTests: XCTestCase {
         // Falls back to the transaction's existing summary items, set up in makeViewForDispositionTests.
         XCTAssertEqual(result.paymentSummaryItems.map(\.label), ["Total"])
         XCTAssertEqual(result.paymentSummaryItems.map(\.amount), [NSDecimalNumber(string: "10.00")])
+    }
+
+    func testFallsBackToAllCurrentSummaryItemsWhenMultipleLineItemsExist() async {
+        let spy = SpyDelegate()
+        let view = makeViewForDispositionTests(delegate: spy, paymentSummaryItems: [
+            SummaryItem(label: "Mens Shirt", amount: Amount("30.00")),
+            SummaryItem(label: "Socks", amount: Amount("5.00")),
+            SummaryItem(label: "Total", amount: Amount("35.00"))
+        ])
+
+        let result = await view.paymentAuthorizationViewController(makeAuthorizationController(), didChangeCouponCode: "SAVE20")
+
+        XCTAssertEqual(result.paymentSummaryItems.map(\.label), ["Mens Shirt", "Socks", "Total"])
+        XCTAssertEqual(result.paymentSummaryItems.map(\.amount), [
+            NSDecimalNumber(string: "30.00"),
+            NSDecimalNumber(string: "5.00"),
+            NSDecimalNumber(string: "35.00")
+        ])
     }
 }

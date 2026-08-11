@@ -183,23 +183,7 @@ public struct OneOffPaymentTransaction {
     public var supportsCouponCode: Bool
     public var couponCode: String?
 
-    public init(country: String, currency: String, paymentSummaryItems: [SummaryItem], requestPayerDetails: Set<ContactField> = [], supportsCouponCode: Bool = false, couponCode: String? = nil) throws {
-        self.country = country
-        self.currency = currency
-        self.paymentSummaryItems = paymentSummaryItems
-        self.shippingType = .shipping
-        self.shippingMethods = []
-        self.requiredShippingContactFields = []
-        self.requestPayerDetails = requestPayerDetails
-        self.supportsCouponCode = supportsCouponCode
-        self.couponCode = couponCode
-
-        guard paymentSummaryItems.count > 0 else {
-            throw EvervaultError.InvalidTransactionError
-        }
-    }
-
-    public init(country: String, currency: String, paymentSummaryItems: [SummaryItem], shippingType: PKShippingType, shippingMethods: [PKShippingMethod], requiredShippingContactFields: Set<ContactField>, requestPayerDetails: Set<ContactField> = [], supportsCouponCode: Bool = false, couponCode: String? = nil) throws {
+    public init(country: String, currency: String, paymentSummaryItems: [SummaryItem], shippingType: PKShippingType = .shipping, shippingMethods: [PKShippingMethod] = [], requiredShippingContactFields: Set<ContactField> = [], requestPayerDetails: Set<ContactField> = [], supportsCouponCode: Bool = false, couponCode: String? = nil) throws {
         self.country = country
         self.currency = currency
         self.paymentSummaryItems = paymentSummaryItems
@@ -216,30 +200,7 @@ public struct OneOffPaymentTransaction {
     }
 
     @available(iOS 16, *)
-    public init(country: Locale.Region, currency: Locale.Currency, paymentSummaryItems: [SummaryItem], requestPayerDetails: Set<ContactField> = [], supportsCouponCode: Bool = false, couponCode: String? = nil) throws {
-        self.country = country.identifier
-        self.currency = currency.identifier
-        self.paymentSummaryItems = paymentSummaryItems
-        self.shippingType = .shipping
-        self.shippingMethods = []
-        self.requiredShippingContactFields = []
-        self.requestPayerDetails = requestPayerDetails
-        self.supportsCouponCode = supportsCouponCode
-        self.couponCode = couponCode
-
-        guard paymentSummaryItems.count > 0 else {
-            throw EvervaultError.InvalidTransactionError
-        }
-        guard currency.isISOCurrency else {
-            throw EvervaultError.InvalidCurrencyError
-        }
-        guard country.isISORegion else {
-            throw EvervaultError.InvalidCountryError
-        }
-    }
-
-    @available(iOS 16, *)
-    public init(country: Locale.Region, currency: Locale.Currency, paymentSummaryItems: [SummaryItem], shippingType: PKShippingType, shippingMethods: [PKShippingMethod], requiredShippingContactFields: Set<ContactField>, requestPayerDetails: Set<ContactField> = [], supportsCouponCode: Bool = false, couponCode: String? = nil) throws {
+    public init(country: Locale.Region, currency: Locale.Currency, paymentSummaryItems: [SummaryItem], shippingType: PKShippingType = .shipping, shippingMethods: [PKShippingMethod] = [], requiredShippingContactFields: Set<ContactField> = [], requestPayerDetails: Set<ContactField> = [], supportsCouponCode: Bool = false, couponCode: String? = nil) throws {
         self.country = country.identifier
         self.currency = currency.identifier
         self.paymentSummaryItems = paymentSummaryItems
