@@ -288,6 +288,13 @@ public class EvervaultPaymentView: UIView {
         paymentRequest.supportsCouponCode = transaction.supportsCouponCode
         paymentRequest.couponCode = transaction.couponCode
 
+        if let billingContact = transaction.billingContact {
+            paymentRequest.billingContact = PKContact(billingContact)
+        }
+        if let shippingContact = transaction.shippingContact {
+            paymentRequest.shippingContact = PKContact(shippingContact)
+        }
+
         return paymentRequest
     }
 
@@ -353,6 +360,17 @@ public class EvervaultPaymentView: UIView {
         paymentRequest.requiredBillingContactFields = transaction.requestPayerDetails
         paymentRequest.supportsCouponCode = transaction.supportsCouponCode
         paymentRequest.couponCode = transaction.couponCode
+
+        paymentRequest.shippingType = transaction.shippingType
+        paymentRequest.shippingMethods = transaction.shippingMethods
+        paymentRequest.requiredShippingContactFields = transaction.requiredShippingContactFields
+
+        if let billingContact = transaction.billingContact {
+            paymentRequest.billingContact = PKContact(billingContact)
+        }
+        if let shippingContact = transaction.shippingContact {
+            paymentRequest.shippingContact = PKContact(shippingContact)
+        }
 
         return paymentRequest
     }

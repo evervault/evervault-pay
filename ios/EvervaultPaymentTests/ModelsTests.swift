@@ -116,6 +116,84 @@ final class ApplePayContactTests: XCTestCase {
     }
 }
 
+final class ApplePayPaymentContactToPKContactTests: XCTestCase {
+    func testMapsAllFieldsIncludingAddress() {
+        let contact = ApplePayPaymentContact(
+            givenName: "Taro",
+            familyName: "Yamada",
+            phoneticGivenName: "たろう",
+            phoneticFamilyName: "やまだ",
+            emailAddress: "taro@example.com",
+            phoneNumber: "+15555550100",
+            addressLines: ["1 Main St", "Apt 2"],
+            subLocality: "Ranelagh",
+            locality: "Dublin",
+            postalCode: "D01",
+            subAdministrativeArea: "Dublin County",
+            administrativeArea: "Leinster",
+            country: "Ireland",
+            countryCode: "IE"
+        )
+
+        let result = PKContact(contact)
+
+        XCTAssertEqual(result.name?.givenName, "Taro")
+        XCTAssertEqual(result.name?.familyName, "Yamada")
+        XCTAssertEqual(result.name?.phoneticRepresentation?.givenName, "たろう")
+        XCTAssertEqual(result.name?.phoneticRepresentation?.familyName, "やまだ")
+        XCTAssertEqual(result.emailAddress, "taro@example.com")
+        XCTAssertEqual(result.phoneNumber?.stringValue, "+15555550100")
+        XCTAssertEqual(result.postalAddress?.street, "1 Main St\nApt 2")
+        XCTAssertEqual(result.postalAddress?.subLocality, "Ranelagh")
+        XCTAssertEqual(result.postalAddress?.city, "Dublin")
+        XCTAssertEqual(result.postalAddress?.postalCode, "D01")
+        XCTAssertEqual(result.postalAddress?.subAdministrativeArea, "Dublin County")
+        XCTAssertEqual(result.postalAddress?.state, "Leinster")
+        XCTAssertEqual(result.postalAddress?.country, "Ireland")
+        XCTAssertEqual(result.postalAddress?.isoCountryCode, "IE")
+    }
+
+    func testNoNameFieldsProducesNilName() {
+        let contact = ApplePayPaymentContact(emailAddress: "only-email@example.com")
+
+        let result = PKContact(contact)
+
+        XCTAssertNil(result.name)
+        XCTAssertEqual(result.emailAddress, "only-email@example.com")
+    }
+
+    func testNameWithoutPhoneticFieldsOmitsPhoneticRepresentation() {
+        let contact = ApplePayPaymentContact(givenName: "Ana", familyName: "M")
+
+        let result = PKContact(contact)
+
+        XCTAssertEqual(result.name?.givenName, "Ana")
+        XCTAssertEqual(result.name?.familyName, "M")
+        XCTAssertNil(result.name?.phoneticRepresentation)
+    }
+
+    func testNoAddressFieldsProducesNilPostalAddress() {
+        let contact = ApplePayPaymentContact(emailAddress: "only-email@example.com")
+
+        let result = PKContact(contact)
+
+        XCTAssertNil(result.postalAddress)
+    }
+
+    func testAddressLinesOnlyStillBuildsAddress() {
+        let contact = ApplePayPaymentContact(addressLines: ["1 Main St"])
+
+        let result = PKContact(contact)
+
+        XCTAssertEqual(result.postalAddress?.street, "1 Main St")
+        XCTAssertEqual(result.postalAddress?.city, "")
+        XCTAssertEqual(result.postalAddress?.state, "")
+        XCTAssertEqual(result.postalAddress?.postalCode, "")
+        XCTAssertEqual(result.postalAddress?.country, "")
+        XCTAssertEqual(result.postalAddress?.isoCountryCode, "")
+    }
+}
+
 final class ApplePayTransactionTypeTests: XCTestCase {
     func testMapsOneOffPayment() throws {
         let transaction = Transaction.oneOffPayment(try OneOffPaymentTransaction(
@@ -150,6 +228,79 @@ final class ApplePayTransactionTypeTests: XCTestCase {
         ))
 
         XCTAssertEqual(ApplePayTransactionType(transaction), .disbursement)
+    }
+}
+
+final class TransactionPrefillFieldsTests: XCTestCase {
+    private func makeBillingContact() -> ApplePayPaymentContact {
+        ApplePayPaymentContact(givenName: "John", familyName: "Doe")
+    }
+
+    private func makeShippingContact() -> ApplePayPaymentContact {
+        ApplePayPaymentContact(givenName: "Jane", familyName: "Doe")
+    }
+
+    func testOneOffDefaultsBillingAndShippingContactToNil() throws {
+        let transaction = try OneOffPaymentTransaction(
+            country: "IE",
+            currency: "EUR",
+            paymentSummaryItems: [SummaryItem(label: "Total", amount: Amount("10.00"))]
+        )
+
+        XCTAssertNil(transaction.billingContact)
+        XCTAssertNil(transaction.shippingContact)
+    }
+
+    func testOneOffStoresProvidedBillingAndShippingContact() throws {
+        let transaction = try OneOffPaymentTransaction(
+            country: "IE",
+            currency: "EUR",
+            paymentSummaryItems: [SummaryItem(label: "Total", amount: Amount("10.00"))],
+            billingContact: makeBillingContact(),
+            shippingContact: makeShippingContact()
+        )
+
+        XCTAssertEqual(transaction.billingContact?.givenName, "John")
+        XCTAssertEqual(transaction.shippingContact?.givenName, "Jane")
+    }
+
+    func testRecurringDefaultsBillingContactAndShippingFieldsToNilOrEmpty() throws {
+        let transaction = try RecurringPaymentTransaction(
+            country: "IE",
+            currency: "EUR",
+            paymentDescription: "Subscription",
+            regularBilling: PKRecurringPaymentSummaryItem(label: "Monthly", amount: NSDecimalNumber(string: "10.00")),
+            managementURL: URL(string: "https://example.com/manage")!
+        )
+
+        XCTAssertNil(transaction.billingContact)
+        XCTAssertNil(transaction.shippingContact)
+        XCTAssertEqual(transaction.shippingType, .shipping)
+        XCTAssertTrue(transaction.shippingMethods.isEmpty)
+        XCTAssertTrue(transaction.requiredShippingContactFields.isEmpty)
+    }
+
+    func testRecurringStoresProvidedBillingShippingAndShippingFields() throws {
+        let shippingMethod = PKShippingMethod(label: "Standard", amount: NSDecimalNumber(string: "5.00"))
+        let transaction = try RecurringPaymentTransaction(
+            country: "IE",
+            currency: "EUR",
+            paymentDescription: "Subscription",
+            regularBilling: PKRecurringPaymentSummaryItem(label: "Monthly", amount: NSDecimalNumber(string: "10.00")),
+            managementURL: URL(string: "https://example.com/manage")!,
+            billingContact: makeBillingContact(),
+            shippingType: .delivery,
+            shippingMethods: [shippingMethod],
+            requiredShippingContactFields: [.postalAddress],
+            shippingContact: makeShippingContact()
+        )
+
+        XCTAssertEqual(transaction.billingContact?.givenName, "John")
+        XCTAssertEqual(transaction.shippingContact?.givenName, "Jane")
+        XCTAssertEqual(transaction.shippingType, .delivery)
+        XCTAssertEqual(transaction.shippingMethods.count, 1)
+        XCTAssertTrue(transaction.shippingMethods.first === shippingMethod)
+        XCTAssertEqual(transaction.requiredShippingContactFields, [.postalAddress])
     }
 }
 

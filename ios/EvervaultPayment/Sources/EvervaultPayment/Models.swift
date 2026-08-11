@@ -86,6 +86,113 @@ public struct ApplePayContact: Codable, Sendable, Equatable {
     }
 }
 
+/// Prefill input for `PKPaymentRequest.billingContact` / `.shippingContact`.
+///
+/// Address prefill only appears if `.postalAddress` is in `requiredBillingContactFields` / `requiredShippingContactFields`.
+public struct ApplePayPaymentContact: Sendable, Equatable {
+    public var givenName: String?
+    public var familyName: String?
+    public var phoneticGivenName: String?
+    public var phoneticFamilyName: String?
+    public var emailAddress: String?
+    public var phoneNumber: String?
+    public var addressLines: [String]?
+    public var subLocality: String?
+    public var locality: String?
+    public var postalCode: String?
+    public var subAdministrativeArea: String?
+    public var administrativeArea: String?
+    public var country: String?
+    public var countryCode: String?
+
+    public init(
+        givenName: String? = nil,
+        familyName: String? = nil,
+        phoneticGivenName: String? = nil,
+        phoneticFamilyName: String? = nil,
+        emailAddress: String? = nil,
+        phoneNumber: String? = nil,
+        addressLines: [String]? = nil,
+        subLocality: String? = nil,
+        locality: String? = nil,
+        postalCode: String? = nil,
+        subAdministrativeArea: String? = nil,
+        administrativeArea: String? = nil,
+        country: String? = nil,
+        countryCode: String? = nil
+    ) {
+        self.givenName = givenName
+        self.familyName = familyName
+        self.phoneticGivenName = phoneticGivenName
+        self.phoneticFamilyName = phoneticFamilyName
+        self.emailAddress = emailAddress
+        self.phoneNumber = phoneNumber
+        self.addressLines = addressLines
+        self.subLocality = subLocality
+        self.locality = locality
+        self.postalCode = postalCode
+        self.subAdministrativeArea = subAdministrativeArea
+        self.administrativeArea = administrativeArea
+        self.country = country
+        self.countryCode = countryCode
+    }
+}
+
+/// True if at least one of the given values is non-nil.
+private func hasAnyValue(_ values: String?...) -> Bool {
+    values.contains { $0 != nil }
+}
+
+private extension ApplePayPaymentContact {
+    /// Returns `nil` unless at least one name field is set, so PassKit never receives an empty name.
+    var nameComponents: PersonNameComponents? {
+        guard hasAnyValue(givenName, familyName, phoneticGivenName, phoneticFamilyName) else { return nil }
+
+        var components = PersonNameComponents()
+        components.givenName = givenName
+        components.familyName = familyName
+
+        if hasAnyValue(phoneticGivenName, phoneticFamilyName) {
+            var phoneticComponents = PersonNameComponents()
+            phoneticComponents.givenName = phoneticGivenName
+            phoneticComponents.familyName = phoneticFamilyName
+            components.phoneticRepresentation = phoneticComponents
+        }
+
+        return components
+    }
+
+    /// Returns `nil` unless at least one address field is set, so PassKit never receives an empty address.
+    var mutablePostalAddress: CNMutablePostalAddress? {
+        let hasAddressLines = addressLines?.isEmpty == false
+        guard hasAddressLines || hasAnyValue(subLocality, locality, postalCode, subAdministrativeArea, administrativeArea, country, countryCode) else {
+            return nil
+        }
+
+        let address = CNMutablePostalAddress()
+        address.street = (addressLines ?? []).joined(separator: "\n")
+        address.subLocality = subLocality ?? ""
+        address.city = locality ?? ""
+        address.subAdministrativeArea = subAdministrativeArea ?? ""
+        address.state = administrativeArea ?? ""
+        address.postalCode = postalCode ?? ""
+        address.country = country ?? ""
+        address.isoCountryCode = countryCode ?? ""
+        return address
+    }
+}
+
+extension PKContact {
+    /// For prefilling the Apple Pay sheet from a plain `ApplePayPaymentContact`.
+    convenience init(_ contact: ApplePayPaymentContact) {
+        self.init()
+        self.name = contact.nameComponents
+        self.emailAddress = contact.emailAddress
+        self.phoneNumber = contact.phoneNumber.map(CNPhoneNumber.init(stringValue:))
+        self.postalAddress = contact.mutablePostalAddress
+    }
+}
+
 public enum ApplePayTransactionType: String, Codable, Sendable, Equatable {
     case oneOff
     case recurring
@@ -182,8 +289,10 @@ public struct OneOffPaymentTransaction {
     public var requestPayerDetails: Set<ContactField>
     public var supportsCouponCode: Bool
     public var couponCode: String?
+    public var billingContact: ApplePayPaymentContact?
+    public var shippingContact: ApplePayPaymentContact?
 
-    public init(country: String, currency: String, paymentSummaryItems: [SummaryItem], shippingType: PKShippingType = .shipping, shippingMethods: [PKShippingMethod] = [], requiredShippingContactFields: Set<ContactField> = [], requestPayerDetails: Set<ContactField> = [], supportsCouponCode: Bool = false, couponCode: String? = nil) throws {
+    public init(country: String, currency: String, paymentSummaryItems: [SummaryItem], shippingType: PKShippingType = .shipping, shippingMethods: [PKShippingMethod] = [], requiredShippingContactFields: Set<ContactField> = [], requestPayerDetails: Set<ContactField> = [], supportsCouponCode: Bool = false, couponCode: String? = nil, billingContact: ApplePayPaymentContact? = nil, shippingContact: ApplePayPaymentContact? = nil) throws {
         self.country = country
         self.currency = currency
         self.paymentSummaryItems = paymentSummaryItems
@@ -193,6 +302,8 @@ public struct OneOffPaymentTransaction {
         self.requestPayerDetails = requestPayerDetails
         self.supportsCouponCode = supportsCouponCode
         self.couponCode = couponCode
+        self.billingContact = billingContact
+        self.shippingContact = shippingContact
 
         guard paymentSummaryItems.count > 0 else {
             throw EvervaultError.InvalidTransactionError
@@ -200,7 +311,7 @@ public struct OneOffPaymentTransaction {
     }
 
     @available(iOS 16, *)
-    public init(country: Locale.Region, currency: Locale.Currency, paymentSummaryItems: [SummaryItem], shippingType: PKShippingType = .shipping, shippingMethods: [PKShippingMethod] = [], requiredShippingContactFields: Set<ContactField> = [], requestPayerDetails: Set<ContactField> = [], supportsCouponCode: Bool = false, couponCode: String? = nil) throws {
+    public init(country: Locale.Region, currency: Locale.Currency, paymentSummaryItems: [SummaryItem], shippingType: PKShippingType = .shipping, shippingMethods: [PKShippingMethod] = [], requiredShippingContactFields: Set<ContactField> = [], requestPayerDetails: Set<ContactField> = [], supportsCouponCode: Bool = false, couponCode: String? = nil, billingContact: ApplePayPaymentContact? = nil, shippingContact: ApplePayPaymentContact? = nil) throws {
         self.country = country.identifier
         self.currency = currency.identifier
         self.paymentSummaryItems = paymentSummaryItems
@@ -210,6 +321,8 @@ public struct OneOffPaymentTransaction {
         self.requestPayerDetails = requestPayerDetails
         self.supportsCouponCode = supportsCouponCode
         self.couponCode = couponCode
+        self.billingContact = billingContact
+        self.shippingContact = shippingContact
 
         guard paymentSummaryItems.count > 0 else {
             throw EvervaultError.InvalidTransactionError
@@ -281,8 +394,13 @@ public struct RecurringPaymentTransaction {
     public var requestPayerDetails: Set<ContactField>
     public var supportsCouponCode: Bool
     public var couponCode: String?
+    public var shippingType: PKShippingType
+    public var shippingMethods: [PKShippingMethod]
+    public var requiredShippingContactFields: Set<ContactField>
+    public var billingContact: ApplePayPaymentContact?
+    public var shippingContact: ApplePayPaymentContact?
 
-    public init(country: String, currency: String, paymentSummaryItems: [SummaryItem] = [], paymentDescription: String, regularBilling: PKRecurringPaymentSummaryItem, managementURL: URL, requestPayerDetails: Set<ContactField> = [], supportsCouponCode: Bool = false, couponCode: String? = nil) throws {
+    public init(country: String, currency: String, paymentSummaryItems: [SummaryItem] = [], paymentDescription: String, regularBilling: PKRecurringPaymentSummaryItem, managementURL: URL, requestPayerDetails: Set<ContactField> = [], supportsCouponCode: Bool = false, couponCode: String? = nil, billingContact: ApplePayPaymentContact? = nil, shippingType: PKShippingType = .shipping, shippingMethods: [PKShippingMethod] = [], requiredShippingContactFields: Set<ContactField> = [], shippingContact: ApplePayPaymentContact? = nil) throws {
         self.country = country
         self.currency = currency
         self.paymentSummaryItems = paymentSummaryItems
@@ -292,10 +410,15 @@ public struct RecurringPaymentTransaction {
         self.requestPayerDetails = requestPayerDetails
         self.supportsCouponCode = supportsCouponCode
         self.couponCode = couponCode
+        self.shippingType = shippingType
+        self.shippingMethods = shippingMethods
+        self.requiredShippingContactFields = requiredShippingContactFields
+        self.billingContact = billingContact
+        self.shippingContact = shippingContact
     }
 
     @available(iOS 16.0, *)
-    public init(country: Locale.Region, currency: Locale.Currency, paymentSummaryItems: [SummaryItem] = [], paymentDescription: String, regularBilling: PKRecurringPaymentSummaryItem, managementURL: URL, requestPayerDetails: Set<ContactField> = [], supportsCouponCode: Bool = false, couponCode: String? = nil) throws {
+    public init(country: Locale.Region, currency: Locale.Currency, paymentSummaryItems: [SummaryItem] = [], paymentDescription: String, regularBilling: PKRecurringPaymentSummaryItem, managementURL: URL, requestPayerDetails: Set<ContactField> = [], supportsCouponCode: Bool = false, couponCode: String? = nil, billingContact: ApplePayPaymentContact? = nil, shippingType: PKShippingType = .shipping, shippingMethods: [PKShippingMethod] = [], requiredShippingContactFields: Set<ContactField> = [], shippingContact: ApplePayPaymentContact? = nil) throws {
         self.country = country.identifier
         self.currency = currency.identifier
         self.paymentSummaryItems = paymentSummaryItems
@@ -305,6 +428,11 @@ public struct RecurringPaymentTransaction {
         self.requestPayerDetails = requestPayerDetails
         self.supportsCouponCode = supportsCouponCode
         self.couponCode = couponCode
+        self.shippingType = shippingType
+        self.shippingMethods = shippingMethods
+        self.requiredShippingContactFields = requiredShippingContactFields
+        self.billingContact = billingContact
+        self.shippingContact = shippingContact
 
         guard currency.isISOCurrency else {
             throw EvervaultError.InvalidCurrencyError

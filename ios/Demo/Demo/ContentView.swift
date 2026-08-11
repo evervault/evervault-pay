@@ -9,6 +9,39 @@ import SwiftUI
 import EvervaultPayment
 import PassKit
 
+// Sample prefill contacts, exercising the new `ApplePayPaymentContact` billing/shipping prefill.
+// PassKit only surfaces the postal-address portion if `.postalAddress` is also in the
+// matching `required...ContactFields` set below - see `ApplePayPaymentContact`'s doc comment.
+fileprivate func makeSampleBillingContact() -> ApplePayPaymentContact {
+    ApplePayPaymentContact(
+        givenName: "Harry",
+        familyName: "Potter",
+        emailAddress: "harry.potter@hogwarts.edu",
+        phoneNumber: "+442079460958",
+        addressLines: ["4 Privet Drive"],
+        locality: "Little Whinging",
+        postalCode: "GU21 5RH",
+        administrativeArea: "Surrey",
+        country: "United Kingdom",
+        countryCode: "GB"
+    )
+}
+
+fileprivate func makeSampleShippingContact() -> ApplePayPaymentContact {
+    ApplePayPaymentContact(
+        givenName: "Hermione",
+        familyName: "Granger",
+        emailAddress: "hermione.granger@hogwarts.edu",
+        phoneNumber: "+442079460321",
+        addressLines: ["Hogwarts School of Witchcraft and Wizardry"],
+        locality: "Hogsmeade",
+        postalCode: "HG1 1SW",
+        administrativeArea: "Scottish Highlands",
+        country: "United Kingdom",
+        countryCode: "GB"
+    )
+}
+
 fileprivate func buildTransaction(type: TransactionType) -> EvervaultPayment.Transaction {
     switch type {
     case .disbursement:
@@ -37,7 +70,13 @@ fileprivate func buildTransaction(type: TransactionType) -> EvervaultPayment.Tra
                  SummaryItem(label: "Socks", amount: Amount("5.00")),
                  SummaryItem(label: "Total", amount: Amount("35.00"))
              ],
-             supportsCouponCode: true
+             shippingType: .shipping,
+             shippingMethods: [],
+             requiredShippingContactFields: [.postalAddress, .name, .emailAddress, .phoneNumber],
+             requestPayerDetails: [.postalAddress, .name, .emailAddress, .phoneNumber],
+             supportsCouponCode: true,
+             billingContact: makeSampleBillingContact(),
+             shippingContact: makeSampleShippingContact()
          ))
     case .recurring:
         let express = ShippingMethod(
@@ -46,14 +85,14 @@ fileprivate func buildTransaction(type: TransactionType) -> EvervaultPayment.Tra
         )
         express.identifier = "express_1day"
         express.detail = "Arrives in 1–2 business days."
-        
+
         let standard = ShippingMethod(
             label: "Standard Shipping",
             amount: NSDecimalNumber(string: "2.99")
         )
         standard.identifier = "standard_3day"
         standard.detail = "Arrives in 3-5 business days."
-        
+
         let recurringBilling = PKRecurringPaymentSummaryItem(
             label: "Pro Subscription",
             amount: 5.00
@@ -63,17 +102,23 @@ fileprivate func buildTransaction(type: TransactionType) -> EvervaultPayment.Tra
         var dateComponent = DateComponents()
         dateComponent.day = 7
         recurringBilling.startDate = Calendar.current.date(byAdding: dateComponent, to: Date())
-        
+
         let trialBilling = PKRecurringPaymentSummaryItem(label: "Trial", amount: 0)
         trialBilling.startDate = nil // Now
-        
+
         var recurringBillingRequest = try! RecurringPaymentTransaction(
             country: "IE",
             currency: "EUR",
             paymentSummaryItems: [],
             paymentDescription: "Recurring payment example.",
             regularBilling: recurringBilling,
-            managementURL: URL(string: "https://www.merchant.com/manage-subscriptions")!
+            managementURL: URL(string: "https://www.merchant.com/manage-subscriptions")!,
+            requestPayerDetails: [.postalAddress, .name, .emailAddress, .phoneNumber],
+            billingContact: makeSampleBillingContact(),
+            shippingType: .shipping,
+            shippingMethods: [express, standard],
+            requiredShippingContactFields: [.postalAddress, .name, .emailAddress, .phoneNumber],
+            shippingContact: makeSampleShippingContact()
         )
         recurringBillingRequest.billingAgreement = "https://www.merchant.com/billing-agreement"
         recurringBillingRequest.trialBilling = trialBilling
