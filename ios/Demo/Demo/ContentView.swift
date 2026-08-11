@@ -36,7 +36,8 @@ fileprivate func buildTransaction(type: TransactionType) -> EvervaultPayment.Tra
                  SummaryItem(label: "Mens Shirt", amount: Amount("30.00")),
                  SummaryItem(label: "Socks", amount: Amount("5.00")),
                  SummaryItem(label: "Total", amount: Amount("35.00"))
-             ]
+             ],
+             supportsCouponCode: true
          ))
     case .recurring:
         let express = ShippingMethod(
@@ -76,6 +77,7 @@ fileprivate func buildTransaction(type: TransactionType) -> EvervaultPayment.Tra
         )
         recurringBillingRequest.billingAgreement = "https://www.merchant.com/billing-agreement"
         recurringBillingRequest.trialBilling = trialBilling
+        recurringBillingRequest.supportsCouponCode = true
         return .recurringPayment(recurringBillingRequest)
     }
 }
@@ -119,6 +121,98 @@ fileprivate func getUpdatedTransaction(_ newAddress: ShippingContact, transactio
         return disbursement.paymentSummaryItems
     case .recurringPayment(let recurring):
         return recurring.paymentSummaryItems
+    }
+}
+
+/// Example coupon handling: "SAVE20" takes 20% off, anything else is rejected via PassKit's own
+/// invalid-coupon error. Not wired up for disbursement transactions (payouts, not purchases).
+fileprivate func getCouponCodeUpdate(_ couponCode: String, transaction: EvervaultPayment.Transaction) -> PKPaymentRequestCouponCodeUpdate {
+    let formatter = NumberFormatter()
+    formatter.numberStyle = .decimal
+    formatter.minimumFractionDigits = 2
+    formatter.maximumFractionDigits = 2
+
+    switch transaction {
+    case .oneOffPayment(let oneOff):
+        var summaryItems = oneOff.paymentSummaryItems
+        // Remove the old "Total" line item; we'll recompute and re-append it below.
+        _ = summaryItems.popLast()
+
+        guard couponCode.uppercased() == "SAVE20" else {
+            let subtotal = summaryItems.map { $0.amount.amount as Decimal }.reduce(Decimal.zero, +)
+            summaryItems.append(SummaryItem(label: "Total", amount: Amount(formatter.string(from: subtotal as NSDecimalNumber) ?? subtotal.description)))
+
+            return PKPaymentRequestCouponCodeUpdate(
+                errors: [PKPaymentRequest.paymentCouponCodeInvalidError(localizedDescription: "That coupon code isn't valid.")],
+                paymentSummaryItems: summaryItems.map { PKPaymentSummaryItem(label: $0.label, amount: $0.amount.amount) },
+                shippingMethods: []
+            )
+        }
+
+        let subtotal = summaryItems.map { $0.amount.amount as Decimal }.reduce(Decimal.zero, +)
+        let discount = subtotal * Decimal(0.2)
+        let discountedTotal = subtotal - discount
+
+        summaryItems.append(SummaryItem(label: "Discount (SAVE20)", amount: Amount("-" + (formatter.string(from: discount as NSDecimalNumber) ?? discount.description))))
+        summaryItems.append(SummaryItem(label: "Total", amount: Amount(formatter.string(from: discountedTotal as NSDecimalNumber) ?? discountedTotal.description)))
+
+        return PKPaymentRequestCouponCodeUpdate(
+            paymentSummaryItems: summaryItems.map { PKPaymentSummaryItem(label: $0.label, amount: $0.amount.amount) }
+        )
+
+    case .recurringPayment(let recurring):
+        // Rebuilds the recurring request around a given regularBilling, preserving everything
+        // else (billing agreement, trial, management URL) - used below for both the discounted
+        // and undiscounted cases.
+        func recurringRequest(regularBilling: PKRecurringPaymentSummaryItem) -> PKRecurringPaymentRequest {
+            let request = PKRecurringPaymentRequest(
+                paymentDescription: recurring.paymentDescription,
+                regularBilling: regularBilling,
+                managementURL: recurring.managementURL
+            )
+            request.trialBilling = recurring.trialBilling
+            request.billingAgreement = recurring.billingAgreement
+            return request
+        }
+
+        var items = recurring.paymentSummaryItems.map { PKPaymentSummaryItem(label: $0.label, amount: $0.amount.amount) }
+
+        guard couponCode.uppercased() == "SAVE20" else {
+            items.append(recurring.regularBilling)
+            if let trial = recurring.trialBilling { items.append(trial) }
+
+            let update = PKPaymentRequestCouponCodeUpdate(
+                errors: [PKPaymentRequest.paymentCouponCodeInvalidError(localizedDescription: "That coupon code isn't valid.")],
+                paymentSummaryItems: items,
+                shippingMethods: []
+            )
+            // PassKit treats nil as "no change" for recurring payments. Reset explicitly to
+            // prevent an outdated discount from silently sticking around.
+            update.recurringPaymentRequest = recurringRequest(regularBilling: recurring.regularBilling)
+            return update
+        }
+
+        // Deduct the discount from every billing cycle by replacing regularBilling itself -
+        // a flat one-off summary line wouldn't affect what's actually charged on future cycles.
+        let discountedAmount = (recurring.regularBilling.amount as Decimal) * Decimal(0.8)
+        let discountedBilling = PKRecurringPaymentSummaryItem(
+            label: recurring.regularBilling.label + " (20% off)",
+            amount: NSDecimalNumber(decimal: discountedAmount)
+        )
+        discountedBilling.intervalUnit = recurring.regularBilling.intervalUnit
+        discountedBilling.intervalCount = recurring.regularBilling.intervalCount
+        discountedBilling.startDate = recurring.regularBilling.startDate
+        discountedBilling.endDate = recurring.regularBilling.endDate
+
+        items.append(discountedBilling)
+        if let trial = recurring.trialBilling { items.append(trial) }
+
+        let update = PKPaymentRequestCouponCodeUpdate(paymentSummaryItems: items)
+        update.recurringPaymentRequest = recurringRequest(regularBilling: discountedBilling)
+        return update
+
+    case .disbursement:
+        return PKPaymentRequestCouponCodeUpdate(paymentSummaryItems: [])
     }
 }
 
@@ -197,6 +291,8 @@ struct TransactionHandler : View {
                     }
                     .onShippingAddressChange { newAddress in
                         return getUpdatedTransaction(newAddress, transaction: self.transaction)
+                    }.onCouponCodeChange { couponCode in
+                        return getCouponCodeUpdate(couponCode, transaction: self.transaction)
                     }.prepareTransaction { transaction in
                         print("Preparing transaction")
                     }.onCancel {

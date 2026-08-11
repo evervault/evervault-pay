@@ -303,8 +303,14 @@ private final class SpyDelegate: EvervaultPaymentViewDelegate {
     private(set) var didCancelCallCount = 0
     /// Lets a test await an async-dispatched delegate call instead of racing it.
     var didReportExpectation: XCTestExpectation?
+    /// Lets a test control what `didChangeCouponCode` returns; nil (the default) exercises the SDK's fallback.
+    var didChangeCouponCodeHandler: ((String) -> PKPaymentRequestCouponCodeUpdate?)?
 
     func evervaultPaymentView(_ view: EvervaultPaymentView, didAuthorizePayment result: ApplePayResponse?) {}
+
+    func evervaultPaymentView(_ view: EvervaultPaymentView, didChangeCouponCode couponCode: String) async -> PKPaymentRequestCouponCodeUpdate? {
+        return didChangeCouponCodeHandler?(couponCode)
+    }
 
     func evervaultPaymentView(_ view: EvervaultPaymentView, didFinishWithResult result: Result<Void, EvervaultError>) {
         didFinishWithResultCalls.append(result)
@@ -329,11 +335,14 @@ private final class SpyDelegate: EvervaultPaymentViewDelegate {
 }
 
 @MainActor
-private func makeViewForDispositionTests(delegate: SpyDelegate) -> EvervaultPaymentView {
+private func makeViewForDispositionTests(
+    delegate: SpyDelegate,
+    paymentSummaryItems: [SummaryItem] = [SummaryItem(label: "Total", amount: Amount("10.00"))]
+) -> EvervaultPaymentView {
     let transaction = Transaction.oneOffPayment(try! OneOffPaymentTransaction(
         country: "IE",
         currency: "EUR",
-        paymentSummaryItems: [SummaryItem(label: "Total", amount: Amount("10.00"))]
+        paymentSummaryItems: paymentSummaryItems
     ))
     let view = EvervaultPaymentView(
         appId: "test-app-id",
@@ -476,5 +485,55 @@ final class PaymentAuthorizationViewControllerDidFinishTests: XCTestCase {
         XCTAssertEqual(spy.didCancelCallCount, 1)
         XCTAssertTrue(spy.didFinishWithResultCalls.isEmpty)
         XCTAssertTrue(spy.didDeclinePaymentCalls.isEmpty)
+    }
+}
+
+@MainActor
+final class CouponCodeDelegateTests: XCTestCase {
+    func testReturnsDelegateProvidedUpdateWhenImplemented() async {
+        let spy = SpyDelegate()
+        let view = makeViewForDispositionTests(delegate: spy)
+        let expectedUpdate = PKPaymentRequestCouponCodeUpdate(
+            paymentSummaryItems: [PKPaymentSummaryItem(label: "Total (discounted)", amount: NSDecimalNumber(string: "8.00"))]
+        )
+        spy.didChangeCouponCodeHandler = { couponCode in
+            XCTAssertEqual(couponCode, "SAVE20")
+            return expectedUpdate
+        }
+
+        let result = await view.paymentAuthorizationViewController(makeAuthorizationController(), didChangeCouponCode: "SAVE20")
+
+        // Same instance the delegate returned - proves it's a straight passthrough.
+        XCTAssertTrue(result === expectedUpdate)
+    }
+
+    func testFallsBackToCurrentSummaryItemsWhenDelegateReturnsNil() async {
+        let spy = SpyDelegate()
+        let view = makeViewForDispositionTests(delegate: spy)
+        // didChangeCouponCodeHandler left unset - matches an unimplemented (default) delegate method.
+
+        let result = await view.paymentAuthorizationViewController(makeAuthorizationController(), didChangeCouponCode: "SAVE20")
+
+        // Falls back to the transaction's existing summary items, set up in makeViewForDispositionTests.
+        XCTAssertEqual(result.paymentSummaryItems.map(\.label), ["Total"])
+        XCTAssertEqual(result.paymentSummaryItems.map(\.amount), [NSDecimalNumber(string: "10.00")])
+    }
+
+    func testFallsBackToAllCurrentSummaryItemsWhenMultipleLineItemsExist() async {
+        let spy = SpyDelegate()
+        let view = makeViewForDispositionTests(delegate: spy, paymentSummaryItems: [
+            SummaryItem(label: "Mens Shirt", amount: Amount("30.00")),
+            SummaryItem(label: "Socks", amount: Amount("5.00")),
+            SummaryItem(label: "Total", amount: Amount("35.00"))
+        ])
+
+        let result = await view.paymentAuthorizationViewController(makeAuthorizationController(), didChangeCouponCode: "SAVE20")
+
+        XCTAssertEqual(result.paymentSummaryItems.map(\.label), ["Mens Shirt", "Socks", "Total"])
+        XCTAssertEqual(result.paymentSummaryItems.map(\.amount), [
+            NSDecimalNumber(string: "30.00"),
+            NSDecimalNumber(string: "5.00"),
+            NSDecimalNumber(string: "35.00")
+        ])
     }
 }

@@ -51,6 +51,7 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
     private var onResultCallback: (_ result: Result<Void, EvervaultError>) -> Void
     private var onShippingAddressChangeCallback: ((_ shippingContact: PKContact) -> [SummaryItem])?
     private var onPaymentMethodChangeCallback: ((_ paymentMethod: PKPaymentMethod) -> PKPaymentRequestPaymentMethodUpdate)?
+    private var onCouponCodeChangeCallback: ((_ couponCode: String) -> PKPaymentRequestCouponCodeUpdate)?
     private var prepareTransactionCallback: ((_ transaction: inout Transaction) -> Void)?
     private var onCancelCallback: (() -> Void)?
     private var onDeclineCallback: ((_ reason: Error) -> Void)?
@@ -164,6 +165,14 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
             return nil
         }
 
+        public func evervaultPaymentView(_ view: EvervaultPaymentView, didChangeCouponCode couponCode: String) async -> PKPaymentRequestCouponCodeUpdate? {
+            if let handler = await self.parent.onCouponCodeChangeCallback {
+                return handler(couponCode)
+            }
+
+            return nil
+        }
+
         public func evervaultPaymentView(_ view: EvervaultPaymentView, prepareTransaction transaction: inout Transaction) {
             if let handler = self.parent.prepareTransactionCallback {
                 handler(&transaction)
@@ -198,6 +207,13 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
     public func onPaymentMethodChange(_ action: @escaping (PKPaymentMethod) -> PKPaymentRequestPaymentMethodUpdate) -> EvervaultPaymentViewRepresentable {
         var copy = self
         copy.onPaymentMethodChangeCallback = action
+        return copy
+    }
+
+    /// Called when the buyer changes the coupon code on the Apple Pay sheet, shown only when `supportsCouponCode` is set on the transaction.
+    public func onCouponCodeChange(_ action: @escaping (String) -> PKPaymentRequestCouponCodeUpdate) -> EvervaultPaymentViewRepresentable {
+        var copy = self
+        copy.onCouponCodeChangeCallback = action
         return copy
     }
 
