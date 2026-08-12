@@ -145,10 +145,11 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
         nonisolated public func evervaultPaymentView(_ view: EvervaultPaymentView, didSelectShippingContact contact: PKContact) async -> PKPaymentRequestShippingContactUpdate? {
             if let handler = await self.parent.onShippingAddressChangeCallback {
                 let updatedLineItems = handler(contact)
+                let currency = await view.transaction.currency
                 return PKPaymentRequestShippingContactUpdate(
                     errors: nil,
                     paymentSummaryItems: updatedLineItems.map{ item in
-                        PKPaymentSummaryItem(label: item.label, amount: item.amount.resolve(currency: view.transaction.currency))
+                        PKPaymentSummaryItem(label: item.label, amount: item.amount.resolve(currency: currency))
                     },
                     shippingMethods: await self.getShippingMethods(transaction: view.transaction)
                 )
