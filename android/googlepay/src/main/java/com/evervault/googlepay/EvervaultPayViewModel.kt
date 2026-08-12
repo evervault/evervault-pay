@@ -28,7 +28,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.tasks.await
 import okhttp3.ResponseBody
-import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
 import java.io.IOException
@@ -73,10 +72,7 @@ class EvervaultPayViewModel(application: Application, val config: Config) : Andr
     * Please refer to your processor's documentation for more information. The number of parameters
     * required and their names vary depending on the processor.
     */
-    val PAYMENT_GATEWAY_TOKENIZATION_PARAMETERS = mapOf(
-        "gateway" to PAYMENT_GATEWAY_TOKENIZATION_NAME,
-         "gatewayMerchantId" to config.merchantId
-    )
+    val PAYMENT_GATEWAY_TOKENIZATION_PARAMETERS = gatewayTokenizationParameters(config)
 
     companion object {
         const val LOAD_PAYMENT_DATA_REQUEST_CODE = 991
@@ -154,31 +150,10 @@ class EvervaultPayViewModel(application: Application, val config: Config) : Andr
     /**
      * Build the Google Pay PaymentDataRequest for the given transaction.
      */
-    suspend fun createPaymentRequest(transaction: Transaction): PaymentDataRequest {
-        val merchantName = getMerchantName()
-
-        // https://developers.google.com/pay/api/web/reference/request-objects#TransactionInfo
-        val paymentDataRequestJson = baseRequest()
-            .put("allowedPaymentMethods", allowedPaymentMethods(this))
-            .put(
-                "transactionInfo", JSONObject()
-                    .put("displayItems", JSONArray(transaction.lineItems.map {
-                        JSONObject()
-                            .put("label", it.label)
-                            .put("type", "LINE_ITEM")
-                            .put("price", it.amount.amount)
-                            .put("status", "FINAL")
-                    }))
-                    .put("totalPriceLabel", "Total")
-                    .put("totalPrice", transaction.total.amount)
-                    .put("totalPriceStatus", "FINAL")
-                    .put("countryCode", transaction.country)
-                    .put("currencyCode", transaction.currency)
-            )
-            .put("merchantInfo", JSONObject().put("merchantName", merchantName))
-
-        return PaymentDataRequest.fromJson(paymentDataRequestJson.toString())
-    }
+    suspend fun createPaymentRequest(transaction: Transaction): PaymentDataRequest =
+        PaymentDataRequest.fromJson(
+            buildPaymentRequestJson(config, transaction, getMerchantName())
+        )
 
     /**
      * Fetches the `PaymentResult` after doing the token exchange from Evervault.

@@ -122,6 +122,8 @@ dependencies {
     implementation(libs.material)
     implementation(libs.play.services.wallet)
     testImplementation(libs.junit)
+    // android.jar stubs org.json, so unit tests need a real implementation.
+    testImplementation(libs.json)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
 }
