@@ -15,17 +15,25 @@ private fun gatewayTokenizationSpecification(config: Config) = JSONObject()
 
 private fun allowedCardNetworks(config: Config) = JSONArray(config.supportedNetworks.map { it.name })
 
-private fun baseCardPaymentMethod(config: Config): JSONObject =
-    JSONObject()
-        .put("type", "CARD")
-        .put("parameters", JSONObject()
-            .put("allowedAuthMethods", JSONArray(config.supportedMethods.asGooglePayStrings()))
-            .put("allowedCardNetworks", allowedCardNetworks(config))
-            .put("billingAddressRequired", true)
-            .put("billingAddressParameters", JSONObject()
-                .put("format", "FULL")
-            )
+private fun baseCardPaymentMethod(config: Config): JSONObject {
+    val billingAddress = config.billingAddress as? BillingAddressConfig.Enabled
+
+    val parameters = JSONObject()
+        .put("allowedAuthMethods", JSONArray(config.supportedMethods.asGooglePayStrings()))
+        .put("allowedCardNetworks", allowedCardNetworks(config))
+        .put("billingAddressRequired", billingAddress != null)
+
+    if (billingAddress != null) {
+        parameters.put("billingAddressParameters", JSONObject()
+            .put("format", billingAddress.format.name)
+            .put("phoneNumberRequired", billingAddress.phoneNumber)
         )
+    }
+
+    return JSONObject()
+        .put("type", "CARD")
+        .put("parameters", parameters)
+}
 
 private fun cardPaymentMethod(config: Config) = baseCardPaymentMethod(config)
     .put("tokenizationSpecification", gatewayTokenizationSpecification(config))
