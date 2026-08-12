@@ -99,7 +99,7 @@ internal fun allowedPaymentMethods(model: EvervaultPayViewModel) = JSONArray().p
  * @return Google Pay API base request object.
  * @throws JSONException
  */
-internal val baseRequest = JSONObject()
+internal fun baseRequest() = JSONObject()
     .put("apiVersion", 2)
     .put("apiVersionMinor", 0)
 
@@ -112,7 +112,7 @@ internal val baseRequest = JSONObject()
  */
 fun isReadyToPayRequest(model: EvervaultPayViewModel): JSONObject? =
     try {
-        baseRequest
+        baseRequest()
             .put("allowedPaymentMethods", JSONArray().put(baseCardPaymentMethod(model)))
     } catch (e: JSONException) {
         null
