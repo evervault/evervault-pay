@@ -79,20 +79,6 @@ fileprivate func buildTransaction(type: TransactionType) -> EvervaultPayment.Tra
              shippingContact: makeSampleShippingContact()
          ))
     case .recurring:
-        let express = ShippingMethod(
-          label: "Express Shipping",                      // what shows in the UI
-          amount: NSDecimalNumber(string: "9.99")         // cost
-        )
-        express.identifier = "express_1day"
-        express.detail = "Arrives in 1–2 business days."
-
-        let standard = ShippingMethod(
-            label: "Standard Shipping",
-            amount: NSDecimalNumber(string: "2.99")
-        )
-        standard.identifier = "standard_3day"
-        standard.detail = "Arrives in 3-5 business days."
-
         let recurringBilling = PKRecurringPaymentSummaryItem(
             label: "Pro Subscription",
             amount: 5.00
@@ -116,7 +102,6 @@ fileprivate func buildTransaction(type: TransactionType) -> EvervaultPayment.Tra
             requestPayerDetails: [.postalAddress, .name, .emailAddress, .phoneNumber],
             billingContact: makeSampleBillingContact(),
             shippingType: .shipping,
-            shippingMethods: [express, standard],
             requiredShippingContactFields: [.postalAddress, .name, .emailAddress, .phoneNumber],
             shippingContact: makeSampleShippingContact()
         )
