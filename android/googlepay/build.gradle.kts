@@ -11,6 +11,8 @@ version = "android-v0.0.30" // Bump per release
 android {
     namespace = "com.evervault.payments"
     compileSdk = 33
+    // Keep in step with buildToolsVersions in flake.nix.
+    buildToolsVersion = "35.0.0"
 
     defaultConfig {
         minSdk = 24
