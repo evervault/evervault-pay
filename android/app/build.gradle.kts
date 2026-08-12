@@ -27,6 +27,8 @@ android {
 android {
     namespace = "com.evervault.samplepayapp"
     compileSdk = 33
+    // Keep in step with buildToolsVersions in flake.nix.
+    buildToolsVersion = "35.0.0"
 
     defaultConfig {
         applicationId = "com.evervault.samplepayapp"

@@ -20,42 +20,64 @@
 
       # Helper to provide system-specific attributes
       forAllSystems = f: nixpkgs.lib.genAttrs allSystems (system: f {
-        pkgs = import nixpkgs { inherit system; };
+        pkgs = import nixpkgs {
+          inherit system;
+          config = {
+            allowUnfree = true;
+            android_sdk.accept_license = true;
+          };
+        };
       });
     in
     {
       # Development environment output
-      devShells = forAllSystems ({ pkgs }: {
-        default = pkgs.mkShell {
-          # The Nix packages provided in the environment
-          packages = with pkgs; [
-            nodejs_20
-            openjdk17
-            cocoapods
-          ];
-          
-          shellHook = ''
-            echo "[INFO] Using Node: $(node -v)"
-            export DEVELOPER_DIR="/Applications/Xcode.app/Contents/Developer"
-            # Use Xcode's toolchain
-            export DEVELOPER_DIR="/Applications/Xcode.app/Contents/Developer"
-            export PATH="$DEVELOPER_DIR/Toolchains/XcodeDefault.xctoolchain/usr/bin:$PATH"
-            export PATH="$DEVELOPER_DIR/usr/bin:$PATH"
+      devShells = forAllSystems ({ pkgs }:
+        let
+          androidComposition = pkgs.androidenv.composeAndroidPackages {
+            platformVersions = [ "33" ];
+            buildToolsVersions = [ "35.0.0" ];
+            includeEmulator = false;
+            includeSystemImages = false;
+            includeNDK = false;
+          };
+          androidSdk = "${androidComposition.androidsdk}/libexec/android-sdk";
+        in
+        {
+          default = pkgs.mkShell {
+            # The Nix packages provided in the environment
+            packages = with pkgs; [
+              nodejs_20
+              openjdk17
+              cocoapods
+              androidComposition.androidsdk
+            ];
 
-            if [[ "$system" == *darwin* ]]; then
-              export ANDROID_HOME="$HOME/Library/Android/sdk"
-              export PATH="$ANDROID_HOME/emulator:$ANDROID_HOME/tools:$ANDROID_HOME/tools/bin:$ANDROID_HOME/platform-tools:$PATH"
+            ANDROID_HOME = androidSdk;
+            ANDROID_SDK_ROOT = androidSdk;
+
+            JAVA_HOME = pkgs.openjdk17.home;
+
+            GRADLE_OPTS =
+              "-Dorg.gradle.project.android.aapt2FromMavenOverride=${androidSdk}/build-tools/35.0.0/aapt2";
+
+            shellHook = ''
+              echo "[INFO] Using Node: $(node -v)"
               echo "[INFO] ANDROID_HOME set to $ANDROID_HOME"
+            '' + pkgs.lib.optionalString pkgs.stdenv.isDarwin ''
+              export DEVELOPER_DIR="/Applications/Xcode.app/Contents/Developer"
+              # Use Xcode's toolchain
+              export PATH="$DEVELOPER_DIR/Toolchains/XcodeDefault.xctoolchain/usr/bin:$PATH"
+              export PATH="$DEVELOPER_DIR/usr/bin:$PATH"
 
               export SDKROOT="$(xcrun --sdk iphoneos --show-sdk-path 2>/dev/null || true)"
               echo "[INFO] Xcode SDK root: $SDKROOT"
               echo "[INFO] clang path: $(which clang)"
-            fi
+            '' + ''
 
-            # Use system installed tools first.
-            export PATH="/usr/bin:$PATH"
-          '';
+              # Use system installed tools first.
+              export PATH="/usr/bin:$PATH"
+            '';
           };
-      });
+        });
     };
 }
