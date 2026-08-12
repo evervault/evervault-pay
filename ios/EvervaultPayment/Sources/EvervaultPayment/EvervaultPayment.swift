@@ -9,6 +9,7 @@ public enum EvervaultError: Error, LocalizedError {
     case InvalidTransactionError
     case EmptyTransactionError
     case InvalidCurrencyError
+    case InvalidAmountError
     case InvalidCountryError
     case ApplePayUnavailableError
     case ApplePayPaymentSheetError
@@ -30,6 +31,8 @@ public enum EvervaultError: Error, LocalizedError {
             return "An error occurred when handling the payment token: \(underlying)"
         case .InvalidCurrencyError:
             return "Invalid currency provided to the transaction"
+        case .InvalidAmountError:
+            return "Invalid amount provided to the transaction"
         case .InvalidCountryError:
             return "Invalid country provided to the transaction"
         case .UnsupportedVersionError:
@@ -277,7 +280,7 @@ public class EvervaultPaymentView: UIView {
         paymentRequest.countryCode = transaction.country
         paymentRequest.currencyCode = transaction.currency
         paymentRequest.paymentSummaryItems = transaction.paymentSummaryItems.map { item in
-            PKPaymentSummaryItem(label: item.label, amount: item.amount.amount)
+            PKPaymentSummaryItem(label: item.label, amount: item.amount.resolve(currency: transaction.currency))
         }
         paymentRequest.merchantCapabilities = .threeDSecure
         
@@ -308,7 +311,7 @@ public class EvervaultPaymentView: UIView {
         paymentRequest.summaryItems = transaction.paymentSummaryItems.map { item in
             PKPaymentSummaryItem(
                 label: item.label,
-                amount: item.amount.amount
+                amount: item.amount.resolve(currency: transaction.currency)
             )
         }
         if transaction.merchantCapability == .instantFundsOut {
@@ -316,7 +319,7 @@ public class EvervaultPaymentView: UIView {
                 paymentRequest.summaryItems.append(
                     PKInstantFundsOutFeeSummaryItem(
                         label: instantOutFee.label,
-                        amount: instantOutFee.amount.amount
+                        amount: instantOutFee.amount.resolve(currency: transaction.currency)
                     )
                 )
             }
@@ -324,7 +327,7 @@ public class EvervaultPaymentView: UIView {
         paymentRequest.summaryItems.append(
             PKDisbursementSummaryItem(
                 label: transaction.disbursementItem.label,
-                amount: transaction.disbursementItem.amount.amount
+                amount: transaction.disbursementItem.amount.resolve(currency: transaction.currency)
             )
         )
         paymentRequest.merchantCapabilities = transaction.merchantCapability
@@ -341,7 +344,7 @@ public class EvervaultPaymentView: UIView {
         paymentRequest.countryCode = transaction.country
         paymentRequest.currencyCode = transaction.currency
         paymentRequest.paymentSummaryItems = transaction.paymentSummaryItems.map { item in
-            PKPaymentSummaryItem(label: item.label, amount: item.amount.amount)
+            PKPaymentSummaryItem(label: item.label, amount: item.amount.resolve(currency: transaction.currency))
         }
         paymentRequest.merchantCapabilities = .threeDSecure
         
@@ -379,15 +382,15 @@ public class EvervaultPaymentView: UIView {
         switch self.transaction {
         case let .oneOffPayment(oneOffTransaction):
             return oneOffTransaction.paymentSummaryItems.map { item in
-                PKPaymentSummaryItem(label: item.label, amount: item.amount.amount)
+                PKPaymentSummaryItem(label: item.label, amount: item.amount.resolve(currency: oneOffTransaction.currency))
             }
         case let .disbursement(dispersementTransaction):
             return dispersementTransaction.paymentSummaryItems.map { item in
-                PKPaymentSummaryItem(label: item.label, amount: item.amount.amount)
+                PKPaymentSummaryItem(label: item.label, amount: item.amount.resolve(currency: dispersementTransaction.currency))
             }
         case let .recurringPayment(recurringTransaction):
             return recurringTransaction.paymentSummaryItems.map { item in
-                PKPaymentSummaryItem(label: item.label, amount: item.amount.amount)
+                PKPaymentSummaryItem(label: item.label, amount: item.amount.resolve(currency: recurringTransaction.currency))
             }
         }
     }

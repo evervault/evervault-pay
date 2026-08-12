@@ -148,7 +148,7 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
                 return PKPaymentRequestShippingContactUpdate(
                     errors: nil,
                     paymentSummaryItems: updatedLineItems.map{ item in
-                        PKPaymentSummaryItem(label: item.label, amount: item.amount.amount)
+                        PKPaymentSummaryItem(label: item.label, amount: item.amount.resolve(currency: view.transaction.currency))
                     },
                     shippingMethods: await self.getShippingMethods(transaction: view.transaction)
                 )

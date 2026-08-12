@@ -688,3 +688,48 @@ final class CouponCodeDelegateTests: XCTestCase {
         ])
     }
 }
+
+final class AmountTests: XCTestCase {
+    private func assertAmount(_ amount: Amount, _ currency: String, isEqualTo expected: String, file: StaticString = #filePath, line: UInt = #line) {
+        XCTAssertEqual(
+            amount.resolve(currency: currency).compare(NSDecimalNumber(string: expected)),
+            .orderedSame,
+            "\(amount.resolve(currency: currency)) != \(expected)",
+            file: file,
+            line: line
+        )
+    }
+
+    func testMinorUnitsUseTheCurrencysExponent() {
+        assertAmount(Amount(minorUnits: 1000), "USD", isEqualTo: "10.00")
+        assertAmount(Amount(minorUnits: 1999), "EUR", isEqualTo: "19.99")
+        assertAmount(Amount(minorUnits: 5), "USD", isEqualTo: "0.05")
+        assertAmount(Amount(minorUnits: 0), "USD", isEqualTo: "0")
+        assertAmount(Amount(minorUnits: 1000), "JPY", isEqualTo: "1000")
+        assertAmount(Amount(minorUnits: 5), "KRW", isEqualTo: "5")
+        assertAmount(Amount(minorUnits: 1000), "KWD", isEqualTo: "1.000")
+    }
+
+    func testMinorUnitsSupportNegativeAmounts() {
+        assertAmount(Amount(minorUnits: -2000), "USD", isEqualTo: "-20.00")
+    }
+
+    func testDecimalAmountsArePassedThroughUnchanged() {
+        assertAmount(Amount("54.99"), "USD", isEqualTo: "54.99")
+        assertAmount(Amount("-5.00"), "USD", isEqualTo: "-5.00")
+    }
+
+    func testTransactionRejectsAnAmountThatIsNotANumber() {
+        XCTAssertThrowsError(
+            try OneOffPaymentTransaction(
+                country: "US",
+                currency: "USD",
+                paymentSummaryItems: [SummaryItem(label: "Total", amount: Amount("ten dollars"))]
+            )
+        ) { error in
+            guard case EvervaultError.InvalidAmountError = error else {
+                return XCTFail("expected InvalidAmountError, got \(error)")
+            }
+        }
+    }
+}
