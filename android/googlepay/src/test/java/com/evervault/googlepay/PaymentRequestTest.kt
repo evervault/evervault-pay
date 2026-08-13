@@ -3,6 +3,7 @@ package com.evervault.googlepay
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PaymentRequestTest {
@@ -33,6 +34,47 @@ class PaymentRequestTest {
             .getJSONObject("parameters")
         assertEquals("evervault", tokenization.getString("gateway"))
         assertEquals("merchant_123", tokenization.getString("gatewayMerchantId"))
+    }
+
+    private fun cardParameters(config: Config): JSONObject =
+        JSONObject(buildPaymentRequestJson(config, transaction, "Test Merchant"))
+            .getJSONArray("allowedPaymentMethods")
+            .getJSONObject(0)
+            .getJSONObject("parameters")
+
+    @Test
+    fun `billing address defaults to FULL without a phone number`() {
+        val parameters = cardParameters(config)
+
+        assertTrue(parameters.getBoolean("billingAddressRequired"))
+        val billing = parameters.getJSONObject("billingAddressParameters")
+        assertEquals("FULL", billing.getString("format"))
+        assertFalse(billing.getBoolean("phoneNumberRequired"))
+    }
+
+    @Test
+    fun `billing address is not collected when disabled`() {
+        val parameters = cardParameters(config.copy(billingAddress = BillingAddressConfig.Disabled))
+
+        assertFalse(parameters.getBoolean("billingAddressRequired"))
+        assertFalse(parameters.has("billingAddressParameters"))
+    }
+
+    @Test
+    fun `billing address format and phone number are configurable`() {
+        val parameters = cardParameters(
+            config.copy(
+                billingAddress = BillingAddressConfig.Enabled(
+                    format = BillingAddressFormat.MIN,
+                    phoneNumber = true
+                )
+            )
+        )
+
+        assertTrue(parameters.getBoolean("billingAddressRequired"))
+        val billing = parameters.getJSONObject("billingAddressParameters")
+        assertEquals("MIN", billing.getString("format"))
+        assertTrue(billing.getBoolean("phoneNumberRequired"))
     }
 
     @Test

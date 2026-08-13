@@ -5,4 +5,5 @@ data class Config(
     val merchantId: String,
     val supportedNetworks: List<CardNetwork>  = Constants.SUPPORTED_NETWORKS,
     val supportedMethods: List<CardAuthMethod> = Constants.SUPPORTED_METHODS,
+    val billingAddress: BillingAddressConfig = BillingAddressConfig.Enabled(),
 )
