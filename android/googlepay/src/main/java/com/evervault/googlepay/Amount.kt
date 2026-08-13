@@ -1,3 +1,3 @@
 package com.evervault.googlepay
 
-class Amount(val amount: String)
+data class Amount(val amount: String)

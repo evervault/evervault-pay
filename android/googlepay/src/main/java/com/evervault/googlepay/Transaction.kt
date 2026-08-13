@@ -18,6 +18,7 @@ data class Transaction(val country: String, val currency: String, val total: Amo
         var result = country.hashCode()
         result = 31 * result + currency.hashCode()
         result = 31 * result + lineItems.contentHashCode()
+        result = 31 * result + total.hashCode()
         return result
     }
 }
