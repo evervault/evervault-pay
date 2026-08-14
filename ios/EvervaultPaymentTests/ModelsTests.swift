@@ -276,12 +276,10 @@ final class TransactionPrefillFieldsTests: XCTestCase {
         XCTAssertNil(transaction.billingContact)
         XCTAssertNil(transaction.shippingContact)
         XCTAssertEqual(transaction.shippingType, .shipping)
-        XCTAssertTrue(transaction.shippingMethods.isEmpty)
         XCTAssertTrue(transaction.requiredShippingContactFields.isEmpty)
     }
 
     func testRecurringStoresProvidedBillingShippingAndShippingFields() throws {
-        let shippingMethod = PKShippingMethod(label: "Standard", amount: NSDecimalNumber(string: "5.00"))
         let transaction = try RecurringPaymentTransaction(
             country: "IE",
             currency: "EUR",
@@ -290,7 +288,6 @@ final class TransactionPrefillFieldsTests: XCTestCase {
             managementURL: URL(string: "https://example.com/manage")!,
             billingContact: makeBillingContact(),
             shippingType: .delivery,
-            shippingMethods: [shippingMethod],
             requiredShippingContactFields: [.postalAddress],
             shippingContact: makeShippingContact()
         )
@@ -298,8 +295,6 @@ final class TransactionPrefillFieldsTests: XCTestCase {
         XCTAssertEqual(transaction.billingContact?.givenName, "John")
         XCTAssertEqual(transaction.shippingContact?.givenName, "Jane")
         XCTAssertEqual(transaction.shippingType, .delivery)
-        XCTAssertEqual(transaction.shippingMethods.count, 1)
-        XCTAssertTrue(transaction.shippingMethods.first === shippingMethod)
         XCTAssertEqual(transaction.requiredShippingContactFields, [.postalAddress])
     }
 }

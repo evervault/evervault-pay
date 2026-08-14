@@ -362,7 +362,6 @@ public class EvervaultPaymentView: UIView {
         paymentRequest.couponCode = transaction.couponCode
 
         paymentRequest.shippingType = transaction.shippingType
-        paymentRequest.shippingMethods = transaction.shippingMethods
         paymentRequest.requiredShippingContactFields = transaction.requiredShippingContactFields
 
         if let billingContact = transaction.billingContact {
