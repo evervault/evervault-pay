@@ -12,6 +12,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import com.google.pay.button.PayButton
 import com.google.android.gms.tasks.Task
 import com.google.android.gms.wallet.AutoResolveHelper
@@ -48,6 +50,11 @@ fun createPaymentsClient(context: Context, environment: Int): PaymentsClient {
 typealias EvervaultButtonTheme = com.google.pay.button.ButtonTheme
 typealias EvervaultButtonType = com.google.pay.button.ButtonType
 
+object EvervaultPaymentButtonDefaults {
+    /** Google's own default when `buttonRadius` is unset. The web SDK uses the same value. */
+    val Radius: Dp = 12.dp
+}
+
 @Composable
 fun EvervaultPaymentButton(
     modifier: Modifier,
@@ -55,6 +62,7 @@ fun EvervaultPaymentButton(
     model: EvervaultPayViewModel,
     theme: EvervaultButtonTheme = EvervaultButtonTheme.Dark,
     type: EvervaultButtonType = EvervaultButtonType.Pay,
+    radius: Dp = EvervaultPaymentButtonDefaults.Radius,
 ) {
     val activity = LocalContext.current as Activity
     val scope = rememberCoroutineScope()
@@ -100,6 +108,7 @@ fun EvervaultPaymentButton(
         allowedPaymentMethods = allowedPaymentMethods(model.config).toString(),
         theme = theme,
         type = type,
+        radius = radius,
         enabled = isClickable
     )
 }
