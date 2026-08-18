@@ -241,6 +241,18 @@ final class ApplePayTransactionTypeTests: XCTestCase {
 
         XCTAssertEqual(try ApplePayTransactionType(transaction), .automaticReload)
     }
+
+    func testMapsDeferredPayment() throws {
+        let transaction = Transaction.deferredPayment(try DeferredPaymentTransaction(
+            country: "IE",
+            currency: "EUR",
+            paymentDescription: "Hotel Reservation Deposit",
+            deferredBilling: PKDeferredPaymentSummaryItem(label: "Balance", amount: NSDecimalNumber(string: "100.00")),
+            managementURL: URL(string: "https://example.com/manage")!
+        ))
+
+        XCTAssertEqual(try ApplePayTransactionType(transaction), .deferred)
+    }
 }
 
 final class TransactionPrefillFieldsTests: XCTestCase {
@@ -342,6 +354,100 @@ final class TransactionPrefillFieldsTests: XCTestCase {
         XCTAssertEqual(transaction.shippingContact?.givenName, "Jane")
         XCTAssertEqual(transaction.shippingType, .delivery)
         XCTAssertEqual(transaction.requiredShippingContactFields, [.postalAddress])
+    }
+
+    func testDeferredDefaultsBillingContactAndShippingFieldsToNilOrEmpty() throws {
+        let transaction = try DeferredPaymentTransaction(
+            country: "IE",
+            currency: "EUR",
+            paymentDescription: "Hotel Reservation Deposit",
+            deferredBilling: PKDeferredPaymentSummaryItem(label: "Balance", amount: NSDecimalNumber(string: "100.00")),
+            managementURL: URL(string: "https://example.com/manage")!
+        )
+
+        XCTAssertNil(transaction.billingContact)
+        XCTAssertNil(transaction.shippingContact)
+        XCTAssertEqual(transaction.shippingType, .shipping)
+        XCTAssertTrue(transaction.requiredShippingContactFields.isEmpty)
+    }
+
+    func testDeferredStoresProvidedBillingShippingAndShippingFields() throws {
+        let transaction = try DeferredPaymentTransaction(
+            country: "IE",
+            currency: "EUR",
+            paymentDescription: "Hotel Reservation Deposit",
+            deferredBilling: PKDeferredPaymentSummaryItem(label: "Balance", amount: NSDecimalNumber(string: "100.00")),
+            managementURL: URL(string: "https://example.com/manage")!,
+            billingContact: makeBillingContact(),
+            shippingType: .delivery,
+            requiredShippingContactFields: [.postalAddress],
+            shippingContact: makeShippingContact()
+        )
+
+        XCTAssertEqual(transaction.billingContact?.givenName, "John")
+        XCTAssertEqual(transaction.shippingContact?.givenName, "Jane")
+        XCTAssertEqual(transaction.shippingType, .delivery)
+        XCTAssertEqual(transaction.requiredShippingContactFields, [.postalAddress])
+    }
+}
+
+final class DeferredPaymentTransactionValidationTests: XCTestCase {
+    func testThrowsWhenOnlyFreeCancellationDateIsSet() {
+        XCTAssertThrowsError(try DeferredPaymentTransaction(
+            country: "IE",
+            currency: "EUR",
+            paymentDescription: "Hotel Reservation Deposit",
+            deferredBilling: PKDeferredPaymentSummaryItem(label: "Balance", amount: NSDecimalNumber(string: "100.00")),
+            managementURL: URL(string: "https://example.com/manage")!,
+            freeCancellationDate: Date()
+        )) { error in
+            guard case EvervaultError.InvalidTransactionError = error else {
+                return XCTFail("Expected InvalidTransactionError, got \(error)")
+            }
+        }
+    }
+
+    func testThrowsWhenOnlyFreeCancellationDateTimeZoneIsSet() {
+        XCTAssertThrowsError(try DeferredPaymentTransaction(
+            country: "IE",
+            currency: "EUR",
+            paymentDescription: "Hotel Reservation Deposit",
+            deferredBilling: PKDeferredPaymentSummaryItem(label: "Balance", amount: NSDecimalNumber(string: "100.00")),
+            managementURL: URL(string: "https://example.com/manage")!,
+            freeCancellationDateTimeZone: TimeZone(identifier: "Europe/Dublin")
+        )) { error in
+            guard case EvervaultError.InvalidTransactionError = error else {
+                return XCTFail("Expected InvalidTransactionError, got \(error)")
+            }
+        }
+    }
+
+    func testAllowsBothFreeCancellationFieldsSetTogether() throws {
+        let transaction = try DeferredPaymentTransaction(
+            country: "IE",
+            currency: "EUR",
+            paymentDescription: "Hotel Reservation Deposit",
+            deferredBilling: PKDeferredPaymentSummaryItem(label: "Balance", amount: NSDecimalNumber(string: "100.00")),
+            managementURL: URL(string: "https://example.com/manage")!,
+            freeCancellationDate: Date(),
+            freeCancellationDateTimeZone: TimeZone(identifier: "Europe/Dublin")
+        )
+
+        XCTAssertNotNil(transaction.freeCancellationDate)
+        XCTAssertNotNil(transaction.freeCancellationDateTimeZone)
+    }
+
+    func testAllowsNeitherFreeCancellationFieldSet() throws {
+        let transaction = try DeferredPaymentTransaction(
+            country: "IE",
+            currency: "EUR",
+            paymentDescription: "Hotel Reservation Deposit",
+            deferredBilling: PKDeferredPaymentSummaryItem(label: "Balance", amount: NSDecimalNumber(string: "100.00")),
+            managementURL: URL(string: "https://example.com/manage")!
+        )
+
+        XCTAssertNil(transaction.freeCancellationDate)
+        XCTAssertNil(transaction.freeCancellationDateTimeZone)
     }
 }
 
