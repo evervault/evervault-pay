@@ -61,6 +61,7 @@ internal fun buildPaymentRequestJson(
     merchantName: String
 ): String =
     baseRequest()
+        .put("emailRequired", config.emailRequired)
         .put("allowedPaymentMethods", allowedPaymentMethods(config))
         .put(
             "transactionInfo", JSONObject()

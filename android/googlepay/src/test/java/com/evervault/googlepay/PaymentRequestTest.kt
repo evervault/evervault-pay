@@ -136,6 +136,30 @@ class PaymentRequestTest {
     }
 
     @Test
+    fun `email is not requested by default`() {
+        val json = JSONObject(buildPaymentRequestJson(config, transaction, "Test Merchant"))
+
+        assertTrue(json.has("emailRequired"))
+        assertFalse(json.getBoolean("emailRequired"))
+    }
+
+    @Test
+    fun `email is requested when configured`() {
+        val json = JSONObject(
+            buildPaymentRequestJson(config.copy(emailRequired = true), transaction, "Test Merchant")
+        )
+
+        assertTrue(json.getBoolean("emailRequired"))
+    }
+
+    @Test
+    fun `isReadyToPayRequest does not carry emailRequired`() {
+        val request = isReadyToPayRequest(config.copy(emailRequired = true))!!
+
+        assertFalse(request.has("emailRequired"))
+    }
+
+    @Test
     fun `isReadyToPayRequest does not inherit state from an earlier payment request`() {
         buildPaymentRequestJson(config, transaction, "Test Merchant")
 
