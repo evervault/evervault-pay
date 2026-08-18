@@ -198,6 +198,7 @@ public enum ApplePayTransactionType: String, Codable, Sendable, Equatable {
     case recurring
     case disbursement
     case automaticReload
+    case deferred
 
     init(_ transaction: Transaction) throws {
         switch transaction {
@@ -210,6 +211,8 @@ public enum ApplePayTransactionType: String, Codable, Sendable, Equatable {
         default:
             if #available(iOS 16.0, *), case .automaticReload = transaction {
                 self = .automaticReload
+            } else if #available(iOS 16.4, *), case .deferredPayment = transaction {
+                self = .deferred
             } else {
                 throw EvervaultError.UnsupportedVersionError
             }
@@ -507,6 +510,84 @@ public struct AutomaticReloadPaymentTransaction {
     }
 }
 
+/// A "pay later" transaction, e.g. a booking deposit charged now with the balance
+/// deferred to a later date. `deferredBilling.deferredDate` is the date the balance
+/// itself is billed.
+public struct DeferredPaymentTransaction {
+    public var country: String
+    public var currency: String
+    public var paymentSummaryItems: [SummaryItem]
+    public var paymentDescription: String
+    public var deferredBilling: PKDeferredPaymentSummaryItem
+    public var managementURL: URL
+    public var billingAgreement: String?
+    public var tokenNotificationURL: URL?
+    public var freeCancellationDate: Date?
+    public var freeCancellationDateTimeZone: TimeZone?
+    public var requestPayerDetails: Set<ContactField>
+    public var supportsCouponCode: Bool
+    public var couponCode: String?
+    public var shippingType: PKShippingType
+    public var requiredShippingContactFields: Set<ContactField>
+    public var billingContact: ApplePayPaymentContact?
+    public var shippingContact: ApplePayPaymentContact?
+
+    public init(country: String, currency: String, paymentSummaryItems: [SummaryItem] = [], paymentDescription: String, deferredBilling: PKDeferredPaymentSummaryItem, managementURL: URL, billingAgreement: String? = nil, tokenNotificationURL: URL? = nil, freeCancellationDate: Date? = nil, freeCancellationDateTimeZone: TimeZone? = nil, requestPayerDetails: Set<ContactField> = [], supportsCouponCode: Bool = false, couponCode: String? = nil, billingContact: ApplePayPaymentContact? = nil, shippingType: PKShippingType = .shipping, requiredShippingContactFields: Set<ContactField> = [], shippingContact: ApplePayPaymentContact? = nil) throws {
+        self.country = country
+        self.currency = currency
+        self.paymentSummaryItems = paymentSummaryItems
+        self.paymentDescription = paymentDescription
+        self.deferredBilling = deferredBilling
+        self.managementURL = managementURL
+        self.billingAgreement = billingAgreement
+        self.tokenNotificationURL = tokenNotificationURL
+        self.freeCancellationDate = freeCancellationDate
+        self.freeCancellationDateTimeZone = freeCancellationDateTimeZone
+        self.requestPayerDetails = requestPayerDetails
+        self.supportsCouponCode = supportsCouponCode
+        self.couponCode = couponCode
+        self.shippingType = shippingType
+        self.requiredShippingContactFields = requiredShippingContactFields
+        self.billingContact = billingContact
+        self.shippingContact = shippingContact
+
+        guard (freeCancellationDate == nil) == (freeCancellationDateTimeZone == nil) else {
+            throw EvervaultError.InvalidTransactionError
+        }
+    }
+
+    @available(iOS 16.0, *)
+    public init(country: Locale.Region, currency: Locale.Currency, paymentSummaryItems: [SummaryItem] = [], paymentDescription: String, deferredBilling: PKDeferredPaymentSummaryItem, managementURL: URL, billingAgreement: String? = nil, tokenNotificationURL: URL? = nil, freeCancellationDate: Date? = nil, freeCancellationDateTimeZone: TimeZone? = nil, requestPayerDetails: Set<ContactField> = [], supportsCouponCode: Bool = false, couponCode: String? = nil, billingContact: ApplePayPaymentContact? = nil, shippingType: PKShippingType = .shipping, requiredShippingContactFields: Set<ContactField> = [], shippingContact: ApplePayPaymentContact? = nil) throws {
+        self.country = country.identifier
+        self.currency = currency.identifier
+        self.paymentSummaryItems = paymentSummaryItems
+        self.paymentDescription = paymentDescription
+        self.deferredBilling = deferredBilling
+        self.managementURL = managementURL
+        self.billingAgreement = billingAgreement
+        self.tokenNotificationURL = tokenNotificationURL
+        self.freeCancellationDate = freeCancellationDate
+        self.freeCancellationDateTimeZone = freeCancellationDateTimeZone
+        self.requestPayerDetails = requestPayerDetails
+        self.supportsCouponCode = supportsCouponCode
+        self.couponCode = couponCode
+        self.shippingType = shippingType
+        self.requiredShippingContactFields = requiredShippingContactFields
+        self.billingContact = billingContact
+        self.shippingContact = shippingContact
+
+        guard (freeCancellationDate == nil) == (freeCancellationDateTimeZone == nil) else {
+            throw EvervaultError.InvalidTransactionError
+        }
+        guard currency.isISOCurrency else {
+            throw EvervaultError.InvalidCurrencyError
+        }
+        guard country.isISORegion else {
+            throw EvervaultError.InvalidCountryError
+        }
+    }
+}
+
 public enum Transaction {
     case oneOffPayment(OneOffPaymentTransaction)
     case disbursement(DisbursementTransaction)
@@ -515,6 +596,10 @@ public enum Transaction {
     // value, and AutomaticReloadPaymentTransaction itself is safe to construct pre-iOS 16.
     // The iOS 16+ requirement is enforced when we actually build/present the PassKit request.
     case automaticReload(AutomaticReloadPaymentTransaction)
+    // Same reasoning as .automaticReload above - DeferredPaymentTransaction is safe to
+    // construct pre-iOS 16.4 (PKDeferredPaymentSummaryItem itself is iOS 15+), so only the
+    // build/present step needs the iOS 16.4 gate that PKDeferredPaymentRequest actually requires.
+    case deferredPayment(DeferredPaymentTransaction)
 }
 
 struct ApplePayTokenHeader: Codable {
