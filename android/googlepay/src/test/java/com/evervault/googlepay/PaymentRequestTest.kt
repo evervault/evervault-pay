@@ -150,6 +150,36 @@ class PaymentRequestTest {
     }
 
     @Test
+    fun `default card networks match the web SDK exactly`() {
+        // The literal web sends when the merchant omits `allowedCardNetworks`.
+        // See buildPaymentRequest in evervault-js ui-components/src/GooglePay/utilities.ts.
+        val expected = listOf("AMEX", "DISCOVER", "INTERAC", "JCB", "MASTERCARD", "VISA")
+
+        val networks = cardParameters(config).getJSONArray("allowedCardNetworks")
+
+        assertEquals(expected, (0 until networks.length()).map { networks.getString(it) })
+    }
+
+    @Test
+    fun `every card network the enum offers is allowed by default`() {
+        val networks = cardParameters(config).getJSONArray("allowedCardNetworks")
+
+        assertEquals(
+            CardNetwork.entries.map { it.name },
+            (0 until networks.length()).map { networks.getString(it) }
+        )
+    }
+
+    @Test
+    fun `card networks are configurable`() {
+        val networks = cardParameters(config.copy(supportedNetworks = listOf(CardNetwork.INTERAC)))
+            .getJSONArray("allowedCardNetworks")
+
+        assertEquals(1, networks.length())
+        assertEquals("INTERAC", networks.getString(0))
+    }
+
+    @Test
     fun `email is not requested by default`() {
         val json = JSONObject(buildPaymentRequestJson(config, transaction, "Test Merchant"))
 
