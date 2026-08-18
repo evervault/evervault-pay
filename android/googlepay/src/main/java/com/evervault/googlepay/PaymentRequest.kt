@@ -54,6 +54,8 @@ internal fun isReadyToPayRequest(config: Config): JSONObject? =
         null
     }
 
+internal fun defaultPriceLabel(merchantName: String) = "Pay $merchantName"
+
 // https://developers.google.com/pay/api/web/reference/request-objects#TransactionInfo
 internal fun buildPaymentRequestJson(
     config: Config,
@@ -72,7 +74,7 @@ internal fun buildPaymentRequestJson(
                         .put("price", it.amount.format(transaction.currency))
                         .put("status", "FINAL")
                 }))
-                .put("totalPriceLabel", "Total")
+                .put("totalPriceLabel", transaction.priceLabel ?: defaultPriceLabel(merchantName))
                 .put("totalPrice", transaction.total.format(transaction.currency))
                 .put("totalPriceStatus", "FINAL")
                 .put("countryCode", transaction.country)
