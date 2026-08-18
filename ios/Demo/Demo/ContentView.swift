@@ -122,6 +122,35 @@ fileprivate func buildTransaction(type: TransactionType) -> EvervaultPayment.Tra
             shippingContact: makeSampleShippingContact()
         )
         return .automaticReload(automaticReloadRequest)
+    case .deferred:
+        let deferredBilling = PKDeferredPaymentSummaryItem(
+            label: "Remaining Balance",
+            amount: NSDecimalNumber(string: "150.00")
+        )
+        var deferredDateComponent = DateComponents()
+        deferredDateComponent.day = 30
+        deferredBilling.deferredDate = Calendar.current.date(byAdding: deferredDateComponent, to: Date())!
+
+        var freeCancellationDateComponent = DateComponents()
+        freeCancellationDateComponent.day = 7
+        let freeCancellationDate = Calendar.current.date(byAdding: freeCancellationDateComponent, to: Date())!
+
+        let deferredRequest = try! DeferredPaymentTransaction(
+            country: "IE",
+            currency: "EUR",
+            paymentSummaryItems: [
+                SummaryItem(label: "Hotel Reservation Deposit", amount: Amount("50.00"))
+            ],
+            paymentDescription: "Hotel reservation deposit example.",
+            deferredBilling: deferredBilling,
+            managementURL: URL(string: "https://www.merchant.com/manage-reservation")!,
+            freeCancellationDate: freeCancellationDate,
+            freeCancellationDateTimeZone: TimeZone(identifier: "Europe/Dublin"),
+            requestPayerDetails: [.postalAddress, .name, .emailAddress, .phoneNumber],
+            billingContact: makeSampleBillingContact(),
+            shippingContact: makeSampleShippingContact()
+        )
+        return .deferredPayment(deferredRequest)
     }
 }
 
@@ -181,6 +210,13 @@ fileprivate func getUpdatedTransaction(_ newAddress: ShippingContact, transactio
         // return type has no field for it, and this always maps to a plain PKPaymentSummaryItem
         // rather than the real PKAutomaticReloadPaymentSummaryItem (see EvervaultPayment+SwiftUI.swift).
         return automaticReload.paymentSummaryItems + [automaticReload.automaticReloadBilling]
+    case .deferredPayment(let deferred):
+        // Same conversion as regularBilling/trialBilling above - deferredBilling is the real
+        // PKDeferredPaymentSummaryItem type, so only label/amount survive here; deferredDate
+        // can't be preserved for the same reason automaticReload's thresholdAmount can't be (see above).
+        var summaryItems = deferred.paymentSummaryItems
+        summaryItems.append(SummaryItem(label: deferred.deferredBilling.label, amount: Amount(deferred.deferredBilling.amount.stringValue)))
+        return summaryItems
     }
 }
 
@@ -277,6 +313,10 @@ fileprivate func getCouponCodeUpdate(_ couponCode: String, transaction: Evervaul
     case .automaticReload:
         // Coupon codes aren't the primary use case for a wallet top-up, so no discount logic here.
         return PKPaymentRequestCouponCodeUpdate(paymentSummaryItems: [])
+
+    case .deferredPayment:
+        // Coupon codes aren't the primary use case for a booking deposit, so no discount logic here.
+        return PKPaymentRequestCouponCodeUpdate(paymentSummaryItems: [])
     }
 }
 
@@ -285,6 +325,7 @@ enum TransactionType {
     case recurring
     case disbursement
     case automaticReload
+    case deferred
 }
 
 // Example merchant-owned error type, passed to `shouldAuthorize`'s `.failure(_:)`.
@@ -405,6 +446,11 @@ struct ContentView: View {
             TransactionHandler(name: "Automatic Reload", type: .automaticReload)
                 .tabItem {
                     Label("Automatic Reload", systemImage: "arrow.clockwise")
+                }
+
+            TransactionHandler(name: "Deferred Payment", type: .deferred)
+                .tabItem {
+                    Label("Deferred Payment", systemImage: "calendar.badge.clock")
                 }
         }
     }
