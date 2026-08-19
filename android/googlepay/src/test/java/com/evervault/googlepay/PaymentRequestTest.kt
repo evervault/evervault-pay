@@ -3,6 +3,7 @@ package com.evervault.googlepay
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -34,6 +35,63 @@ class PaymentRequestTest {
             .getJSONObject("parameters")
         assertEquals("evervault", tokenization.getString("gateway"))
         assertEquals("merchant_123", tokenization.getString("gatewayMerchantId"))
+    }
+
+    private fun transactionInfo(transaction: Transaction): JSONObject =
+        JSONObject(buildPaymentRequestJson(config, transaction, "Test Merchant"))
+            .getJSONObject("transactionInfo")
+
+    @Test
+    fun `minor units resolve against the transaction currency`() {
+        val info = transactionInfo(
+            transaction.copy(
+                currency = "USD",
+                total = Amount.ofMinorUnits(5499),
+                lineItems = arrayOf(LineItem("Shell Jacket", Amount.ofMinorUnits(5000)))
+            )
+        )
+
+        assertEquals("54.99", info.getString("totalPrice"))
+        assertEquals("50.00", info.getJSONArray("displayItems").getJSONObject(0).getString("price"))
+    }
+
+    @Test
+    fun `minor units in a zero-decimal currency carry no decimal point`() {
+        val info = transactionInfo(
+            transaction.copy(
+                currency = "JPY",
+                total = Amount.ofMinorUnits(5499),
+                lineItems = arrayOf(LineItem("Shell Jacket", Amount.ofMinorUnits(5000)))
+            )
+        )
+
+        assertEquals("5499", info.getString("totalPrice"))
+        assertEquals("5000", info.getJSONArray("displayItems").getJSONObject(0).getString("price"))
+    }
+
+    @Test
+    fun `a three-decimal currency is carried to two fraction digits`() {
+        val info = transactionInfo(
+            transaction.copy(
+                currency = "KWD",
+                total = Amount.ofMinorUnits(1250),
+                lineItems = arrayOf(LineItem("Shell Jacket", Amount.ofMinorUnits(1000)))
+            )
+        )
+
+        assertEquals("1.25", info.getString("totalPrice"))
+        assertEquals("1.00", info.getJSONArray("displayItems").getJSONObject(0).getString("price"))
+    }
+
+    @Test
+    fun `building a request fails when a three-decimal amount needs the third digit`() {
+        assertThrows(IllegalArgumentException::class.java) {
+            buildPaymentRequestJson(
+                config,
+                transaction.copy(currency = "KWD", total = Amount.ofMinorUnits(1005)),
+                "Test Merchant"
+            )
+        }
     }
 
     private fun cardParameters(config: Config): JSONObject =
