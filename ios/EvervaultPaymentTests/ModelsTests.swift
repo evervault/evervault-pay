@@ -821,6 +821,31 @@ final class CouponCodeDelegateTests: XCTestCase {
         ])
     }
 
+    // Regression test: the reload line item is reconstructed separately from the plain
+    // paymentSummaryItems stored on the model (see buildAutomaticReloadBillingItem), so it's easy
+    // for the fallback path to forget to include it - which is exactly what happened before this fix.
+    func testFallsBackToSummaryItemsIncludingReloadLineItemForAutomaticReload() async throws {
+        let spy = SpyDelegate()
+        let transaction = Transaction.automaticReload(try AutomaticReloadPaymentTransaction(
+            country: "IE",
+            currency: "EUR",
+            paymentSummaryItems: [SummaryItem(label: "Total", amount: Amount("10.00"))],
+            paymentDescription: "Gift Card Reload",
+            automaticReloadBilling: SummaryItem(label: "Reload", amount: Amount("20.00")),
+            managementURL: URL(string: "https://example.com/manage")!
+        ))
+        let view = makeViewForDispositionTests(delegate: spy, transaction: transaction)
+        // didChangeCouponCodeHandler left unset - exercises the SDK's getPaymentSummaryItems() fallback.
+
+        let result = await view.paymentAuthorizationViewController(makeAuthorizationController(), didChangeCouponCode: "SAVE20")
+
+        XCTAssertEqual(result.paymentSummaryItems.map(\.label), ["Total", "Reload"])
+        XCTAssertEqual(result.paymentSummaryItems.map(\.amount), [
+            NSDecimalNumber(string: "10.00"),
+            NSDecimalNumber(string: "20.00")
+        ])
+    }
+
     @available(iOS 17.0, *)
     func testFallsBackToSummaryItemsIncludingInstantOutFeeForInstantFundsOutDisbursement() async throws {
         let spy = SpyDelegate()

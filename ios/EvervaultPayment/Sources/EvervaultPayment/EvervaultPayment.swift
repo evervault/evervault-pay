@@ -394,6 +394,22 @@ public class EvervaultPaymentView: UIView {
         return paymentRequest
     }
 
+    // Reconstructs the real PassKit type here (rather than storing it on the model) so the model
+    // stays iOS-15-safe. Shared by `buildPaymentRequest` and `getPaymentSummaryItems` so the reload
+    // line item can't drift out of sync between what's shown initially and what's shown after
+    // PassKit-triggered summary-item rebuilds (shipping/payment-method/coupon changes).
+    @available(iOS 16.0, *)
+    private static func buildAutomaticReloadBillingItem(transaction: AutomaticReloadPaymentTransaction) -> PKAutomaticReloadPaymentSummaryItem {
+        let automaticReloadBilling = PKAutomaticReloadPaymentSummaryItem(
+            label: transaction.automaticReloadBilling.label,
+            amount: transaction.automaticReloadBilling.amount.amount
+        )
+        if let thresholdAmount = transaction.automaticReloadThresholdAmount {
+            automaticReloadBilling.thresholdAmount = thresholdAmount.amount
+        }
+        return automaticReloadBilling
+    }
+
     @available(iOS 16.0, *)
     private func buildPaymentRequest(transaction: AutomaticReloadPaymentTransaction) -> PKPaymentRequest {
         let paymentRequest = PKPaymentRequest()
@@ -406,15 +422,7 @@ public class EvervaultPaymentView: UIView {
         }
         paymentRequest.merchantCapabilities = .threeDSecure
 
-        // Reconstruct the real PassKit type here (rather than storing it on the model) so the model stays iOS-15-safe.
-        let automaticReloadBilling = PKAutomaticReloadPaymentSummaryItem(
-            label: transaction.automaticReloadBilling.label,
-            amount: transaction.automaticReloadBilling.amount.amount
-        )
-        if let thresholdAmount = transaction.automaticReloadThresholdAmount {
-            automaticReloadBilling.thresholdAmount = thresholdAmount.amount
-        }
-
+        let automaticReloadBilling = Self.buildAutomaticReloadBillingItem(transaction: transaction)
         paymentRequest.paymentSummaryItems.append(automaticReloadBilling)
         let automaticReload = PKAutomaticReloadPaymentRequest(
             paymentDescription: transaction.paymentDescription,
@@ -453,9 +461,11 @@ public class EvervaultPaymentView: UIView {
             // Covers .automaticReload, which can't be named directly here since it's
             // gated to iOS 16+ while this switch compiles at the package's iOS 15 minimum.
             if #available(iOS 16.0, *), case let .automaticReload(automaticReloadTransaction) = self.transaction {
-                return automaticReloadTransaction.paymentSummaryItems.map { item in
+                var items = automaticReloadTransaction.paymentSummaryItems.map { item in
                     PKPaymentSummaryItem(label: item.label, amount: item.amount.amount)
                 }
+                items.append(Self.buildAutomaticReloadBillingItem(transaction: automaticReloadTransaction))
+                return items
             }
             return []
         }
