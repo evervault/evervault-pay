@@ -194,8 +194,9 @@ class EvervaultPayViewModel(application: Application, val config: Config) : Andr
                     extractPaymentBillingName(paymentData)?.let { billingName ->
                         tokenResponse.billingAddress = billingName
                     }
+                    val responseWithEmail = attachPaymentEmail(tokenResponse, paymentData.toJson())
 
-                    _paymentState.update { PaymentState.PaymentCompleted(response = tokenResponse) }
+                    _paymentState.update { PaymentState.PaymentCompleted(response = responseWithEmail) }
                 } catch (_: JsonSyntaxException) {
                     _paymentState.update {
                         PaymentState.Error(CommonStatusCodes.INTERNAL_ERROR,"Error decoding payment token data")
@@ -237,4 +238,25 @@ class EvervaultPayViewModel(application: Application, val config: Config) : Andr
             null
         }
     }
+
 }
+
+internal fun attachPaymentEmail(
+    tokenResponse: TokenResponse,
+    paymentInformation: String,
+): TokenResponse {
+    val email = extractPaymentEmail(paymentInformation) ?: return tokenResponse
+
+    return when (tokenResponse) {
+        is NetworkTokenResponse -> tokenResponse.copy(email = email)
+        is CardResponse -> tokenResponse.copy(email = email)
+    }
+}
+
+internal fun extractPaymentEmail(paymentInformation: String): String? =
+    try {
+        JSONObject(paymentInformation).optString("email").takeIf { it.isNotBlank() }
+    } catch (error: JSONException) {
+        Log.e(EvervaultPayViewModel.LOG_TAG, "Error extracting email: $error")
+        null
+    }

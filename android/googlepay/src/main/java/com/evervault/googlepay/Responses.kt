@@ -18,7 +18,8 @@ data class Merchant(
 )
 
 sealed interface TokenResponse {
-    abstract var billingAddress: BillingAddress?
+    var billingAddress: BillingAddress?
+    val email: String?
 }
 
 data class GooglePayCard(
@@ -38,6 +39,7 @@ data class NetworkTokenResponse(
     override var billingAddress: BillingAddress? = null,
     val messageId: String? = null,
     val messageExpiration: String? = null,
+    override val email: String? = null,
 ) : TokenResponse
 
 data class FpanCardDetails(
@@ -56,4 +58,5 @@ data class CardResponse(
     override var billingAddress: BillingAddress? = null,
     val messageId: String? = null,
     val messageExpiration: String? = null,
+    override val email: String? = null,
 ) : TokenResponse
