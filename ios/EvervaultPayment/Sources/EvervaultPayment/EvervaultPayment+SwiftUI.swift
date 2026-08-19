@@ -179,8 +179,8 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
             }
         }
         
-        // Only `OneOffPaymentTransaction` models `shippingMethods` — recurring and
-        // disbursement transactions have no defined semantics for a selectable
+        // Only `OneOffPaymentTransaction` models `shippingMethods` — recurring, disbursement,
+        // and automatic reload transactions have no defined semantics for a selectable
         // shipping surcharge, so they always return `[]`.
         private func getShippingMethods(transaction: Transaction) -> [PKShippingMethod] {
             switch transaction {

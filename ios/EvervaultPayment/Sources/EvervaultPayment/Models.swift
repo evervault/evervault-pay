@@ -460,12 +460,11 @@ public struct AutomaticReloadPaymentTransaction {
     public var supportsCouponCode: Bool
     public var couponCode: String?
     public var shippingType: PKShippingType
-    public var shippingMethods: [PKShippingMethod]
     public var requiredShippingContactFields: Set<ContactField>
     public var billingContact: ApplePayPaymentContact?
     public var shippingContact: ApplePayPaymentContact?
 
-    public init(country: String, currency: String, paymentSummaryItems: [SummaryItem] = [], paymentDescription: String, automaticReloadBilling: SummaryItem, automaticReloadThresholdAmount: Amount? = nil, managementURL: URL, requestPayerDetails: Set<ContactField> = [], supportsCouponCode: Bool = false, couponCode: String? = nil, billingContact: ApplePayPaymentContact? = nil, shippingType: PKShippingType = .shipping, shippingMethods: [PKShippingMethod] = [], requiredShippingContactFields: Set<ContactField> = [], shippingContact: ApplePayPaymentContact? = nil) throws {
+    public init(country: String, currency: String, paymentSummaryItems: [SummaryItem] = [], paymentDescription: String, automaticReloadBilling: SummaryItem, automaticReloadThresholdAmount: Amount? = nil, managementURL: URL, requestPayerDetails: Set<ContactField> = [], supportsCouponCode: Bool = false, couponCode: String? = nil, billingContact: ApplePayPaymentContact? = nil, shippingType: PKShippingType = .shipping, requiredShippingContactFields: Set<ContactField> = [], shippingContact: ApplePayPaymentContact? = nil) throws {
         self.country = country
         self.currency = currency
         self.paymentSummaryItems = paymentSummaryItems
@@ -477,14 +476,13 @@ public struct AutomaticReloadPaymentTransaction {
         self.supportsCouponCode = supportsCouponCode
         self.couponCode = couponCode
         self.shippingType = shippingType
-        self.shippingMethods = shippingMethods
         self.requiredShippingContactFields = requiredShippingContactFields
         self.billingContact = billingContact
         self.shippingContact = shippingContact
     }
 
     @available(iOS 16.0, *)
-    public init(country: Locale.Region, currency: Locale.Currency, paymentSummaryItems: [SummaryItem] = [], paymentDescription: String, automaticReloadBilling: SummaryItem, automaticReloadThresholdAmount: Amount? = nil, managementURL: URL, requestPayerDetails: Set<ContactField> = [], supportsCouponCode: Bool = false, couponCode: String? = nil, billingContact: ApplePayPaymentContact? = nil, shippingType: PKShippingType = .shipping, shippingMethods: [PKShippingMethod] = [], requiredShippingContactFields: Set<ContactField> = [], shippingContact: ApplePayPaymentContact? = nil) throws {
+    public init(country: Locale.Region, currency: Locale.Currency, paymentSummaryItems: [SummaryItem] = [], paymentDescription: String, automaticReloadBilling: SummaryItem, automaticReloadThresholdAmount: Amount? = nil, managementURL: URL, requestPayerDetails: Set<ContactField> = [], supportsCouponCode: Bool = false, couponCode: String? = nil, billingContact: ApplePayPaymentContact? = nil, shippingType: PKShippingType = .shipping, requiredShippingContactFields: Set<ContactField> = [], shippingContact: ApplePayPaymentContact? = nil) throws {
         self.country = country.identifier
         self.currency = currency.identifier
         self.paymentSummaryItems = paymentSummaryItems
@@ -496,7 +494,6 @@ public struct AutomaticReloadPaymentTransaction {
         self.supportsCouponCode = supportsCouponCode
         self.couponCode = couponCode
         self.shippingType = shippingType
-        self.shippingMethods = shippingMethods
         self.requiredShippingContactFields = requiredShippingContactFields
         self.billingContact = billingContact
         self.shippingContact = shippingContact
