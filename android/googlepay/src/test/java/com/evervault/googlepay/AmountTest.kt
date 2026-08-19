@@ -44,7 +44,7 @@ class AmountTest {
     }
 
     @Test
-    fun `three-decimal currencies are truncated to two fraction digits`() {
+    fun `three-decimal currencies are reduced to two fraction digits when exact`() {
         assertEquals("1.00", Amount.ofMinorUnits(1000).format("KWD"))
         assertEquals("1.25", Amount.ofMinorUnits(1250).format("KWD"))
         assertEquals("0.05", Amount.ofMinorUnits(50).format("BHD"))
@@ -60,7 +60,17 @@ class AmountTest {
             }
         }
         assertThrows(IllegalArgumentException::class.java) {
+            Amount.ofMinorUnits(1251).format("KWD")
+        }
+        assertThrows(IllegalArgumentException::class.java) {
             Amount.ofMinorUnits(1).format("KWD")
+        }
+    }
+
+    @Test
+    fun `rejects currencies without minor units when converting minor units`() {
+        assertThrows(IllegalArgumentException::class.java) {
+            Amount.ofMinorUnits(1000).format("XAU")
         }
     }
 
