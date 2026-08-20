@@ -381,13 +381,27 @@ public class EvervaultPaymentView: UIView {
                 PKPaymentSummaryItem(label: item.label, amount: item.amount.amount)
             }
         case let .disbursement(dispersementTransaction):
-            return dispersementTransaction.paymentSummaryItems.map { item in
+            var items = dispersementTransaction.paymentSummaryItems.map { item in
                 PKPaymentSummaryItem(label: item.label, amount: item.amount.amount)
             }
+            if #available(iOS 17.0, *), dispersementTransaction.merchantCapability == .instantFundsOut,
+               let instantOutFee = dispersementTransaction.instantOutFee {
+                items.append(PKPaymentSummaryItem(label: instantOutFee.label, amount: instantOutFee.amount.amount))
+            }
+            items.append(PKPaymentSummaryItem(
+                label: dispersementTransaction.disbursementItem.label,
+                amount: dispersementTransaction.disbursementItem.amount.amount
+            ))
+            return items
         case let .recurringPayment(recurringTransaction):
-            return recurringTransaction.paymentSummaryItems.map { item in
+            var items = recurringTransaction.paymentSummaryItems.map { item in
                 PKPaymentSummaryItem(label: item.label, amount: item.amount.amount)
             }
+            items.append(recurringTransaction.regularBilling)
+            if let trialBilling = recurringTransaction.trialBilling {
+                items.append(trialBilling)
+            }
+            return items
         }
     }
 }
@@ -452,7 +466,7 @@ extension EvervaultPaymentView : PKPaymentAuthorizationViewControllerDelegate {
     ) async -> PKPaymentRequestShippingContactUpdate {
         return await self.delegate?.evervaultPaymentView(self, didSelectShippingContact: contact) ?? PKPaymentRequestShippingContactUpdate(paymentSummaryItems: self.getPaymentSummaryItems())
     }
-    
+
     @MainActor
     public func paymentAuthorizationViewController(_ controller: PKPaymentAuthorizationViewController, didSelect paymentMethod: PKPaymentMethod) async -> PKPaymentRequestPaymentMethodUpdate {
         return await self.delegate?.evervaultPaymentView(self, didUpdatePaymentMethod: paymentMethod) ?? PKPaymentRequestPaymentMethodUpdate(paymentSummaryItems: self.getPaymentSummaryItems())
