@@ -483,9 +483,10 @@ private final class SpyDelegate: EvervaultPaymentViewDelegate {
 @MainActor
 private func makeViewForDispositionTests(
     delegate: SpyDelegate,
-    paymentSummaryItems: [SummaryItem] = [SummaryItem(label: "Total", amount: Amount("10.00"))]
+    paymentSummaryItems: [SummaryItem] = [SummaryItem(label: "Total", amount: Amount("10.00"))],
+    transaction: Transaction? = nil
 ) -> EvervaultPaymentView {
-    let transaction = Transaction.oneOffPayment(try! OneOffPaymentTransaction(
+    let resolvedTransaction = transaction ?? .oneOffPayment(try! OneOffPaymentTransaction(
         country: "IE",
         currency: "EUR",
         paymentSummaryItems: paymentSummaryItems
@@ -493,7 +494,7 @@ private func makeViewForDispositionTests(
     let view = EvervaultPaymentView(
         appId: "test-app-id",
         appleMerchantId: "merchant.test",
-        transaction: transaction,
+        transaction: resolvedTransaction,
         supportedNetworks: [.visa],
         buttonStyle: .automatic,
         buttonType: .buy
@@ -680,6 +681,55 @@ final class CouponCodeDelegateTests: XCTestCase {
             NSDecimalNumber(string: "30.00"),
             NSDecimalNumber(string: "5.00"),
             NSDecimalNumber(string: "35.00")
+        ])
+    }
+
+    // Regression test: regularBilling and trialBilling are stored on the model as the real
+    // PassKit types (no reconstruction needed, unlike automaticReloadBilling), so it's easy
+    // for the fallback to forget to append them too.
+    func testFallsBackToSummaryItemsIncludingRegularAndTrialBillingForRecurringPayment() async throws {
+        let spy = SpyDelegate()
+        let transaction = Transaction.recurringPayment(try RecurringPaymentTransaction(
+            country: "IE",
+            currency: "EUR",
+            paymentSummaryItems: [SummaryItem(label: "Total", amount: Amount("10.00"))],
+            paymentDescription: "Subscription",
+            regularBilling: PKRecurringPaymentSummaryItem(label: "Monthly", amount: NSDecimalNumber(string: "9.99")),
+            managementURL: URL(string: "https://example.com/manage")!
+        ))
+        let view = makeViewForDispositionTests(delegate: spy, transaction: transaction)
+        // didChangeCouponCodeHandler left unset - exercises the SDK's getPaymentSummaryItems() fallback.
+
+        let result = await view.paymentAuthorizationViewController(makeAuthorizationController(), didChangeCouponCode: "SAVE20")
+
+        XCTAssertEqual(result.paymentSummaryItems.map(\.label), ["Total", "Monthly"])
+        XCTAssertEqual(result.paymentSummaryItems.map(\.amount), [
+            NSDecimalNumber(string: "10.00"),
+            NSDecimalNumber(string: "9.99")
+        ])
+    }
+
+    func testFallsBackToSummaryItemsIncludingTrialBillingWhenSetForRecurringPayment() async throws {
+        let spy = SpyDelegate()
+        var recurringTransaction = try RecurringPaymentTransaction(
+            country: "IE",
+            currency: "EUR",
+            paymentSummaryItems: [SummaryItem(label: "Total", amount: Amount("10.00"))],
+            paymentDescription: "Subscription",
+            regularBilling: PKRecurringPaymentSummaryItem(label: "Monthly", amount: NSDecimalNumber(string: "9.99")),
+            managementURL: URL(string: "https://example.com/manage")!
+        )
+        recurringTransaction.trialBilling = PKRecurringPaymentSummaryItem(label: "Free Trial", amount: NSDecimalNumber(string: "0.00"))
+        let view = makeViewForDispositionTests(delegate: spy, transaction: .recurringPayment(recurringTransaction))
+        // didChangeCouponCodeHandler left unset - exercises the SDK's getPaymentSummaryItems() fallback.
+
+        let result = await view.paymentAuthorizationViewController(makeAuthorizationController(), didChangeCouponCode: "SAVE20")
+
+        XCTAssertEqual(result.paymentSummaryItems.map(\.label), ["Total", "Monthly", "Free Trial"])
+        XCTAssertEqual(result.paymentSummaryItems.map(\.amount), [
+            NSDecimalNumber(string: "10.00"),
+            NSDecimalNumber(string: "9.99"),
+            NSDecimalNumber(string: "0.00")
         ])
     }
 }

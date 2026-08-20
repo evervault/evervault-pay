@@ -385,9 +385,14 @@ public class EvervaultPaymentView: UIView {
                 PKPaymentSummaryItem(label: item.label, amount: item.amount.amount)
             }
         case let .recurringPayment(recurringTransaction):
-            return recurringTransaction.paymentSummaryItems.map { item in
+            var items = recurringTransaction.paymentSummaryItems.map { item in
                 PKPaymentSummaryItem(label: item.label, amount: item.amount.amount)
             }
+            items.append(recurringTransaction.regularBilling)
+            if let trialBilling = recurringTransaction.trialBilling {
+                items.append(trialBilling)
+            }
+            return items
         }
     }
 }
