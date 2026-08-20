@@ -3,6 +3,7 @@ package com.evervault.googlepay
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -16,6 +17,19 @@ class PaymentRequestTest {
         total = Amount("54.99"),
         lineItems = arrayOf(LineItem("Shell Jacket", Amount("50.00")))
     )
+
+    @Test
+    fun `retains the pre-emailRequired Config constructor`() {
+        assertNotNull(
+            Config::class.java.getConstructor(
+                String::class.java,
+                String::class.java,
+                List::class.java,
+                List::class.java,
+                BillingAddressConfig::class.java,
+            )
+        )
+    }
 
     @Test
     fun `builds a request from config and transaction alone`() {
