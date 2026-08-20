@@ -5,7 +5,7 @@ data class Config(
     val merchantId: String,
     val supportedNetworks: List<CardNetwork>  = Constants.SUPPORTED_NETWORKS,
     val supportedMethods: List<CardAuthMethod> = Constants.SUPPORTED_METHODS,
-    val billingAddress: BillingAddressConfig = BillingAddressConfig.Enabled(),
+    val billingAddress: BillingAddressConfig = BillingAddressConfig.Disabled,
     val emailRequired: Boolean = false,
 ) {
     /** Retains the constructor signature from releases before `emailRequired`. */
