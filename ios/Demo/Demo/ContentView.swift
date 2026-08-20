@@ -128,7 +128,7 @@ fileprivate func getUpdatedTransaction(_ newAddress: ShippingContact, transactio
 
         // Calculate the new total
         let newTotal = summaryItems
-            .map { $0.amount.amount as Decimal }
+            .map { $0.amount.resolve(currency: transaction.currency) as Decimal }
             .reduce(Decimal.zero, +)
         
         // Format for currency
@@ -169,17 +169,17 @@ fileprivate func getCouponCodeUpdate(_ couponCode: String, transaction: Evervaul
         _ = summaryItems.popLast()
 
         guard couponCode.uppercased() == "SAVE20" else {
-            let subtotal = summaryItems.map { $0.amount.amount as Decimal }.reduce(Decimal.zero, +)
+            let subtotal = summaryItems.map { $0.amount.resolve(currency: transaction.currency) as Decimal }.reduce(Decimal.zero, +)
             summaryItems.append(SummaryItem(label: "Total", amount: Amount(formatter.string(from: subtotal as NSDecimalNumber) ?? subtotal.description)))
 
             return PKPaymentRequestCouponCodeUpdate(
                 errors: [PKPaymentRequest.paymentCouponCodeInvalidError(localizedDescription: "That coupon code isn't valid.")],
-                paymentSummaryItems: summaryItems.map { PKPaymentSummaryItem(label: $0.label, amount: $0.amount.amount) },
+                paymentSummaryItems: summaryItems.map { PKPaymentSummaryItem(label: $0.label, amount: $0.amount.resolve(currency: transaction.currency)) },
                 shippingMethods: []
             )
         }
 
-        let subtotal = summaryItems.map { $0.amount.amount as Decimal }.reduce(Decimal.zero, +)
+        let subtotal = summaryItems.map { $0.amount.resolve(currency: transaction.currency) as Decimal }.reduce(Decimal.zero, +)
         let discount = subtotal * Decimal(0.2)
         let discountedTotal = subtotal - discount
 
@@ -187,7 +187,7 @@ fileprivate func getCouponCodeUpdate(_ couponCode: String, transaction: Evervaul
         summaryItems.append(SummaryItem(label: "Total", amount: Amount(formatter.string(from: discountedTotal as NSDecimalNumber) ?? discountedTotal.description)))
 
         return PKPaymentRequestCouponCodeUpdate(
-            paymentSummaryItems: summaryItems.map { PKPaymentSummaryItem(label: $0.label, amount: $0.amount.amount) }
+            paymentSummaryItems: summaryItems.map { PKPaymentSummaryItem(label: $0.label, amount: $0.amount.resolve(currency: transaction.currency)) }
         )
 
     case .recurringPayment(let recurring):
@@ -205,7 +205,7 @@ fileprivate func getCouponCodeUpdate(_ couponCode: String, transaction: Evervaul
             return request
         }
 
-        var items = recurring.paymentSummaryItems.map { PKPaymentSummaryItem(label: $0.label, amount: $0.amount.amount) }
+        var items = recurring.paymentSummaryItems.map { PKPaymentSummaryItem(label: $0.label, amount: $0.amount.resolve(currency: transaction.currency)) }
 
         guard couponCode.uppercased() == "SAVE20" else {
             items.append(recurring.regularBilling)

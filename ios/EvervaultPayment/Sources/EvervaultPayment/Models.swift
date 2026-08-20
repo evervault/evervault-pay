@@ -257,14 +257,56 @@ public struct ApplePayResponse: Codable, Sendable, Equatable {
 /// Use your own `Error`-conforming type here if you want exhaustive `switch` handling downstream.
 public typealias AuthorizationDisposition = Result<(), Error>
 
-/// Amount wrapper around NSDecimalNumber
-/// Allows us to accept ints, floats, etc. in the future if we want
+/// An amount to display in the Apple Pay sheet, either as a decimal string in a
+/// currency's major units or as an integer count of its minor units. Minor units
+/// are resolved against the transaction's currency when the request is built.
 public struct Amount {
-    public let amount: NSDecimalNumber
-    
-    public init(_ amount: String) {
-        self.amount = NSDecimalNumber(string: amount)
+    private enum Value {
+        case decimal(NSDecimalNumber)
+        case minorUnits(Int)
     }
+
+    private let value: Value
+
+    /// e.g. `Amount("54.99")`. A string that is not a decimal number is rejected
+    /// when the transaction it belongs to is constructed.
+    public init(_ amount: String) {
+        self.value = .decimal(NSDecimalNumber(string: amount))
+    }
+
+    /// e.g. `Amount(minorUnits: 5499)` for 54.99 USD, or 5499 JPY.
+    public init(minorUnits: Int) {
+        self.value = .minorUnits(minorUnits)
+    }
+
+    var isValid: Bool {
+        switch value {
+        case let .decimal(decimal):
+            return !decimal.decimalValue.isNaN
+        case .minorUnits:
+            return true
+        }
+    }
+
+    public func resolve(currency: String) -> NSDecimalNumber {
+        switch value {
+        case let .decimal(decimal):
+            return decimal
+        case let .minorUnits(minorUnits):
+            let formatter = NumberFormatter()
+            formatter.numberStyle = .currency
+            formatter.currencyCode = currency
+            return NSDecimalNumber(
+                mantissa: UInt64(abs(minorUnits)),
+                exponent: Int16(-formatter.maximumFractionDigits),
+                isNegative: minorUnits < 0
+            )
+        }
+    }
+}
+
+extension Array where Element == SummaryItem {
+    var allAmountsValid: Bool { allSatisfy { $0.amount.isValid } }
 }
 
 /// Summary item for display in the Apple Pay sheet
@@ -308,6 +350,9 @@ public struct OneOffPaymentTransaction {
         guard paymentSummaryItems.count > 0 else {
             throw EvervaultError.InvalidTransactionError
         }
+        guard paymentSummaryItems.allAmountsValid else {
+            throw EvervaultError.InvalidAmountError
+        }
     }
 
     @available(iOS 16, *)
@@ -326,6 +371,9 @@ public struct OneOffPaymentTransaction {
 
         guard paymentSummaryItems.count > 0 else {
             throw EvervaultError.InvalidTransactionError
+        }
+        guard paymentSummaryItems.allAmountsValid else {
+            throw EvervaultError.InvalidAmountError
         }
         guard currency.isISOCurrency else {
             throw EvervaultError.InvalidCurrencyError
@@ -358,6 +406,9 @@ public struct DisbursementTransaction {
         guard paymentSummaryItems.count > 0 else {
             throw EvervaultError.InvalidTransactionError
         }
+        guard (paymentSummaryItems + [disbursementItem] + [instantOutFee].compactMap { $0 }).allAmountsValid else {
+            throw EvervaultError.InvalidAmountError
+        }
     }
     
     @available(iOS 16, *)
@@ -372,6 +423,9 @@ public struct DisbursementTransaction {
         
         guard paymentSummaryItems.count > 0 else {
             throw EvervaultError.InvalidTransactionError
+        }
+        guard (paymentSummaryItems + [disbursementItem] + [instantOutFee].compactMap { $0 }).allAmountsValid else {
+            throw EvervaultError.InvalidAmountError
         }
         guard currency.isISOCurrency else {
             throw EvervaultError.InvalidCurrencyError
@@ -413,6 +467,10 @@ public struct RecurringPaymentTransaction {
         self.requiredShippingContactFields = requiredShippingContactFields
         self.billingContact = billingContact
         self.shippingContact = shippingContact
+
+        guard paymentSummaryItems.allAmountsValid else {
+            throw EvervaultError.InvalidAmountError
+        }
     }
 
     @available(iOS 16.0, *)
@@ -431,6 +489,9 @@ public struct RecurringPaymentTransaction {
         self.billingContact = billingContact
         self.shippingContact = shippingContact
 
+        guard paymentSummaryItems.allAmountsValid else {
+            throw EvervaultError.InvalidAmountError
+        }
         guard currency.isISOCurrency else {
             throw EvervaultError.InvalidCurrencyError
         }
@@ -444,6 +505,17 @@ public enum Transaction {
     case oneOffPayment(OneOffPaymentTransaction)
     case disbursement(DisbursementTransaction)
     case recurringPayment(RecurringPaymentTransaction)
+
+    public var currency: String {
+        switch self {
+        case let .oneOffPayment(transaction):
+            return transaction.currency
+        case let .disbursement(transaction):
+            return transaction.currency
+        case let .recurringPayment(transaction):
+            return transaction.currency
+        }
+    }
 }
 
 struct ApplePayTokenHeader: Codable {
