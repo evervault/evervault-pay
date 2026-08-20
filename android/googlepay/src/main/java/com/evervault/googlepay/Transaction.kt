@@ -1,6 +1,26 @@
 package com.evervault.googlepay
 
-data class Transaction(val country: String, val currency: String, val total: Amount, val lineItems: Array<LineItem>) {
+data class Transaction(
+    val country: String,
+    val currency: String,
+    val total: Amount,
+    val lineItems: Array<LineItem>,
+    val priceLabel: String? = null,
+) {
+    /** Retains the constructor signature from releases before `priceLabel`. */
+    constructor(
+        country: String,
+        currency: String,
+        total: Amount,
+        lineItems: Array<LineItem>,
+    ) : this(
+        country = country,
+        currency = currency,
+        total = total,
+        lineItems = lineItems,
+        priceLabel = null,
+    )
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
@@ -11,6 +31,7 @@ data class Transaction(val country: String, val currency: String, val total: Amo
         if (currency != other.currency) return false
         if (!lineItems.contentEquals(other.lineItems)) return false
         if (total != other.total) return false
+        if (priceLabel != other.priceLabel) return false
         return true
     }
 
@@ -19,6 +40,7 @@ data class Transaction(val country: String, val currency: String, val total: Amo
         result = 31 * result + currency.hashCode()
         result = 31 * result + lineItems.contentHashCode()
         result = 31 * result + total.hashCode()
+        result = 31 * result + priceLabel.hashCode()
         return result
     }
 }

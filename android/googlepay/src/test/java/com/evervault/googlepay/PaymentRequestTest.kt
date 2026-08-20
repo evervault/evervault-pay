@@ -3,6 +3,7 @@ package com.evervault.googlepay
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
@@ -27,6 +28,18 @@ class PaymentRequestTest {
                 List::class.java,
                 List::class.java,
                 BillingAddressConfig::class.java,
+            )
+        )
+    }
+
+    @Test
+    fun `retains the pre-priceLabel Transaction constructor`() {
+        assertNotNull(
+            Transaction::class.java.getConstructor(
+                String::class.java,
+                String::class.java,
+                Amount::class.java,
+                Array<LineItem>::class.java,
             )
         )
     }
@@ -147,6 +160,43 @@ class PaymentRequestTest {
         val billing = parameters.getJSONObject("billingAddressParameters")
         assertEquals("MIN", billing.getString("format"))
         assertTrue(billing.getBoolean("phoneNumberRequired"))
+    }
+
+    @Test
+    fun `the price label defaults to Pay plus the merchant name`() {
+        assertEquals("Pay Test Merchant", transactionInfo(transaction).getString("totalPriceLabel"))
+    }
+
+    @Test
+    fun `the default price label follows the merchant name`() {
+        val json = JSONObject(buildPaymentRequestJson(config, transaction, "Acme Bikes"))
+
+        assertEquals(
+            "Pay Acme Bikes",
+            json.getJSONObject("transactionInfo").getString("totalPriceLabel")
+        )
+    }
+
+    @Test
+    fun `the price label is overridable`() {
+        val info = transactionInfo(transaction.copy(priceLabel = "Subscription"))
+
+        assertEquals("Subscription", info.getString("totalPriceLabel"))
+    }
+
+    @Test
+    fun `an empty price label is sent as given`() {
+        assertEquals("", transactionInfo(transaction.copy(priceLabel = "")).getString("totalPriceLabel"))
+    }
+
+    @Test
+    fun `the price label takes part in transaction equality`() {
+        assertEquals(transaction, transaction.copy())
+        assertNotEquals(transaction, transaction.copy(priceLabel = "Subscription"))
+        assertNotEquals(
+            transaction.copy(priceLabel = "Subscription"),
+            transaction.copy(priceLabel = "Donation")
+        )
     }
 
     @Test
