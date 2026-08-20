@@ -7,6 +7,20 @@ data class Transaction(
     val lineItems: Array<LineItem>,
     val priceLabel: String? = null,
 ) {
+    /** Retains the constructor signature from releases before `priceLabel`. */
+    constructor(
+        country: String,
+        currency: String,
+        total: Amount,
+        lineItems: Array<LineItem>,
+    ) : this(
+        country = country,
+        currency = currency,
+        total = total,
+        lineItems = lineItems,
+        priceLabel = null,
+    )
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false

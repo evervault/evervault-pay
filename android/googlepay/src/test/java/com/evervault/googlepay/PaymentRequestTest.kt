@@ -33,6 +33,18 @@ class PaymentRequestTest {
     }
 
     @Test
+    fun `retains the pre-priceLabel Transaction constructor`() {
+        assertNotNull(
+            Transaction::class.java.getConstructor(
+                String::class.java,
+                String::class.java,
+                Amount::class.java,
+                Array<LineItem>::class.java,
+            )
+        )
+    }
+
+    @Test
     fun `builds a request from config and transaction alone`() {
         val json = JSONObject(buildPaymentRequestJson(config, transaction, "Test Merchant"))
 
