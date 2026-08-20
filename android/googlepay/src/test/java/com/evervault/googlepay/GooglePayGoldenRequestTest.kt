@@ -3,7 +3,6 @@ package com.evervault.googlepay
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Test
 
 class GooglePayGoldenRequestTest {
@@ -25,8 +24,10 @@ class GooglePayGoldenRequestTest {
         val request = JSONObject(buildPaymentRequestJson(config, transaction, merchantName))
         val displayItems = request.getJSONObject("transactionInfo").getJSONArray("displayItems")
         for (index in 0 until displayItems.length()) {
+            val displayItem = displayItems.getJSONObject(index)
             // Android requires this Google Pay Android field. Web does not send it.
-            displayItems.getJSONObject(index).remove("status")
+            assertEquals("FINAL", displayItem.getString("status"))
+            displayItem.remove("status")
         }
 
         return JSONObject()
@@ -81,15 +82,12 @@ class GooglePayGoldenRequestTest {
     }
 
     @Test
-    fun `omits billing address parameters when billing collection is disabled`() {
+    fun `explicitly disabled billing matches the shared default request fixture`() {
         val request = comparableRequest(
             config.copy(billingAddress = BillingAddressConfig.Disabled),
             transaction
         )
-        val parameters = request.getJSONArray("allowedPaymentMethods")
-            .getJSONObject(0)
-            .getJSONObject("parameters")
 
-        assertFalse(parameters.has("billingAddressParameters"))
+        assertEquals(canonical(fixture("default")), canonical(request))
     }
 }
