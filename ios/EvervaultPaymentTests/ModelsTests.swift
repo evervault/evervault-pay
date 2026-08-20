@@ -483,9 +483,10 @@ private final class SpyDelegate: EvervaultPaymentViewDelegate {
 @MainActor
 private func makeViewForDispositionTests(
     delegate: SpyDelegate,
-    paymentSummaryItems: [SummaryItem] = [SummaryItem(label: "Total", amount: Amount("10.00"))]
+    paymentSummaryItems: [SummaryItem] = [SummaryItem(label: "Total", amount: Amount("10.00"))],
+    transaction: Transaction? = nil
 ) -> EvervaultPaymentView {
-    let transaction = Transaction.oneOffPayment(try! OneOffPaymentTransaction(
+    let resolvedTransaction = transaction ?? .oneOffPayment(try! OneOffPaymentTransaction(
         country: "IE",
         currency: "EUR",
         paymentSummaryItems: paymentSummaryItems
@@ -493,7 +494,7 @@ private func makeViewForDispositionTests(
     let view = EvervaultPaymentView(
         appId: "test-app-id",
         appleMerchantId: "merchant.test",
-        transaction: transaction,
+        transaction: resolvedTransaction,
         supportedNetworks: [.visa],
         buttonStyle: .automatic,
         buttonType: .buy
@@ -680,6 +681,105 @@ final class CouponCodeDelegateTests: XCTestCase {
             NSDecimalNumber(string: "30.00"),
             NSDecimalNumber(string: "5.00"),
             NSDecimalNumber(string: "35.00")
+        ])
+    }
+
+    // Regression test: regularBilling and trialBilling are stored on the model as the real
+    // PassKit types (no reconstruction needed), so it's easy for the fallback to forget to
+    // append them too - which is exactly what happens today.
+    func testFallsBackToSummaryItemsIncludingRegularAndTrialBillingForRecurringPayment() async throws {
+        let spy = SpyDelegate()
+        let transaction = Transaction.recurringPayment(try RecurringPaymentTransaction(
+            country: "IE",
+            currency: "EUR",
+            paymentSummaryItems: [SummaryItem(label: "Total", amount: Amount("10.00"))],
+            paymentDescription: "Subscription",
+            regularBilling: PKRecurringPaymentSummaryItem(label: "Monthly", amount: NSDecimalNumber(string: "9.99")),
+            managementURL: URL(string: "https://example.com/manage")!
+        ))
+        let view = makeViewForDispositionTests(delegate: spy, transaction: transaction)
+        // didChangeCouponCodeHandler left unset - exercises the SDK's getPaymentSummaryItems() fallback.
+
+        let result = await view.paymentAuthorizationViewController(makeAuthorizationController(), didChangeCouponCode: "SAVE20")
+
+        XCTAssertEqual(result.paymentSummaryItems.map(\.label), ["Total", "Monthly"])
+        XCTAssertEqual(result.paymentSummaryItems.map(\.amount), [
+            NSDecimalNumber(string: "10.00"),
+            NSDecimalNumber(string: "9.99")
+        ])
+    }
+
+    func testFallsBackToSummaryItemsIncludingTrialBillingWhenSetForRecurringPayment() async throws {
+        let spy = SpyDelegate()
+        var recurringTransaction = try RecurringPaymentTransaction(
+            country: "IE",
+            currency: "EUR",
+            paymentSummaryItems: [SummaryItem(label: "Total", amount: Amount("10.00"))],
+            paymentDescription: "Subscription",
+            regularBilling: PKRecurringPaymentSummaryItem(label: "Monthly", amount: NSDecimalNumber(string: "9.99")),
+            managementURL: URL(string: "https://example.com/manage")!
+        )
+        recurringTransaction.trialBilling = PKRecurringPaymentSummaryItem(label: "Free Trial", amount: NSDecimalNumber(string: "0.00"))
+        let view = makeViewForDispositionTests(delegate: spy, transaction: .recurringPayment(recurringTransaction))
+        // didChangeCouponCodeHandler left unset - exercises the SDK's getPaymentSummaryItems() fallback.
+
+        let result = await view.paymentAuthorizationViewController(makeAuthorizationController(), didChangeCouponCode: "SAVE20")
+
+        XCTAssertEqual(result.paymentSummaryItems.map(\.label), ["Total", "Monthly", "Free Trial"])
+        XCTAssertEqual(result.paymentSummaryItems.map(\.amount), [
+            NSDecimalNumber(string: "10.00"),
+            NSDecimalNumber(string: "9.99"),
+            NSDecimalNumber(string: "0.00")
+        ])
+    }
+
+    // Regression test: disbursementItem is stored on the model as a plain SummaryItem (reconstructed
+    // into a PKDisbursementSummaryItem in buildPaymentRequest), so it's easy for the fallback to
+    // forget to append it too - which is exactly what happens today.
+    func testFallsBackToSummaryItemsIncludingDisbursementItemForDisbursement() async throws {
+        let spy = SpyDelegate()
+        let transaction = Transaction.disbursement(try DisbursementTransaction(
+            country: "IE",
+            currency: "EUR",
+            paymentSummaryItems: [SummaryItem(label: "Total", amount: Amount("10.00"))],
+            disbursementItem: SummaryItem(label: "Payout", amount: Amount("10.00")),
+            requiredRecipientDetails: [],
+            merchantCapability: .capability3DS
+        ))
+        let view = makeViewForDispositionTests(delegate: spy, transaction: transaction)
+        // didChangeCouponCodeHandler left unset - exercises the SDK's getPaymentSummaryItems() fallback.
+
+        let result = await view.paymentAuthorizationViewController(makeAuthorizationController(), didChangeCouponCode: "SAVE20")
+
+        XCTAssertEqual(result.paymentSummaryItems.map(\.label), ["Total", "Payout"])
+        XCTAssertEqual(result.paymentSummaryItems.map(\.amount), [
+            NSDecimalNumber(string: "10.00"),
+            NSDecimalNumber(string: "10.00")
+        ])
+    }
+
+    @available(iOS 17.0, *)
+    func testFallsBackToSummaryItemsIncludingInstantOutFeeForInstantFundsOutDisbursement() async throws {
+        let spy = SpyDelegate()
+        let transaction = Transaction.disbursement(try DisbursementTransaction(
+            country: "IE",
+            currency: "EUR",
+            paymentSummaryItems: [SummaryItem(label: "Total", amount: Amount("10.00"))],
+            disbursementItem: SummaryItem(label: "Payout", amount: Amount("10.00")),
+            instantOutFee: SummaryItem(label: "Instant funds out fee", amount: Amount("1.00")),
+            requiredRecipientDetails: [],
+            merchantCapability: .instantFundsOut
+        ))
+        let view = makeViewForDispositionTests(delegate: spy, transaction: transaction)
+        // didChangeCouponCodeHandler left unset - exercises the SDK's getPaymentSummaryItems() fallback.
+
+        let result = await view.paymentAuthorizationViewController(makeAuthorizationController(), didChangeCouponCode: "SAVE20")
+
+        XCTAssertEqual(result.paymentSummaryItems.map(\.label), ["Total", "Instant funds out fee", "Payout"])
+        XCTAssertEqual(result.paymentSummaryItems.map(\.amount), [
+            NSDecimalNumber(string: "10.00"),
+            NSDecimalNumber(string: "1.00"),
+            NSDecimalNumber(string: "10.00")
         ])
     }
 }
