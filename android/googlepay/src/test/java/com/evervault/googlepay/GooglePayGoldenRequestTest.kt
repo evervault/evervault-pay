@@ -51,13 +51,18 @@ class GooglePayGoldenRequestTest {
     }
 
     @Test
-    fun `matches the Android default request fixture`() {
-        assertEquals(canonical(fixture("android-default")), canonical(comparableRequest(config, transaction)))
+    fun `matches the shared default request fixture`() {
+        assertEquals(canonical(fixture("default")), canonical(comparableRequest(config, transaction)))
     }
 
     @Test
     fun `matches the shared enabled-billing request fixture`() {
-        assertEquals(canonical(fixture("enabled-billing")), canonical(comparableRequest(config, transaction)))
+        val enabledBillingConfig = config.copy(billingAddress = BillingAddressConfig.Enabled())
+
+        assertEquals(
+            canonical(fixture("enabled-billing")),
+            canonical(comparableRequest(enabledBillingConfig, transaction))
+        )
     }
 
     @Test
