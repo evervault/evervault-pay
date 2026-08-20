@@ -270,17 +270,51 @@ public class EvervaultPaymentView: UIView {
         }
     }
     
+    private func buildSummaryItems(for transaction: OneOffPaymentTransaction) -> [PKPaymentSummaryItem] {
+        return transaction.paymentSummaryItems.map { item in
+            PKPaymentSummaryItem(label: item.label, amount: item.amount.amount)
+        }
+    }
+
+    private func buildSummaryItems(for transaction: RecurringPaymentTransaction) -> [PKPaymentSummaryItem] {
+        var items = transaction.paymentSummaryItems.map { item in
+            PKPaymentSummaryItem(label: item.label, amount: item.amount.amount)
+        }
+        items.append(transaction.regularBilling)
+        if let trialBilling = transaction.trialBilling {
+            items.append(trialBilling)
+        }
+        return items
+    }
+
+    private func buildSummaryItems(for transaction: DisbursementTransaction) -> [PKPaymentSummaryItem] {
+        var items = transaction.paymentSummaryItems.map { item in
+            PKPaymentSummaryItem(label: item.label, amount: item.amount.amount)
+        }
+        guard #available(iOS 17.0, *) else {
+            // Disbursement requires iOS 17+ end-to-end - didTapPay() already refuses to create
+            // a disbursement transaction below that, so this can't actually happen in practice.
+            return items
+        }
+        if transaction.merchantCapability == .instantFundsOut, let instantOutFee = transaction.instantOutFee {
+            items.append(PKInstantFundsOutFeeSummaryItem(label: instantOutFee.label, amount: instantOutFee.amount.amount))
+        }
+        items.append(PKDisbursementSummaryItem(
+            label: transaction.disbursementItem.label,
+            amount: transaction.disbursementItem.amount.amount
+        ))
+        return items
+    }
+
     private func buildPaymentRequest(transaction: OneOffPaymentTransaction) -> PKPaymentRequest {
         let paymentRequest = PKPaymentRequest()
         paymentRequest.merchantIdentifier = self.appleMerchantIdentifier
         paymentRequest.supportedNetworks = self.supportedNetworks
         paymentRequest.countryCode = transaction.country
         paymentRequest.currencyCode = transaction.currency
-        paymentRequest.paymentSummaryItems = transaction.paymentSummaryItems.map { item in
-            PKPaymentSummaryItem(label: item.label, amount: item.amount.amount)
-        }
+        paymentRequest.paymentSummaryItems = self.buildSummaryItems(for: transaction)
         paymentRequest.merchantCapabilities = .threeDSecure
-        
+
         paymentRequest.shippingType = transaction.shippingType
         paymentRequest.shippingMethods = transaction.shippingMethods
         paymentRequest.requiredShippingContactFields = transaction.requiredShippingContactFields
@@ -305,34 +339,13 @@ public class EvervaultPaymentView: UIView {
         paymentRequest.supportedNetworks = self.supportedNetworks
         paymentRequest.region = Locale.Region(transaction.country)
         paymentRequest.currency = Locale.Currency(transaction.currency)
-        paymentRequest.summaryItems = transaction.paymentSummaryItems.map { item in
-            PKPaymentSummaryItem(
-                label: item.label,
-                amount: item.amount.amount
-            )
-        }
-        if transaction.merchantCapability == .instantFundsOut {
-            if let instantOutFee = transaction.instantOutFee {
-                paymentRequest.summaryItems.append(
-                    PKInstantFundsOutFeeSummaryItem(
-                        label: instantOutFee.label,
-                        amount: instantOutFee.amount.amount
-                    )
-                )
-            }
-        }
-        paymentRequest.summaryItems.append(
-            PKDisbursementSummaryItem(
-                label: transaction.disbursementItem.label,
-                amount: transaction.disbursementItem.amount.amount
-            )
-        )
+        paymentRequest.summaryItems = self.buildSummaryItems(for: transaction)
         paymentRequest.merchantCapabilities = transaction.merchantCapability
         paymentRequest.requiredRecipientContactFields = transaction.requiredRecipientDetails
-        
+
         return paymentRequest
     }
-    
+
     @available(iOS 16.0, *)
     private func buildPaymentRequest(transaction: RecurringPaymentTransaction) -> PKPaymentRequest {
         let paymentRequest = PKPaymentRequest()
@@ -340,15 +353,9 @@ public class EvervaultPaymentView: UIView {
         paymentRequest.supportedNetworks = self.supportedNetworks
         paymentRequest.countryCode = transaction.country
         paymentRequest.currencyCode = transaction.currency
-        paymentRequest.paymentSummaryItems = transaction.paymentSummaryItems.map { item in
-            PKPaymentSummaryItem(label: item.label, amount: item.amount.amount)
-        }
+        paymentRequest.paymentSummaryItems = self.buildSummaryItems(for: transaction)
         paymentRequest.merchantCapabilities = .threeDSecure
-        
-        paymentRequest.paymentSummaryItems.append(transaction.regularBilling)
-        if (transaction.trialBilling != nil) {
-            paymentRequest.paymentSummaryItems.append(transaction.trialBilling!)
-        }
+
         let recurring = PKRecurringPaymentRequest(
             paymentDescription: transaction.paymentDescription,
             regularBilling: transaction.regularBilling,
@@ -377,31 +384,11 @@ public class EvervaultPaymentView: UIView {
     private func getPaymentSummaryItems() -> [PKPaymentSummaryItem] {
         switch self.transaction {
         case let .oneOffPayment(oneOffTransaction):
-            return oneOffTransaction.paymentSummaryItems.map { item in
-                PKPaymentSummaryItem(label: item.label, amount: item.amount.amount)
-            }
+            return self.buildSummaryItems(for: oneOffTransaction)
         case let .disbursement(dispersementTransaction):
-            var items = dispersementTransaction.paymentSummaryItems.map { item in
-                PKPaymentSummaryItem(label: item.label, amount: item.amount.amount)
-            }
-            if #available(iOS 17.0, *), dispersementTransaction.merchantCapability == .instantFundsOut,
-               let instantOutFee = dispersementTransaction.instantOutFee {
-                items.append(PKPaymentSummaryItem(label: instantOutFee.label, amount: instantOutFee.amount.amount))
-            }
-            items.append(PKPaymentSummaryItem(
-                label: dispersementTransaction.disbursementItem.label,
-                amount: dispersementTransaction.disbursementItem.amount.amount
-            ))
-            return items
+            return self.buildSummaryItems(for: dispersementTransaction)
         case let .recurringPayment(recurringTransaction):
-            var items = recurringTransaction.paymentSummaryItems.map { item in
-                PKPaymentSummaryItem(label: item.label, amount: item.amount.amount)
-            }
-            items.append(recurringTransaction.regularBilling)
-            if let trialBilling = recurringTransaction.trialBilling {
-                items.append(trialBilling)
-            }
-            return items
+            return self.buildSummaryItems(for: recurringTransaction)
         }
     }
 }
