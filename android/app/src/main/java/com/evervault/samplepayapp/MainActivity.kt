@@ -38,6 +38,7 @@ class MainActivity : AppCompatActivity() {
                     CardNetwork.VISA,
                     CardNetwork.MASTERCARD
                 ),
+                emailRequired = true,
             )
         )
     }
@@ -73,10 +74,16 @@ class MainActivity : AppCompatActivity() {
                 is PaymentState.PaymentCompleted -> {
                     when (val token = state.response) {
                         is NetworkTokenResponse -> {
-                            Text("Encrypted Network Token Cryptogram: ${token.cryptogram}")
+                            Text(
+                                "Encrypted Network Token Cryptogram: ${token.cryptogram}\n" +
+                                    "Email: ${token.email ?: "Not returned"}"
+                            )
                         }
                         is CardResponse -> {
-                            Text("Encrypted Card Number: ${token.card.number}")
+                            Text(
+                                "Encrypted Card Number: ${token.card.number}\n" +
+                                    "Email: ${token.email ?: "Not returned"}"
+                            )
                         }
                     }
                 }

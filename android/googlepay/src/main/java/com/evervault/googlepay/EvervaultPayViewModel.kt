@@ -191,11 +191,13 @@ class EvervaultPayViewModel(application: Application, val config: Config) : Andr
                         .create()
                     val tokenResponse = gson.fromJson(raw, TokenResponse::class.java)
 
-                    extractPaymentBillingName(paymentData)?.let { billingName ->
+                    val paymentInformation = paymentData.toJson()
+                    extractPaymentBillingName(paymentInformation)?.let { billingName ->
                         tokenResponse.billingAddress = billingName
                     }
+                    val responseWithEmail = attachPaymentEmail(tokenResponse, paymentInformation)
 
-                    _paymentState.update { PaymentState.PaymentCompleted(response = tokenResponse) }
+                    _paymentState.update { PaymentState.PaymentCompleted(response = responseWithEmail) }
                 } catch (_: JsonSyntaxException) {
                     _paymentState.update {
                         PaymentState.Error(CommonStatusCodes.INTERNAL_ERROR,"Error decoding payment token data")
@@ -224,9 +226,8 @@ class EvervaultPayViewModel(application: Application, val config: Config) : Andr
         return paymentsClient.await().isReadyToPay(request).await()
     }
 
-    private fun extractPaymentBillingName(paymentData: PaymentData): BillingAddress? {
-        val paymentInformation = paymentData.toJson()
-        return try {
+    private fun extractPaymentBillingName(paymentInformation: String): BillingAddress? =
+        try {
             val paymentMethodData = JSONObject(paymentInformation).getJSONObject("paymentMethodData")
             val billingAddress = paymentMethodData
                 .getJSONObject("info")
@@ -236,5 +237,24 @@ class EvervaultPayViewModel(application: Application, val config: Config) : Andr
             Log.e(LOG_TAG, "Error: $error")
             null
         }
+}
+
+internal fun attachPaymentEmail(
+    tokenResponse: TokenResponse,
+    paymentInformation: String,
+): TokenResponse {
+    val email = extractPaymentEmail(paymentInformation) ?: return tokenResponse
+
+    return when (tokenResponse) {
+        is NetworkTokenResponse -> tokenResponse.copy(email = email)
+        is CardResponse -> tokenResponse.copy(email = email)
     }
 }
+
+internal fun extractPaymentEmail(paymentInformation: String): String? =
+    try {
+        JSONObject(paymentInformation).optString("email").takeIf { it.isNotBlank() }
+    } catch (error: JSONException) {
+        Log.e(EvervaultPayViewModel.LOG_TAG, "Error: $error")
+        null
+    }

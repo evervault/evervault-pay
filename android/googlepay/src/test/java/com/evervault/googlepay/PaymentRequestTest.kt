@@ -3,6 +3,7 @@ package com.evervault.googlepay
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -16,6 +17,19 @@ class PaymentRequestTest {
         total = Amount("54.99"),
         lineItems = arrayOf(LineItem("Shell Jacket", Amount("50.00")))
     )
+
+    @Test
+    fun `retains the pre-emailRequired Config constructor`() {
+        assertNotNull(
+            Config::class.java.getConstructor(
+                String::class.java,
+                String::class.java,
+                List::class.java,
+                List::class.java,
+                BillingAddressConfig::class.java,
+            )
+        )
+    }
 
     @Test
     fun `builds a request from config and transaction alone`() {
@@ -133,6 +147,30 @@ class PaymentRequestTest {
         val billing = parameters.getJSONObject("billingAddressParameters")
         assertEquals("MIN", billing.getString("format"))
         assertTrue(billing.getBoolean("phoneNumberRequired"))
+    }
+
+    @Test
+    fun `email is not requested by default`() {
+        val json = JSONObject(buildPaymentRequestJson(config, transaction, "Test Merchant"))
+
+        assertTrue(json.has("emailRequired"))
+        assertFalse(json.getBoolean("emailRequired"))
+    }
+
+    @Test
+    fun `email is requested when configured`() {
+        val json = JSONObject(
+            buildPaymentRequestJson(config.copy(emailRequired = true), transaction, "Test Merchant")
+        )
+
+        assertTrue(json.getBoolean("emailRequired"))
+    }
+
+    @Test
+    fun `isReadyToPayRequest does not carry emailRequired`() {
+        val request = isReadyToPayRequest(config.copy(emailRequired = true))!!
+
+        assertFalse(request.has("emailRequired"))
     }
 
     @Test
