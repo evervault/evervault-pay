@@ -236,8 +236,8 @@ internal suspend fun decryptPaymentData(
 ): TokenResponse {
     val tokenResponse = apiClient.fetchCryptogram(paymentData, merchantId)
     val paymentInformation = paymentData.toJson()
-    extractPaymentBillingName(paymentInformation)?.let { billingName ->
-        tokenResponse.billingAddress = billingName
+    extractPaymentBillingAddress(paymentInformation)?.let { billingAddress ->
+        tokenResponse.billingAddress = billingAddress
     }
     val responseWithPaymentMethodType = attachPaymentMethodType(
         attachPaymentEmail(tokenResponse, paymentInformation),
@@ -248,12 +248,14 @@ internal suspend fun decryptPaymentData(
     return attachAssuranceDetails(responseWithDisplayDetails, paymentInformation)
 }
 
-internal fun extractPaymentBillingName(paymentInformation: String): BillingAddress? =
+internal fun extractPaymentBillingAddress(paymentInformation: String): BillingAddress? =
     try {
-        val paymentMethodData = JSONObject(paymentInformation).getJSONObject("paymentMethodData")
-        val billingAddress = paymentMethodData
+        val billingAddress = JSONObject(paymentInformation)
+            .getJSONObject("paymentMethodData")
             .getJSONObject("info")
-            .getJSONObject("billingAddress")
+            .optJSONObject("billingAddress")
+            ?: return null
+
         Gson().fromJson(billingAddress.toString(), BillingAddress::class.java)
     } catch (error: JSONException) {
         Log.e(EvervaultPayViewModel.LOG_TAG, "Error: $error")
