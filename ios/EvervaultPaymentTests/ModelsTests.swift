@@ -202,7 +202,7 @@ final class ApplePayTransactionTypeTests: XCTestCase {
             paymentSummaryItems: [SummaryItem(label: "Total", amount: Amount("10.00"))]
         ))
 
-        XCTAssertEqual(ApplePayTransactionType(transaction), .oneOff)
+        XCTAssertEqual(try ApplePayTransactionType(transaction), .oneOff)
     }
 
     func testMapsRecurringPayment() throws {
@@ -214,7 +214,7 @@ final class ApplePayTransactionTypeTests: XCTestCase {
             managementURL: URL(string: "https://example.com/manage")!
         ))
 
-        XCTAssertEqual(ApplePayTransactionType(transaction), .recurring)
+        XCTAssertEqual(try ApplePayTransactionType(transaction), .recurring)
     }
 
     func testMapsDisbursement() throws {
@@ -227,7 +227,19 @@ final class ApplePayTransactionTypeTests: XCTestCase {
             merchantCapability: .capability3DS
         ))
 
-        XCTAssertEqual(ApplePayTransactionType(transaction), .disbursement)
+        XCTAssertEqual(try ApplePayTransactionType(transaction), .disbursement)
+    }
+
+    func testMapsAutomaticReloadPayment() throws {
+        let transaction = Transaction.automaticReload(try AutomaticReloadPaymentTransaction(
+            country: "IE",
+            currency: "EUR",
+            paymentDescription: "Gift Card Reload",
+            automaticReloadBilling: SummaryItem(label: "Reload", amount: Amount("20.00")),
+            managementURL: URL(string: "https://example.com/manage")!
+        ))
+
+        XCTAssertEqual(try ApplePayTransactionType(transaction), .automaticReload)
     }
 }
 
@@ -295,6 +307,45 @@ final class TransactionPrefillFieldsTests: XCTestCase {
         XCTAssertEqual(transaction.billingContact?.givenName, "John")
         XCTAssertEqual(transaction.shippingContact?.givenName, "Jane")
         XCTAssertEqual(transaction.shippingType, .delivery)
+        XCTAssertEqual(transaction.requiredShippingContactFields, [.postalAddress])
+    }
+
+    func testAutomaticReloadDefaultsBillingContactAndShippingFieldsToNilOrEmpty() throws {
+        let transaction = try AutomaticReloadPaymentTransaction(
+            country: "IE",
+            currency: "EUR",
+            paymentDescription: "Gift Card Reload",
+            automaticReloadBilling: SummaryItem(label: "Reload", amount: Amount("20.00")),
+            managementURL: URL(string: "https://example.com/manage")!
+        )
+
+        XCTAssertNil(transaction.billingContact)
+        XCTAssertNil(transaction.shippingContact)
+        XCTAssertEqual(transaction.shippingType, .shipping)
+        XCTAssertTrue(transaction.shippingMethods.isEmpty)
+        XCTAssertTrue(transaction.requiredShippingContactFields.isEmpty)
+    }
+
+    func testAutomaticReloadStoresProvidedBillingShippingAndShippingFields() throws {
+        let shippingMethod = PKShippingMethod(label: "Standard", amount: NSDecimalNumber(string: "5.00"))
+        let transaction = try AutomaticReloadPaymentTransaction(
+            country: "IE",
+            currency: "EUR",
+            paymentDescription: "Gift Card Reload",
+            automaticReloadBilling: SummaryItem(label: "Reload", amount: Amount("20.00")),
+            managementURL: URL(string: "https://example.com/manage")!,
+            billingContact: makeBillingContact(),
+            shippingType: .delivery,
+            shippingMethods: [shippingMethod],
+            requiredShippingContactFields: [.postalAddress],
+            shippingContact: makeShippingContact()
+        )
+
+        XCTAssertEqual(transaction.billingContact?.givenName, "John")
+        XCTAssertEqual(transaction.shippingContact?.givenName, "Jane")
+        XCTAssertEqual(transaction.shippingType, .delivery)
+        XCTAssertEqual(transaction.shippingMethods.count, 1)
+        XCTAssertTrue(transaction.shippingMethods.first === shippingMethod)
         XCTAssertEqual(transaction.requiredShippingContactFields, [.postalAddress])
     }
 }
