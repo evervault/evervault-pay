@@ -109,6 +109,19 @@ fileprivate func buildTransaction(type: TransactionType) -> EvervaultPayment.Tra
         recurringBillingRequest.trialBilling = trialBilling
         recurringBillingRequest.supportsCouponCode = true
         return .recurringPayment(recurringBillingRequest)
+    case .automaticReload:
+        let automaticReloadRequest = try! AutomaticReloadPaymentTransaction(
+            country: "IE",
+            currency: "EUR",
+            paymentDescription: "Automatic reload example.",
+            automaticReloadBilling: SummaryItem(label: "Wallet Top-Up", amount: Amount("20.00")),
+            automaticReloadThresholdAmount: Amount("5.00"),
+            managementURL: URL(string: "https://www.merchant.com/manage-wallet")!,
+            requestPayerDetails: [.postalAddress, .name, .emailAddress, .phoneNumber],
+            billingContact: makeSampleBillingContact(),
+            shippingContact: makeSampleShippingContact()
+        )
+        return .automaticReload(automaticReloadRequest)
     }
 }
 
@@ -151,6 +164,8 @@ fileprivate func getUpdatedTransaction(_ newAddress: ShippingContact, transactio
         return disbursement.paymentSummaryItems
     case .recurringPayment(let recurring):
         return recurring.paymentSummaryItems
+    case .automaticReload(let automaticReload):
+        return automaticReload.paymentSummaryItems
     }
 }
 
@@ -243,6 +258,10 @@ fileprivate func getCouponCodeUpdate(_ couponCode: String, transaction: Evervaul
 
     case .disbursement:
         return PKPaymentRequestCouponCodeUpdate(paymentSummaryItems: [])
+
+    case .automaticReload:
+        // Coupon codes aren't the primary use case for a wallet top-up, so no discount logic here.
+        return PKPaymentRequestCouponCodeUpdate(paymentSummaryItems: [])
     }
 }
 
@@ -250,6 +269,7 @@ enum TransactionType {
     case oneOff
     case recurring
     case disbursement
+    case automaticReload
 }
 
 // Example merchant-owned error type, passed to `shouldAuthorize`'s `.failure(_:)`.
@@ -365,6 +385,11 @@ struct ContentView: View {
             TransactionHandler(name: "Recurring", type: .recurring)
                 .tabItem {
                     Label("Recurring", systemImage: "person.crop.circle")
+                }
+
+            TransactionHandler(name: "Automatic Reload", type: .automaticReload)
+                .tabItem {
+                    Label("Automatic Reload", systemImage: "arrow.clockwise")
                 }
         }
     }
