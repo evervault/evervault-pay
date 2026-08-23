@@ -742,9 +742,7 @@ final class CouponCodeDelegateTests: XCTestCase {
         ])
     }
 
-    // Regression test: regularBilling and trialBilling are stored on the model as the real
-    // PassKit types (no reconstruction needed), so it's easy for the fallback to forget to
-    // append them too - which is exactly what happens today.
+    // Regression test. Easy to forget to append regularBilling and trialBilling to the fallback's summary items.
     func testFallsBackToSummaryItemsIncludingRegularAndTrialBillingForRecurringPayment() async throws {
         let spy = SpyDelegate()
         let transaction = Transaction.recurringPayment(try RecurringPaymentTransaction(
@@ -791,9 +789,7 @@ final class CouponCodeDelegateTests: XCTestCase {
         ])
     }
 
-    // Regression test: disbursementItem is stored on the model as a plain SummaryItem (reconstructed
-    // into a PKDisbursementSummaryItem in buildPaymentRequest), so it's easy for the fallback to
-    // forget to append it too - which is exactly what happens today.
+    // Regression test. Easy to forget to append disbursementItem to the fallback's summary items.
     func testFallsBackToSummaryItemsIncludingDisbursementItemForDisbursement() async throws {
         let spy = SpyDelegate()
         let transaction = Transaction.disbursement(try DisbursementTransaction(
@@ -816,9 +812,7 @@ final class CouponCodeDelegateTests: XCTestCase {
         ])
     }
 
-    // Regression test: the reload line item is reconstructed separately from the plain
-    // paymentSummaryItems stored on the model (see buildAutomaticReloadBillingItem), so it's easy
-    // for the fallback path to forget to include it - which is exactly what happened before this fix.
+    // Regression test. Easy to forget to append the reload line item to the fallback's summary items.
     func testFallsBackToSummaryItemsIncludingReloadLineItemForAutomaticReload() async throws {
         let spy = SpyDelegate()
         let transaction = Transaction.automaticReload(try AutomaticReloadPaymentTransaction(

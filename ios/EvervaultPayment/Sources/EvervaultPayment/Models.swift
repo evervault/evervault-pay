@@ -511,11 +511,9 @@ public enum Transaction {
     case oneOffPayment(OneOffPaymentTransaction)
     case disbursement(DisbursementTransaction)
     case recurringPayment(RecurringPaymentTransaction)
-    // Not @available-gated: Swift disallows @available on enum cases with an associated
-    // value, and AutomaticReloadPaymentTransaction itself is safe to construct pre-iOS 16
-    // (see the note on that struct). The genuine iOS 16+ requirement is enforced at the
-    // point we actually build/present the PassKit request, not at the point of identifying
-    // which transaction kind this is.
+    // Not @available-gated. Swift disallows @available on enum cases with an associated
+    // value, and AutomaticReloadPaymentTransaction itself is safe to construct pre-iOS 16.
+    // The iOS 16+ requirement is enforced when we actually build/present the PassKit request.
     case automaticReload(AutomaticReloadPaymentTransaction)
 }
 
