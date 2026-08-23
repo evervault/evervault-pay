@@ -190,6 +190,10 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
                     return []
                 case .disbursement(_):
                     return []
+                default:
+                    // Covers .automaticReload, which can't be named directly here since it's
+                    // gated to iOS 16+ while this switch compiles at the package's iOS 15 minimum.
+                    return []
             }
         }
     }
