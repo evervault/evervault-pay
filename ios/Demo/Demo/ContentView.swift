@@ -160,12 +160,27 @@ fileprivate func getUpdatedTransaction(_ newAddress: ShippingContact, transactio
 
         return summaryItems
     case .disbursement(let disbursement):
-        // Calculate new line items and total for address change
-        return disbursement.paymentSummaryItems
+        var summaryItems = disbursement.paymentSummaryItems
+        if disbursement.merchantCapability == .instantFundsOut,
+           let instantOutFee = disbursement.instantOutFee {
+            summaryItems.append(instantOutFee)
+        }
+        summaryItems.append(disbursement.disbursementItem)
+        return summaryItems
     case .recurringPayment(let recurring):
-        return recurring.paymentSummaryItems
+        // regularBilling/trialBilling are the real PKRecurringPaymentSummaryItem type (unlike
+        // disbursementItem/automaticReloadBilling below), so they need converting to SummaryItem first.
+        var summaryItems = recurring.paymentSummaryItems
+        summaryItems.append(SummaryItem(label: recurring.regularBilling.label, amount: Amount(recurring.regularBilling.amount.stringValue)))
+        if let trial = recurring.trialBilling {
+            summaryItems.append(SummaryItem(label: trial.label, amount: Amount(trial.amount.stringValue)))
+        }
+        return summaryItems
     case .automaticReload(let automaticReload):
-        return automaticReload.paymentSummaryItems
+        // Note: thresholdAmount can't be preserved here - onShippingAddressChange's [SummaryItem]
+        // return type has no field for it, and this always maps to a plain PKPaymentSummaryItem
+        // rather than the real PKAutomaticReloadPaymentSummaryItem (see EvervaultPayment+SwiftUI.swift).
+        return automaticReload.paymentSummaryItems + [automaticReload.automaticReloadBilling]
     }
 }
 
