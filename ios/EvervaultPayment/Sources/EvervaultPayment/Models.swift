@@ -197,8 +197,9 @@ public enum ApplePayTransactionType: String, Codable, Sendable, Equatable {
     case oneOff
     case recurring
     case disbursement
+    case automaticReload
 
-    init(_ transaction: Transaction) {
+    init(_ transaction: Transaction) throws {
         switch transaction {
         case .oneOffPayment:
             self = .oneOff
@@ -206,6 +207,12 @@ public enum ApplePayTransactionType: String, Codable, Sendable, Equatable {
             self = .recurring
         case .disbursement:
             self = .disbursement
+        default:
+            if #available(iOS 16.0, *), case .automaticReload = transaction {
+                self = .automaticReload
+            } else {
+                throw EvervaultError.UnsupportedVersionError
+            }
         }
     }
 }
@@ -440,10 +447,79 @@ public struct RecurringPaymentTransaction {
     }
 }
 
+public struct AutomaticReloadPaymentTransaction {
+    public var country: String
+    public var currency: String
+    public var paymentSummaryItems: [SummaryItem]
+    public var paymentDescription: String
+    public var automaticReloadBilling: SummaryItem
+    public var automaticReloadThresholdAmount: Amount?
+    public var managementURL: URL
+    public var billingAgreement: String?
+    public var requestPayerDetails: Set<ContactField>
+    public var supportsCouponCode: Bool
+    public var couponCode: String?
+    public var shippingType: PKShippingType
+    public var shippingMethods: [PKShippingMethod]
+    public var requiredShippingContactFields: Set<ContactField>
+    public var billingContact: ApplePayPaymentContact?
+    public var shippingContact: ApplePayPaymentContact?
+
+    public init(country: String, currency: String, paymentSummaryItems: [SummaryItem] = [], paymentDescription: String, automaticReloadBilling: SummaryItem, automaticReloadThresholdAmount: Amount? = nil, managementURL: URL, requestPayerDetails: Set<ContactField> = [], supportsCouponCode: Bool = false, couponCode: String? = nil, billingContact: ApplePayPaymentContact? = nil, shippingType: PKShippingType = .shipping, shippingMethods: [PKShippingMethod] = [], requiredShippingContactFields: Set<ContactField> = [], shippingContact: ApplePayPaymentContact? = nil) throws {
+        self.country = country
+        self.currency = currency
+        self.paymentSummaryItems = paymentSummaryItems
+        self.paymentDescription = paymentDescription
+        self.automaticReloadBilling = automaticReloadBilling
+        self.automaticReloadThresholdAmount = automaticReloadThresholdAmount
+        self.managementURL = managementURL
+        self.requestPayerDetails = requestPayerDetails
+        self.supportsCouponCode = supportsCouponCode
+        self.couponCode = couponCode
+        self.shippingType = shippingType
+        self.shippingMethods = shippingMethods
+        self.requiredShippingContactFields = requiredShippingContactFields
+        self.billingContact = billingContact
+        self.shippingContact = shippingContact
+    }
+
+    @available(iOS 16.0, *)
+    public init(country: Locale.Region, currency: Locale.Currency, paymentSummaryItems: [SummaryItem] = [], paymentDescription: String, automaticReloadBilling: SummaryItem, automaticReloadThresholdAmount: Amount? = nil, managementURL: URL, requestPayerDetails: Set<ContactField> = [], supportsCouponCode: Bool = false, couponCode: String? = nil, billingContact: ApplePayPaymentContact? = nil, shippingType: PKShippingType = .shipping, shippingMethods: [PKShippingMethod] = [], requiredShippingContactFields: Set<ContactField> = [], shippingContact: ApplePayPaymentContact? = nil) throws {
+        self.country = country.identifier
+        self.currency = currency.identifier
+        self.paymentSummaryItems = paymentSummaryItems
+        self.paymentDescription = paymentDescription
+        self.automaticReloadBilling = automaticReloadBilling
+        self.automaticReloadThresholdAmount = automaticReloadThresholdAmount
+        self.managementURL = managementURL
+        self.requestPayerDetails = requestPayerDetails
+        self.supportsCouponCode = supportsCouponCode
+        self.couponCode = couponCode
+        self.shippingType = shippingType
+        self.shippingMethods = shippingMethods
+        self.requiredShippingContactFields = requiredShippingContactFields
+        self.billingContact = billingContact
+        self.shippingContact = shippingContact
+
+        guard currency.isISOCurrency else {
+            throw EvervaultError.InvalidCurrencyError
+        }
+        guard country.isISORegion else {
+            throw EvervaultError.InvalidCountryError
+        }
+    }
+}
+
 public enum Transaction {
     case oneOffPayment(OneOffPaymentTransaction)
     case disbursement(DisbursementTransaction)
     case recurringPayment(RecurringPaymentTransaction)
+    // Not @available-gated: Swift disallows @available on enum cases with an associated
+    // value, and AutomaticReloadPaymentTransaction itself is safe to construct pre-iOS 16
+    // (see the note on that struct). The genuine iOS 16+ requirement is enforced at the
+    // point we actually build/present the PassKit request, not at the point of identifying
+    // which transaction kind this is.
+    case automaticReload(AutomaticReloadPaymentTransaction)
 }
 
 struct ApplePayTokenHeader: Codable {
