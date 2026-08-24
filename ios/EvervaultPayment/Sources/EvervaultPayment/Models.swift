@@ -296,8 +296,12 @@ public struct OneOffPaymentTransaction {
     public var couponCode: String?
     public var billingContact: ApplePayPaymentContact?
     public var shippingContact: ApplePayPaymentContact?
+    /// Opaque merchant data included on the Apple Pay request.
+    public var applicationData: Data?
+    /// Restrict payments to cards issued in these ISO 3166 country codes.
+    public var supportedCountries: Set<String>?
 
-    public init(country: String, currency: String, paymentSummaryItems: [SummaryItem], shippingType: PKShippingType = .shipping, shippingMethods: [PKShippingMethod] = [], requiredShippingContactFields: Set<ContactField> = [], requestPayerDetails: Set<ContactField> = [], supportsCouponCode: Bool = false, couponCode: String? = nil, billingContact: ApplePayPaymentContact? = nil, shippingContact: ApplePayPaymentContact? = nil) throws {
+    public init(country: String, currency: String, paymentSummaryItems: [SummaryItem], shippingType: PKShippingType = .shipping, shippingMethods: [PKShippingMethod] = [], requiredShippingContactFields: Set<ContactField> = [], requestPayerDetails: Set<ContactField> = [], supportsCouponCode: Bool = false, couponCode: String? = nil, billingContact: ApplePayPaymentContact? = nil, shippingContact: ApplePayPaymentContact? = nil, applicationData: Data? = nil, supportedCountries: Set<String>? = nil) throws {
         self.country = country
         self.currency = currency
         self.paymentSummaryItems = paymentSummaryItems
@@ -309,6 +313,8 @@ public struct OneOffPaymentTransaction {
         self.couponCode = couponCode
         self.billingContact = billingContact
         self.shippingContact = shippingContact
+        self.applicationData = applicationData
+        self.supportedCountries = supportedCountries
 
         guard paymentSummaryItems.count > 0 else {
             throw EvervaultError.InvalidTransactionError
@@ -316,7 +322,7 @@ public struct OneOffPaymentTransaction {
     }
 
     @available(iOS 16, *)
-    public init(country: Locale.Region, currency: Locale.Currency, paymentSummaryItems: [SummaryItem], shippingType: PKShippingType = .shipping, shippingMethods: [PKShippingMethod] = [], requiredShippingContactFields: Set<ContactField> = [], requestPayerDetails: Set<ContactField> = [], supportsCouponCode: Bool = false, couponCode: String? = nil, billingContact: ApplePayPaymentContact? = nil, shippingContact: ApplePayPaymentContact? = nil) throws {
+    public init(country: Locale.Region, currency: Locale.Currency, paymentSummaryItems: [SummaryItem], shippingType: PKShippingType = .shipping, shippingMethods: [PKShippingMethod] = [], requiredShippingContactFields: Set<ContactField> = [], requestPayerDetails: Set<ContactField> = [], supportsCouponCode: Bool = false, couponCode: String? = nil, billingContact: ApplePayPaymentContact? = nil, shippingContact: ApplePayPaymentContact? = nil, applicationData: Data? = nil, supportedCountries: Set<String>? = nil) throws {
         self.country = country.identifier
         self.currency = currency.identifier
         self.paymentSummaryItems = paymentSummaryItems
@@ -328,6 +334,8 @@ public struct OneOffPaymentTransaction {
         self.couponCode = couponCode
         self.billingContact = billingContact
         self.shippingContact = shippingContact
+        self.applicationData = applicationData
+        self.supportedCountries = supportedCountries
 
         guard paymentSummaryItems.count > 0 else {
             throw EvervaultError.InvalidTransactionError
@@ -349,8 +357,10 @@ public struct DisbursementTransaction {
     public var instantOutFee: SummaryItem?
     public var requiredRecipientDetails: [ContactField]
     public var merchantCapability: MerchantCapability
+    /// Opaque merchant data included on the Apple Pay request.
+    public var applicationData: Data?
 
-    public init(country: String, currency: String, paymentSummaryItems: [SummaryItem], disbursementItem: SummaryItem, instantOutFee: SummaryItem? = nil, requiredRecipientDetails: [ContactField], merchantCapability: MerchantCapability) throws {
+    public init(country: String, currency: String, paymentSummaryItems: [SummaryItem], disbursementItem: SummaryItem, instantOutFee: SummaryItem? = nil, requiredRecipientDetails: [ContactField], merchantCapability: MerchantCapability, applicationData: Data? = nil) throws {
         self.country = country
         self.currency = currency
         self.paymentSummaryItems = paymentSummaryItems
@@ -358,15 +368,16 @@ public struct DisbursementTransaction {
         self.instantOutFee = instantOutFee
         self.requiredRecipientDetails = requiredRecipientDetails
         self.merchantCapability = merchantCapability
-        
+        self.applicationData = applicationData
+
         // 1. Ensure at least one line item is provided
         guard paymentSummaryItems.count > 0 else {
             throw EvervaultError.InvalidTransactionError
         }
     }
-    
+
     @available(iOS 16, *)
-    public init(country: Locale.Region, currency: Locale.Currency, paymentSummaryItems: [SummaryItem], disbursementItem: SummaryItem, instantOutFee: SummaryItem? = nil, requiredRecipientDetails: [ContactField], merchantCapability: MerchantCapability) throws {
+    public init(country: Locale.Region, currency: Locale.Currency, paymentSummaryItems: [SummaryItem], disbursementItem: SummaryItem, instantOutFee: SummaryItem? = nil, requiredRecipientDetails: [ContactField], merchantCapability: MerchantCapability, applicationData: Data? = nil) throws {
         self.country = country.identifier
         self.currency = currency.identifier
         self.paymentSummaryItems = paymentSummaryItems
@@ -374,7 +385,8 @@ public struct DisbursementTransaction {
         self.instantOutFee = instantOutFee
         self.requiredRecipientDetails = requiredRecipientDetails
         self.merchantCapability = merchantCapability
-        
+        self.applicationData = applicationData
+
         guard paymentSummaryItems.count > 0 else {
             throw EvervaultError.InvalidTransactionError
         }
@@ -403,8 +415,12 @@ public struct RecurringPaymentTransaction {
     public var requiredShippingContactFields: Set<ContactField>
     public var billingContact: ApplePayPaymentContact?
     public var shippingContact: ApplePayPaymentContact?
+    /// Opaque merchant data included on the Apple Pay request.
+    public var applicationData: Data?
+    /// Restrict payments to cards issued in these ISO 3166 country codes.
+    public var supportedCountries: Set<String>?
 
-    public init(country: String, currency: String, paymentSummaryItems: [SummaryItem] = [], paymentDescription: String, regularBilling: PKRecurringPaymentSummaryItem, managementURL: URL, requestPayerDetails: Set<ContactField> = [], supportsCouponCode: Bool = false, couponCode: String? = nil, billingContact: ApplePayPaymentContact? = nil, shippingType: PKShippingType = .shipping, requiredShippingContactFields: Set<ContactField> = [], shippingContact: ApplePayPaymentContact? = nil) throws {
+    public init(country: String, currency: String, paymentSummaryItems: [SummaryItem] = [], paymentDescription: String, regularBilling: PKRecurringPaymentSummaryItem, managementURL: URL, requestPayerDetails: Set<ContactField> = [], supportsCouponCode: Bool = false, couponCode: String? = nil, billingContact: ApplePayPaymentContact? = nil, shippingType: PKShippingType = .shipping, requiredShippingContactFields: Set<ContactField> = [], shippingContact: ApplePayPaymentContact? = nil, applicationData: Data? = nil, supportedCountries: Set<String>? = nil) throws {
         self.country = country
         self.currency = currency
         self.paymentSummaryItems = paymentSummaryItems
@@ -418,10 +434,12 @@ public struct RecurringPaymentTransaction {
         self.requiredShippingContactFields = requiredShippingContactFields
         self.billingContact = billingContact
         self.shippingContact = shippingContact
+        self.applicationData = applicationData
+        self.supportedCountries = supportedCountries
     }
 
     @available(iOS 16.0, *)
-    public init(country: Locale.Region, currency: Locale.Currency, paymentSummaryItems: [SummaryItem] = [], paymentDescription: String, regularBilling: PKRecurringPaymentSummaryItem, managementURL: URL, requestPayerDetails: Set<ContactField> = [], supportsCouponCode: Bool = false, couponCode: String? = nil, billingContact: ApplePayPaymentContact? = nil, shippingType: PKShippingType = .shipping, requiredShippingContactFields: Set<ContactField> = [], shippingContact: ApplePayPaymentContact? = nil) throws {
+    public init(country: Locale.Region, currency: Locale.Currency, paymentSummaryItems: [SummaryItem] = [], paymentDescription: String, regularBilling: PKRecurringPaymentSummaryItem, managementURL: URL, requestPayerDetails: Set<ContactField> = [], supportsCouponCode: Bool = false, couponCode: String? = nil, billingContact: ApplePayPaymentContact? = nil, shippingType: PKShippingType = .shipping, requiredShippingContactFields: Set<ContactField> = [], shippingContact: ApplePayPaymentContact? = nil, applicationData: Data? = nil, supportedCountries: Set<String>? = nil) throws {
         self.country = country.identifier
         self.currency = currency.identifier
         self.paymentSummaryItems = paymentSummaryItems
@@ -435,6 +453,8 @@ public struct RecurringPaymentTransaction {
         self.requiredShippingContactFields = requiredShippingContactFields
         self.billingContact = billingContact
         self.shippingContact = shippingContact
+        self.applicationData = applicationData
+        self.supportedCountries = supportedCountries
 
         guard currency.isISOCurrency else {
             throw EvervaultError.InvalidCurrencyError
