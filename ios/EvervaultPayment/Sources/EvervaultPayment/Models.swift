@@ -10,6 +10,7 @@ public typealias ShippingMethod = PKShippingMethod
 public typealias ShippingContact = PKContact
 public typealias ShippingContactField = PKContactField
 public typealias ShippingType = PKShippingType
+public typealias SummaryItemType = PKPaymentSummaryItemType
 
 public struct ApplePayNetworkTokenExpiry: Codable, Sendable, Equatable {
     init(month: String, year: String) {
@@ -271,10 +272,14 @@ public struct Amount {
 public struct SummaryItem {
     public let label: String
     public let amount: Amount
-    
-    public init(label: String, amount: Amount) {
+    /// Whether this item's amount is final or still pending (e.g. an estimated shipping cost).
+    /// Maps to `PKPaymentSummaryItem.type`. Defaults to `.final` when omitted.
+    public let type: SummaryItemType
+
+    public init(label: String, amount: Amount, type: SummaryItemType = .final) {
         self.label = label
         self.amount = amount
+        self.type = type
     }
 }
 

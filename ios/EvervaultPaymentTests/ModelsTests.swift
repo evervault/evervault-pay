@@ -231,6 +231,20 @@ final class ApplePayTransactionTypeTests: XCTestCase {
     }
 }
 
+final class SummaryItemTests: XCTestCase {
+    func testDefaultsTypeToFinal() {
+        let item = SummaryItem(label: "Total", amount: Amount("10.00"))
+
+        XCTAssertEqual(item.type, .final)
+    }
+
+    func testStoresProvidedType() {
+        let item = SummaryItem(label: "Shipping", amount: Amount("5.00"), type: .pending)
+
+        XCTAssertEqual(item.type, .pending)
+    }
+}
+
 final class TransactionPrefillFieldsTests: XCTestCase {
     private func makeBillingContact() -> ApplePayPaymentContact {
         ApplePayPaymentContact(givenName: "John", familyName: "Doe")
