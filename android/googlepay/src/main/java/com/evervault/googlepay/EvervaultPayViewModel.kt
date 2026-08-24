@@ -196,8 +196,14 @@ class EvervaultPayViewModel(application: Application, val config: Config) : Andr
                         tokenResponse.billingAddress = billingName
                     }
                     val responseWithEmail = attachPaymentEmail(tokenResponse, paymentInformation)
+                    val responseWithPaymentMethodType = attachPaymentMethodType(
+                        responseWithEmail,
+                        paymentInformation,
+                    )
 
-                    _paymentState.update { PaymentState.PaymentCompleted(response = responseWithEmail) }
+                    _paymentState.update {
+                        PaymentState.PaymentCompleted(response = responseWithPaymentMethodType)
+                    }
                 } catch (_: JsonSyntaxException) {
                     _paymentState.update {
                         PaymentState.Error(CommonStatusCodes.INTERNAL_ERROR,"Error decoding payment token data")
@@ -225,19 +231,19 @@ class EvervaultPayViewModel(application: Application, val config: Config) : Andr
         val request = IsReadyToPayRequest.fromJson(isReadyToPayRequest(this).toString())
         return paymentsClient.await().isReadyToPay(request).await()
     }
-
-    private fun extractPaymentBillingName(paymentInformation: String): BillingAddress? =
-        try {
-            val paymentMethodData = JSONObject(paymentInformation).getJSONObject("paymentMethodData")
-            val billingAddress = paymentMethodData
-                .getJSONObject("info")
-                .getJSONObject("billingAddress")
-            Gson().fromJson(billingAddress.toString(), BillingAddress::class.java)
-        } catch (error: JSONException) {
-            Log.e(LOG_TAG, "Error: $error")
-            null
-        }
 }
+
+internal fun extractPaymentBillingName(paymentInformation: String): BillingAddress? =
+    try {
+        val paymentMethodData = JSONObject(paymentInformation).getJSONObject("paymentMethodData")
+        val billingAddress = paymentMethodData
+            .getJSONObject("info")
+            .getJSONObject("billingAddress")
+        Gson().fromJson(billingAddress.toString(), BillingAddress::class.java)
+    } catch (error: JSONException) {
+        Log.e(EvervaultPayViewModel.LOG_TAG, "Error: $error")
+        null
+    }
 
 internal fun attachPaymentEmail(
     tokenResponse: TokenResponse,
@@ -254,6 +260,40 @@ internal fun attachPaymentEmail(
 internal fun extractPaymentEmail(paymentInformation: String): String? =
     try {
         JSONObject(paymentInformation).optString("email").takeIf { it.isNotBlank() }
+    } catch (error: JSONException) {
+        Log.e(EvervaultPayViewModel.LOG_TAG, "Error: $error")
+        null
+    }
+
+internal fun attachPaymentMethodType(
+    tokenResponse: TokenResponse,
+    paymentInformation: String,
+): TokenResponse {
+    val paymentMethodType = extractPaymentMethodType(paymentInformation) ?: return tokenResponse
+
+    return when (tokenResponse) {
+        is NetworkTokenResponse -> tokenResponse.copy(
+            card = tokenResponse.card.copy(paymentMethodType = paymentMethodType),
+        )
+        is CardResponse -> tokenResponse.copy(
+            card = tokenResponse.card.copy(paymentMethodType = paymentMethodType),
+        )
+    }
+}
+
+internal fun extractPaymentMethodType(paymentInformation: String): String? =
+    try {
+        when (
+            JSONObject(paymentInformation)
+                .getJSONObject("paymentMethodData")
+                .getJSONObject("info")
+                .optString("cardFundingSource")
+        ) {
+            "CREDIT" -> "credit"
+            "DEBIT" -> "debit"
+            "PREPAID" -> "prepaid"
+            else -> null
+        }
     } catch (error: JSONException) {
         Log.e(EvervaultPayViewModel.LOG_TAG, "Error: $error")
         null

@@ -29,7 +29,26 @@ data class GooglePayCard(
     val country: String? = null,
     val currency: String? = null,
     val issuer: String? = null,
-)
+    val paymentMethodType: String? = null,
+) {
+    /** Retains the constructor signature from releases before `paymentMethodType`. */
+    constructor(
+        brand: String?,
+        funding: String?,
+        segment: String?,
+        country: String?,
+        currency: String?,
+        issuer: String?,
+    ) : this(
+        brand = brand,
+        funding = funding,
+        segment = segment,
+        country = country,
+        currency = currency,
+        issuer = issuer,
+        paymentMethodType = null,
+    )
+}
 
 data class NetworkTokenResponse(
     val card: GooglePayCard,
@@ -51,7 +70,30 @@ data class FpanCardDetails(
     val country: String? = null,
     val currency: String? = null,
     val issuer: String? = null,
-)
+    val paymentMethodType: String? = null,
+) {
+    /** Retains the constructor signature from releases before `paymentMethodType`. */
+    constructor(
+        number: String,
+        expiry: CardExpiry,
+        brand: String?,
+        funding: String?,
+        segment: String?,
+        country: String?,
+        currency: String?,
+        issuer: String?,
+    ) : this(
+        number = number,
+        expiry = expiry,
+        brand = brand,
+        funding = funding,
+        segment = segment,
+        country = country,
+        currency = currency,
+        issuer = issuer,
+        paymentMethodType = null,
+    )
+}
 
 data class CardResponse(
     val card: FpanCardDetails,
