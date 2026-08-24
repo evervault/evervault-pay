@@ -14,6 +14,7 @@ jobs:
   Pod-Lint:
     name: Cocoapods Lint
     runs-on: macos-15
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -28,6 +29,7 @@ jobs:
   Build-Device:
     name: Build Device
     runs-on: macos-15
+    timeout-minutes: 20
     steps:
       - uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1.7.0
         with:
@@ -55,6 +57,7 @@ jobs:
   Test-Package:
     name: Test EvervaultPayment package
     runs-on: macos-15
+    timeout-minutes: 25
     env:
       DEVICE_NAME: "iPhone 16"
     steps:
@@ -72,11 +75,17 @@ jobs:
         env:
           platform: ${{ 'iOS Simulator' }}
         run: |
-          xcodebuild test -scheme EvervaultPayment -destination "platform=$platform,name=$DEVICE_NAME"
+          NSUnbufferedIO=YES xcodebuild test \
+            -scheme EvervaultPayment \
+            -destination "platform=$platform,name=$DEVICE_NAME" \
+            -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 120 \
+            -maximum-test-execution-time-allowance 300
 
   Build-Simulator:
     name: Build and Test default scheme using any available iPhone simulator
     runs-on: macos-15
+    timeout-minutes: 25
     env:
       DEVICE_NAME: "iPhone 16"
     steps:
@@ -107,4 +116,15 @@ jobs:
           # xcrun xctrace returns via stderr, not the expected stdout (see https://developer.apple.com/forums/thread/663959)
           if [ "`ls -A | grep -i \\.xcworkspace\$`" ]; then filetype_parameter="workspace" && file_to_build="`ls -A | grep -i \\.xcworkspace\$`"; else filetype_parameter="project" && file_to_build="`ls -A | grep -i \\.xcodeproj\$`"; fi
           file_to_build=`echo $file_to_build | awk '{$1=$1;print}'`
-          xcodebuild test -scheme "$scheme" -"$filetype_parameter" "$file_to_build" CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO -destination "platform=$platform,name=$DEVICE_NAME"
+          # DemoUITests is unmodified Xcode template boilerplate (no assertions). Its
+          # XCUITest runner regularly fails to hand off to the simulator on CI and then
+          # blocks with no overall timeout, so skip it and keep the build + unit tests.
+          NSUnbufferedIO=YES xcodebuild test \
+            -scheme "$scheme" \
+            -"$filetype_parameter" "$file_to_build" \
+            -destination "platform=$platform,name=$DEVICE_NAME" \
+            -skip-testing:DemoUITests \
+            -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 120 \
+            -maximum-test-execution-time-allowance 300 \
+            CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO
