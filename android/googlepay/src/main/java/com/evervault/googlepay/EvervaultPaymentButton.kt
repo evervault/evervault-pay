@@ -2,7 +2,6 @@ package com.evervault.googlepay
 
 import android.app.Activity
 import android.content.Context
-import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -15,6 +14,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.google.pay.button.PayButton
+import com.google.android.gms.common.api.ApiException
+import com.google.android.gms.common.api.CommonStatusCodes
+import com.google.android.gms.common.api.Status
 import com.google.android.gms.tasks.Task
 import com.google.android.gms.wallet.AutoResolveHelper
 import com.google.android.gms.wallet.PaymentData
@@ -29,9 +31,28 @@ abstract class PaymentState internal constructor() {
     object Available : PaymentState()
     object Unavailable: PaymentState()
     class PaymentCompleted(val response: TokenResponse) : PaymentState()
+    object Cancelled : PaymentState()
     class Error(val code: Int, val message: String? = null) : PaymentState()
 }
 
+/**
+ * Maps a Google Pay failure onto the state the buyer's action deserves. A dismissed
+ * sheet reports [PaymentState.Cancelled]; everything else is a genuine
+ * [PaymentState.Error].
+ */
+internal fun classifyPaymentFailure(statusCode: Int?, message: String?): PaymentState =
+    if (statusCode == CommonStatusCodes.CANCELED) {
+        PaymentState.Cancelled
+    } else {
+        PaymentState.Error(statusCode ?: CommonStatusCodes.INTERNAL_ERROR, message)
+    }
+
+internal fun classifyPaymentFailure(error: Throwable): PaymentState =
+    if (error is ApiException) {
+        classifyPaymentFailure(error.statusCode, error.status.statusMessage ?: error.message)
+    } else {
+        classifyPaymentFailure(null, error.message)
+    }
 
 /**
  * Creates an instance of [PaymentsClient] for use in an [Context] using the
@@ -72,12 +93,30 @@ fun EvervaultPaymentButton(
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartIntentSenderForResult()
     ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            val data = PaymentData.getFromIntent(result.data!!)
-            if (data != null) {
-                model.handlePaymentData(data)
+        when (result.resultCode) {
+            Activity.RESULT_OK -> {
+                val data = result.data?.let(PaymentData::getFromIntent)
+                if (data != null) {
+                    model.handlePaymentData(data)
+                } else {
+                    model.handlePaymentFailure(IllegalStateException("No payment data"))
+                }
             }
+            Activity.RESULT_CANCELED -> model.handlePaymentFailure(
+                ApiException(Status(CommonStatusCodes.CANCELED)),
+            )
+            AutoResolveHelper.RESULT_ERROR -> {
+                val status = result.data?.let(AutoResolveHelper::getStatusFromIntent)
+                model.handlePaymentFailure(
+                    status?.let(::ApiException)
+                        ?: IllegalStateException("Google Pay resolution failed"),
+                )
+            }
+            else -> model.handlePaymentFailure(
+                IllegalStateException("Unknown Google Pay result: ${result.resultCode}"),
+            )
         }
+        model.isClickable.update { true }
     }
 
     val onClickHandler = onClick@{
@@ -95,8 +134,8 @@ fun EvervaultPaymentButton(
                     launcher.launch(request)
                 }
                 is PaymentResult.Failure -> {
+                    model.handlePaymentFailure(result.throwable)
                     model.isClickable.update { true }
-                    Log.e(EvervaultPayViewModel.LOG_TAG, "Payment failed", result.throwable)
                 }
             }
         }

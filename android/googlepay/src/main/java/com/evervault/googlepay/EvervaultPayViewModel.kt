@@ -1,6 +1,7 @@
 package com.evervault.googlepay
 
 import android.app.Application
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -129,9 +130,7 @@ class EvervaultPayViewModel(application: Application, val config: Config) : Andr
             config.merchantId,
             object : EvervaultPayAPICallback {
                 override fun onFailure(e: IOException) {
-                    Log.e(LOG_TAG, "An exception occurred while fetching the merchant", e)
-                    _paymentState.update { PaymentState.Error(CommonStatusCodes.INTERNAL_ERROR, e.message) }
-                    cont.cancel()
+                    cont.resumeWith(Result.failure(e))
                 }
 
                 override fun onResponse(response: ResponseBody) {
@@ -139,8 +138,7 @@ class EvervaultPayViewModel(application: Application, val config: Config) : Andr
                         val merchant = Gson().fromJson(response.string(), Merchant::class.java)
                         cont.resume(merchant.name)
                     } catch (e: Exception) {
-                        _paymentState.update { PaymentState.Error(CommonStatusCodes.INTERNAL_ERROR, e.message) }
-                        cont.cancel()
+                        cont.resumeWith(Result.failure(e))
                     }
                 }
             }
@@ -168,12 +166,24 @@ class EvervaultPayViewModel(application: Application, val config: Config) : Andr
                 PaymentResult.Success(paymentData)
             } catch (e: ResolvableApiException) {
                 PaymentResult.Resolvable(e.resolution)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 PaymentResult.Failure(e)
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             PaymentResult.Failure(e)
         }
+    }
+
+    fun handlePaymentFailure(error: Throwable) {
+        val state = classifyPaymentFailure(error)
+        if (state is PaymentState.Error) {
+            Log.e(LOG_TAG, "Payment failed", error)
+        }
+        _paymentState.update { state }
     }
 
     fun handlePaymentData(paymentData: PaymentData) {
