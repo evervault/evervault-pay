@@ -1,6 +1,7 @@
 package com.evervault.googlepay
 
 import android.app.Application
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -168,9 +169,13 @@ class EvervaultPayViewModel(application: Application, val config: Config) : Andr
                 PaymentResult.Success(paymentData)
             } catch (e: ResolvableApiException) {
                 PaymentResult.Resolvable(e.resolution)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 PaymentResult.Failure(e)
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             PaymentResult.Failure(e)
         }
