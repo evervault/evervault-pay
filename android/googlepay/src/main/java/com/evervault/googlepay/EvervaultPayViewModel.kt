@@ -138,7 +138,7 @@ class EvervaultPayViewModel(application: Application, val config: Config) : Andr
                         val merchant = Gson().fromJson(response.string(), Merchant::class.java)
                         cont.resume(merchant.name)
                     } catch (e: Exception) {
-                        cont.resumeWith(Result.failure(e))
+                        cont.resumeWithException(e)
                     }
                 }
             }
