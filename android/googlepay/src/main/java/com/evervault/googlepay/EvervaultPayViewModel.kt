@@ -130,9 +130,7 @@ class EvervaultPayViewModel(application: Application, val config: Config) : Andr
             config.merchantId,
             object : EvervaultPayAPICallback {
                 override fun onFailure(e: IOException) {
-                    Log.e(LOG_TAG, "An exception occurred while fetching the merchant", e)
-                    _paymentState.update { PaymentState.Error(CommonStatusCodes.INTERNAL_ERROR, e.message) }
-                    cont.cancel()
+                    cont.resumeWith(Result.failure(e))
                 }
 
                 override fun onResponse(response: ResponseBody) {
@@ -140,8 +138,7 @@ class EvervaultPayViewModel(application: Application, val config: Config) : Andr
                         val merchant = Gson().fromJson(response.string(), Merchant::class.java)
                         cont.resume(merchant.name)
                     } catch (e: Exception) {
-                        _paymentState.update { PaymentState.Error(CommonStatusCodes.INTERNAL_ERROR, e.message) }
-                        cont.cancel()
+                        cont.resumeWith(Result.failure(e))
                     }
                 }
             }
