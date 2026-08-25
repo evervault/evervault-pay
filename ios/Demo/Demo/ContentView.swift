@@ -42,6 +42,18 @@ fileprivate func makeSampleShippingContact() -> ApplePayPaymentContact {
     )
 }
 
+fileprivate func makeSampleShippingMethods() -> [PKShippingMethod] {
+    let standard = PKShippingMethod(label: "Standard Shipping", amount: NSDecimalNumber(string: "0.00"))
+    standard.identifier = "standard"
+    standard.detail = "Delivered in 5-7 business days"
+
+    let express = PKShippingMethod(label: "Express Shipping", amount: NSDecimalNumber(string: "9.99"))
+    express.identifier = "express"
+    express.detail = "Delivered in 1-2 business days"
+
+    return [standard, express]
+}
+
 fileprivate func buildTransaction(type: TransactionType) -> EvervaultPayment.Transaction {
     switch type {
     case .disbursement:
@@ -73,7 +85,7 @@ fileprivate func buildTransaction(type: TransactionType) -> EvervaultPayment.Tra
                  SummaryItem(label: "Total", amount: Amount("37.50"))
              ],
              shippingType: .shipping,
-             shippingMethods: [],
+             shippingMethods: makeSampleShippingMethods(),
              requiredShippingContactFields: [.postalAddress, .name, .emailAddress, .phoneNumber],
              requestPayerDetails: [.postalAddress, .name, .emailAddress, .phoneNumber],
              supportsCouponCode: true,
@@ -252,6 +264,42 @@ fileprivate func getCouponCodeUpdate(_ couponCode: String, transaction: Evervaul
     }
 }
 
+/// Example shipping-method handling: recomputes the total to include the selected method's cost.
+/// Not wired up for recurring/disbursement transactions - shipping methods are only modeled for one-off purchases.
+fileprivate func getShippingMethodUpdate(_ shippingMethod: PKShippingMethod, transaction: EvervaultPayment.Transaction) -> PKPaymentRequestShippingMethodUpdate {
+    let formatter = NumberFormatter()
+    formatter.numberStyle = .decimal
+    formatter.minimumFractionDigits = 2
+    formatter.maximumFractionDigits = 2
+
+    switch transaction {
+    case .oneOffPayment(let oneOff):
+        var summaryItems = oneOff.paymentSummaryItems
+        // Remove the old "Total" line item; we'll recompute and re-append it below.
+        _ = summaryItems.popLast()
+
+        let subtotal = summaryItems.map { $0.amount.amount as Decimal }.reduce(Decimal.zero, +)
+        let total = subtotal + (shippingMethod.amount as Decimal)
+
+        summaryItems.append(SummaryItem(label: shippingMethod.label, amount: Amount(formatter.string(from: shippingMethod.amount) ?? shippingMethod.amount.stringValue)))
+        summaryItems.append(SummaryItem(label: "Total", amount: Amount(formatter.string(from: total as NSDecimalNumber) ?? total.description)))
+
+        return PKPaymentRequestShippingMethodUpdate(
+            paymentSummaryItems: summaryItems.map { PKPaymentSummaryItem(label: $0.label, amount: $0.amount.amount, type: $0.type) }
+        )
+
+    case .recurringPayment(let recurring):
+        return PKPaymentRequestShippingMethodUpdate(
+            paymentSummaryItems: recurring.paymentSummaryItems.map { PKPaymentSummaryItem(label: $0.label, amount: $0.amount.amount, type: $0.type) }
+        )
+
+    case .disbursement(let disbursement):
+        return PKPaymentRequestShippingMethodUpdate(
+            paymentSummaryItems: disbursement.paymentSummaryItems.map { PKPaymentSummaryItem(label: $0.label, amount: $0.amount.amount, type: $0.type) }
+        )
+    }
+}
+
 enum TransactionType {
     case oneOff
     case recurring
@@ -329,6 +377,8 @@ struct TransactionHandler : View {
                         return getUpdatedTransaction(newAddress, transaction: self.transaction)
                     }.onCouponCodeChange { couponCode in
                         return getCouponCodeUpdate(couponCode, transaction: self.transaction)
+                    }.onShippingMethodChange { shippingMethod in
+                        return getShippingMethodUpdate(shippingMethod, transaction: self.transaction)
                     }.prepareTransaction { transaction in
                         print("Preparing transaction")
                     }.onCancel {
