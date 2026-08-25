@@ -176,6 +176,14 @@ class EvervaultPayViewModel(application: Application, val config: Config) : Andr
         }
     }
 
+    fun handlePaymentFailure(error: Throwable) {
+        val state = classifyPaymentFailure(error)
+        if (state is PaymentState.Error) {
+            Log.e(LOG_TAG, "Payment failed", error)
+        }
+        _paymentState.update { state }
+    }
+
     fun handlePaymentData(paymentData: PaymentData) {
         this.apiClient.fetchCryptogram(paymentData, config.merchantId, object : EvervaultPayAPICallback {
             override fun onFailure(e: IOException) {
