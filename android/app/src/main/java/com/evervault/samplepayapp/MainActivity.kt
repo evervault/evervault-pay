@@ -65,7 +65,7 @@ class MainActivity : AppCompatActivity() {
 
             when (val state = payState) {
                 is PaymentState.Unavailable -> Text("Google Pay is not available.")
-                is PaymentState.Available -> ProductScreen(
+                is PaymentState.Available, is PaymentState.Cancelled -> ProductScreen(
                     model = model,
                     transaction = transaction,
                     type = EvervaultButtonType.Order,
