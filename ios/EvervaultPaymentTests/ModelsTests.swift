@@ -1091,6 +1091,36 @@ final class PaymentMethodDelegateTests: XCTestCase {
     }
 }
 
+/// PassKit dispatches via `respondsToSelector:`, so this checks the real ObjC selector is wired up.
+final class DelegateObjCSelectorRegistrationTests: XCTestCase {
+    func testRespondsToDidSelectShippingMethodSelector() {
+        let sel = NSSelectorFromString("paymentAuthorizationViewController:didSelectShippingMethod:handler:")
+        XCTAssertTrue(EvervaultPaymentView.instancesRespond(to: sel), "EvervaultPaymentView doesn't respond to \(sel) - PassKit will silently treat didSelectShippingMethod as unimplemented.")
+    }
+
+    // Known-working control, for comparison.
+    func testRespondsToDidChangeCouponCodeSelector() {
+        let sel = NSSelectorFromString("paymentAuthorizationViewController:didChangeCouponCode:handler:")
+        XCTAssertTrue(EvervaultPaymentView.instancesRespond(to: sel))
+    }
+
+    func testRespondsToDidSelectShippingContactSelector() {
+        let sel = NSSelectorFromString("paymentAuthorizationViewController:didSelectShippingContact:handler:")
+        XCTAssertTrue(EvervaultPaymentView.instancesRespond(to: sel))
+    }
+
+    // @required methods can't have this bug - a wrong label fails to compile.
+    func testRespondsToDidAuthorizePaymentSelector() {
+        let sel = NSSelectorFromString("paymentAuthorizationViewController:didAuthorizePayment:handler:")
+        XCTAssertTrue(EvervaultPaymentView.instancesRespond(to: sel))
+    }
+
+    func testRespondsToDidSelectPaymentMethodSelector() {
+        let sel = NSSelectorFromString("paymentAuthorizationViewController:didSelectPaymentMethod:handler:")
+        XCTAssertTrue(EvervaultPaymentView.instancesRespond(to: sel))
+    }
+}
+
 @MainActor
 final class ShippingMethodDelegateTests: XCTestCase {
     func testReturnsDelegateProvidedUpdateWhenImplemented() async {
@@ -1101,7 +1131,7 @@ final class ShippingMethodDelegateTests: XCTestCase {
         )
         spy.didSelectShippingMethodHandler = { _ in expectedUpdate }
 
-        let result = await view.paymentAuthorizationViewController(makeAuthorizationController(), didSelectShippingMethod: PKShippingMethod(label: "Express", amount: NSDecimalNumber(string: "9.99")))
+        let result = await view.paymentAuthorizationViewController(makeAuthorizationController(), didSelect: PKShippingMethod(label: "Express", amount: NSDecimalNumber(string: "9.99")))
 
         // Same instance the delegate returned - proves it's a straight passthrough.
         XCTAssertTrue(result === expectedUpdate)
@@ -1123,7 +1153,7 @@ final class ShippingMethodDelegateTests: XCTestCase {
         let view = makeViewForDispositionTests(delegate: spy, transaction: transaction)
         // didSelectShippingMethodHandler left unset - exercises the SDK's getPaymentSummaryItems() fallback.
 
-        let result = await view.paymentAuthorizationViewController(makeAuthorizationController(), didSelectShippingMethod: PKShippingMethod(label: "Express", amount: NSDecimalNumber(string: "9.99")))
+        let result = await view.paymentAuthorizationViewController(makeAuthorizationController(), didSelect: PKShippingMethod(label: "Express", amount: NSDecimalNumber(string: "9.99")))
 
         XCTAssertEqual(result.paymentSummaryItems.map(\.label), ["Total", "Monthly"])
         XCTAssertEqual(result.paymentSummaryItems.map(\.amount), [
@@ -1146,7 +1176,7 @@ final class ShippingMethodDelegateTests: XCTestCase {
         let view = makeViewForDispositionTests(delegate: spy, transaction: transaction)
         // didSelectShippingMethodHandler left unset - exercises the SDK's getPaymentSummaryItems() fallback.
 
-        let result = await view.paymentAuthorizationViewController(makeAuthorizationController(), didSelectShippingMethod: PKShippingMethod(label: "Express", amount: NSDecimalNumber(string: "9.99")))
+        let result = await view.paymentAuthorizationViewController(makeAuthorizationController(), didSelect: PKShippingMethod(label: "Express", amount: NSDecimalNumber(string: "9.99")))
 
         XCTAssertEqual(result.paymentSummaryItems.map(\.label), ["Total", "Payout"])
         XCTAssertEqual(result.paymentSummaryItems.map(\.amount), [

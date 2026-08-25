@@ -475,10 +475,12 @@ extension EvervaultPaymentView : PKPaymentAuthorizationViewControllerDelegate {
         return await self.delegate?.evervaultPaymentView(self, didChangeCouponCode: couponCode) ?? PKPaymentRequestCouponCodeUpdate(paymentSummaryItems: self.getPaymentSummaryItems())
     }
 
+    // Must be `didSelect`, not `didSelectShippingMethod`.
+    // PassKit strips the redundant type name from the label. Wrong label = PassKit never calls this.
     @MainActor
     public func paymentAuthorizationViewController(
         _ controller: PKPaymentAuthorizationViewController,
-        didSelectShippingMethod shippingMethod: PKShippingMethod
+        didSelect shippingMethod: PKShippingMethod
     ) async -> PKPaymentRequestShippingMethodUpdate {
         return await self.delegate?.evervaultPaymentView(self, didSelectShippingMethod: shippingMethod) ?? PKPaymentRequestShippingMethodUpdate(paymentSummaryItems: self.getPaymentSummaryItems())
     }
