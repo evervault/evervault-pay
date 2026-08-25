@@ -33,6 +33,7 @@ import org.json.JSONException
 import org.json.JSONObject
 import java.io.IOException
 import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 import java.lang.reflect.Type
 
 // Handle decoding between FPAN and DPAN repsonse types
@@ -130,7 +131,7 @@ class EvervaultPayViewModel(application: Application, val config: Config) : Andr
             config.merchantId,
             object : EvervaultPayAPICallback {
                 override fun onFailure(e: IOException) {
-                    cont.resumeWith(Result.failure(e))
+                    cont.resumeWithException(e)
                 }
 
                 override fun onResponse(response: ResponseBody) {
