@@ -231,6 +231,20 @@ final class ApplePayTransactionTypeTests: XCTestCase {
     }
 }
 
+final class SummaryItemTests: XCTestCase {
+    func testDefaultsTypeToFinal() {
+        let item = SummaryItem(label: "Total", amount: Amount("10.00"))
+
+        XCTAssertEqual(item.type, .final)
+    }
+
+    func testStoresProvidedType() {
+        let item = SummaryItem(label: "Shipping", amount: Amount("5.00"), type: .pending)
+
+        XCTAssertEqual(item.type, .pending)
+    }
+}
+
 final class TransactionPrefillFieldsTests: XCTestCase {
     private func makeBillingContact() -> ApplePayPaymentContact {
         ApplePayPaymentContact(givenName: "John", familyName: "Doe")
@@ -296,6 +310,153 @@ final class TransactionPrefillFieldsTests: XCTestCase {
         XCTAssertEqual(transaction.shippingContact?.givenName, "Jane")
         XCTAssertEqual(transaction.shippingType, .delivery)
         XCTAssertEqual(transaction.requiredShippingContactFields, [.postalAddress])
+    }
+}
+
+final class TransactionRequestPassthroughFieldsTests: XCTestCase {
+    private let applicationData = "hello".data(using: .utf8)!
+
+    func testOneOffDefaultsApplicationDataToNil() throws {
+        let transaction = try OneOffPaymentTransaction(
+            country: "IE",
+            currency: "EUR",
+            paymentSummaryItems: [SummaryItem(label: "Total", amount: Amount("10.00"))]
+        )
+
+        XCTAssertNil(transaction.applicationData)
+    }
+
+    func testOneOffDefaultsSupportedCountriesToNil() throws {
+        let transaction = try OneOffPaymentTransaction(
+            country: "IE",
+            currency: "EUR",
+            paymentSummaryItems: [SummaryItem(label: "Total", amount: Amount("10.00"))]
+        )
+
+        XCTAssertNil(transaction.supportedCountries)
+    }
+
+    func testOneOffStoresProvidedApplicationData() throws {
+        let transaction = try OneOffPaymentTransaction(
+            country: "IE",
+            currency: "EUR",
+            paymentSummaryItems: [SummaryItem(label: "Total", amount: Amount("10.00"))],
+            applicationData: applicationData
+        )
+
+        XCTAssertEqual(transaction.applicationData, applicationData)
+    }
+
+    func testOneOffStoresProvidedSupportedCountries() throws {
+        let transaction = try OneOffPaymentTransaction(
+            country: "IE",
+            currency: "EUR",
+            paymentSummaryItems: [SummaryItem(label: "Total", amount: Amount("10.00"))],
+            supportedCountries: ["IE", "GB"]
+        )
+
+        XCTAssertEqual(transaction.supportedCountries, ["IE", "GB"])
+    }
+
+    @available(iOS 16, *)
+    func testOneOffLocaleInitStoresProvidedApplicationData() throws {
+        let transaction = try OneOffPaymentTransaction(
+            country: Locale.Region("IE"),
+            currency: Locale.Currency("EUR"),
+            paymentSummaryItems: [SummaryItem(label: "Total", amount: Amount("10.00"))],
+            applicationData: applicationData
+        )
+
+        XCTAssertEqual(transaction.applicationData, applicationData)
+    }
+
+    @available(iOS 16, *)
+    func testOneOffLocaleInitStoresProvidedSupportedCountries() throws {
+        let transaction = try OneOffPaymentTransaction(
+            country: Locale.Region("IE"),
+            currency: Locale.Currency("EUR"),
+            paymentSummaryItems: [SummaryItem(label: "Total", amount: Amount("10.00"))],
+            supportedCountries: ["IE", "GB"]
+        )
+
+        XCTAssertEqual(transaction.supportedCountries, ["IE", "GB"])
+    }
+
+    func testRecurringDefaultsApplicationDataToNil() throws {
+        let transaction = try RecurringPaymentTransaction(
+            country: "IE",
+            currency: "EUR",
+            paymentDescription: "Subscription",
+            regularBilling: PKRecurringPaymentSummaryItem(label: "Monthly", amount: NSDecimalNumber(string: "10.00")),
+            managementURL: URL(string: "https://example.com/manage")!
+        )
+
+        XCTAssertNil(transaction.applicationData)
+    }
+
+    func testRecurringDefaultsSupportedCountriesToNil() throws {
+        let transaction = try RecurringPaymentTransaction(
+            country: "IE",
+            currency: "EUR",
+            paymentDescription: "Subscription",
+            regularBilling: PKRecurringPaymentSummaryItem(label: "Monthly", amount: NSDecimalNumber(string: "10.00")),
+            managementURL: URL(string: "https://example.com/manage")!
+        )
+
+        XCTAssertNil(transaction.supportedCountries)
+    }
+
+    func testRecurringStoresProvidedApplicationData() throws {
+        let transaction = try RecurringPaymentTransaction(
+            country: "IE",
+            currency: "EUR",
+            paymentDescription: "Subscription",
+            regularBilling: PKRecurringPaymentSummaryItem(label: "Monthly", amount: NSDecimalNumber(string: "10.00")),
+            managementURL: URL(string: "https://example.com/manage")!,
+            applicationData: applicationData
+        )
+
+        XCTAssertEqual(transaction.applicationData, applicationData)
+    }
+
+    func testRecurringStoresProvidedSupportedCountries() throws {
+        let transaction = try RecurringPaymentTransaction(
+            country: "IE",
+            currency: "EUR",
+            paymentDescription: "Subscription",
+            regularBilling: PKRecurringPaymentSummaryItem(label: "Monthly", amount: NSDecimalNumber(string: "10.00")),
+            managementURL: URL(string: "https://example.com/manage")!,
+            supportedCountries: ["IE", "GB"]
+        )
+
+        XCTAssertEqual(transaction.supportedCountries, ["IE", "GB"])
+    }
+
+    func testDisbursementDefaultsApplicationDataToNil() throws {
+        let transaction = try DisbursementTransaction(
+            country: "IE",
+            currency: "EUR",
+            paymentSummaryItems: [SummaryItem(label: "Total", amount: Amount("10.00"))],
+            disbursementItem: SummaryItem(label: "Payout", amount: Amount("10.00")),
+            requiredRecipientDetails: [],
+            merchantCapability: .capability3DS
+        )
+
+        XCTAssertNil(transaction.applicationData)
+    }
+
+    func testDisbursementStoresProvidedApplicationData() throws {
+        let transaction = try DisbursementTransaction(
+            country: "IE",
+            currency: "EUR",
+            paymentSummaryItems: [SummaryItem(label: "Total", amount: Amount("10.00"))],
+            disbursementItem: SummaryItem(label: "Payout", amount: Amount("10.00")),
+            requiredRecipientDetails: [],
+            merchantCapability: .capability3DS,
+            applicationData: applicationData
+        )
+
+        XCTAssertEqual(transaction.applicationData, applicationData)
     }
 }
 

@@ -59,7 +59,8 @@ fileprivate func buildTransaction(type: TransactionType) -> EvervaultPayment.Tra
                 .emailAddress,
                 .phoneNumber,
             ],
-            merchantCapability: .instantFundsOut
+            merchantCapability: .instantFundsOut,
+            applicationData: Data("payout_456".utf8)
         ))
     case .oneOff:
         return try! .oneOffPayment(.init(
@@ -68,7 +69,8 @@ fileprivate func buildTransaction(type: TransactionType) -> EvervaultPayment.Tra
              paymentSummaryItems: [
                  SummaryItem(label: "Mens Shirt", amount: Amount("30.00")),
                  SummaryItem(label: "Socks", amount: Amount("5.00")),
-                 SummaryItem(label: "Total", amount: Amount("35.00"))
+                 SummaryItem(label: "Estimated Tax", amount: Amount("2.50"), type: .pending),
+                 SummaryItem(label: "Total", amount: Amount("37.50"))
              ],
              shippingType: .shipping,
              shippingMethods: [],
@@ -76,7 +78,9 @@ fileprivate func buildTransaction(type: TransactionType) -> EvervaultPayment.Tra
              requestPayerDetails: [.postalAddress, .name, .emailAddress, .phoneNumber],
              supportsCouponCode: true,
              billingContact: makeSampleBillingContact(),
-             shippingContact: makeSampleShippingContact()
+             shippingContact: makeSampleShippingContact(),
+             applicationData: Data("order_123".utf8),
+             supportedCountries: ["IE", "GB", "US"]
          ))
     case .recurring:
         let recurringBilling = PKRecurringPaymentSummaryItem(
@@ -103,7 +107,9 @@ fileprivate func buildTransaction(type: TransactionType) -> EvervaultPayment.Tra
             billingContact: makeSampleBillingContact(),
             shippingType: .shipping,
             requiredShippingContactFields: [.postalAddress, .name, .emailAddress, .phoneNumber],
-            shippingContact: makeSampleShippingContact()
+            shippingContact: makeSampleShippingContact(),
+            applicationData: Data("order_123".utf8),
+            supportedCountries: ["IE", "GB", "US"]
         )
         recurringBillingRequest.billingAgreement = "https://www.merchant.com/billing-agreement"
         recurringBillingRequest.trialBilling = trialBilling
@@ -174,7 +180,7 @@ fileprivate func getCouponCodeUpdate(_ couponCode: String, transaction: Evervaul
 
             return PKPaymentRequestCouponCodeUpdate(
                 errors: [PKPaymentRequest.paymentCouponCodeInvalidError(localizedDescription: "That coupon code isn't valid.")],
-                paymentSummaryItems: summaryItems.map { PKPaymentSummaryItem(label: $0.label, amount: $0.amount.amount) },
+                paymentSummaryItems: summaryItems.map { PKPaymentSummaryItem(label: $0.label, amount: $0.amount.amount, type: $0.type) },
                 shippingMethods: []
             )
         }
@@ -187,7 +193,7 @@ fileprivate func getCouponCodeUpdate(_ couponCode: String, transaction: Evervaul
         summaryItems.append(SummaryItem(label: "Total", amount: Amount(formatter.string(from: discountedTotal as NSDecimalNumber) ?? discountedTotal.description)))
 
         return PKPaymentRequestCouponCodeUpdate(
-            paymentSummaryItems: summaryItems.map { PKPaymentSummaryItem(label: $0.label, amount: $0.amount.amount) }
+            paymentSummaryItems: summaryItems.map { PKPaymentSummaryItem(label: $0.label, amount: $0.amount.amount, type: $0.type) }
         )
 
     case .recurringPayment(let recurring):
@@ -205,7 +211,7 @@ fileprivate func getCouponCodeUpdate(_ couponCode: String, transaction: Evervaul
             return request
         }
 
-        var items = recurring.paymentSummaryItems.map { PKPaymentSummaryItem(label: $0.label, amount: $0.amount.amount) }
+        var items = recurring.paymentSummaryItems.map { PKPaymentSummaryItem(label: $0.label, amount: $0.amount.amount, type: $0.type) }
 
         guard couponCode.uppercased() == "SAVE20" else {
             items.append(recurring.regularBilling)

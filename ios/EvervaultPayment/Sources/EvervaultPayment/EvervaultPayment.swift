@@ -272,13 +272,13 @@ public class EvervaultPaymentView: UIView {
     
     private func buildSummaryItems(for transaction: OneOffPaymentTransaction) -> [PKPaymentSummaryItem] {
         return transaction.paymentSummaryItems.map { item in
-            PKPaymentSummaryItem(label: item.label, amount: item.amount.amount)
+            PKPaymentSummaryItem(label: item.label, amount: item.amount.amount, type: item.type)
         }
     }
 
     private func buildSummaryItems(for transaction: RecurringPaymentTransaction) -> [PKPaymentSummaryItem] {
         var items = transaction.paymentSummaryItems.map { item in
-            PKPaymentSummaryItem(label: item.label, amount: item.amount.amount)
+            PKPaymentSummaryItem(label: item.label, amount: item.amount.amount, type: item.type)
         }
         items.append(transaction.regularBilling)
         if let trialBilling = transaction.trialBilling {
@@ -289,7 +289,7 @@ public class EvervaultPaymentView: UIView {
 
     private func buildSummaryItems(for transaction: DisbursementTransaction) -> [PKPaymentSummaryItem] {
         var items = transaction.paymentSummaryItems.map { item in
-            PKPaymentSummaryItem(label: item.label, amount: item.amount.amount)
+            PKPaymentSummaryItem(label: item.label, amount: item.amount.amount, type: item.type)
         }
         guard #available(iOS 17.0, *) else {
             // Disbursement requires iOS 17+ end-to-end - didTapPay() already refuses to create
@@ -297,12 +297,15 @@ public class EvervaultPaymentView: UIView {
             return items
         }
         if transaction.merchantCapability == .instantFundsOut, let instantOutFee = transaction.instantOutFee {
-            items.append(PKInstantFundsOutFeeSummaryItem(label: instantOutFee.label, amount: instantOutFee.amount.amount))
+            let feeItem = PKInstantFundsOutFeeSummaryItem(label: instantOutFee.label, amount: instantOutFee.amount.amount, type: instantOutFee.type)
+            items.append(feeItem)
         }
-        items.append(PKDisbursementSummaryItem(
+        let disbursementItem = PKDisbursementSummaryItem(
             label: transaction.disbursementItem.label,
-            amount: transaction.disbursementItem.amount.amount
-        ))
+            amount: transaction.disbursementItem.amount.amount,
+            type: transaction.disbursementItem.type
+        )
+        items.append(disbursementItem)
         return items
     }
 
@@ -321,6 +324,8 @@ public class EvervaultPaymentView: UIView {
         paymentRequest.requiredBillingContactFields = transaction.requestPayerDetails
         paymentRequest.supportsCouponCode = transaction.supportsCouponCode
         paymentRequest.couponCode = transaction.couponCode
+        paymentRequest.applicationData = transaction.applicationData
+        paymentRequest.supportedCountries = transaction.supportedCountries
 
         if let billingContact = transaction.billingContact {
             paymentRequest.billingContact = PKContact(billingContact)
@@ -342,6 +347,7 @@ public class EvervaultPaymentView: UIView {
         paymentRequest.summaryItems = self.buildSummaryItems(for: transaction)
         paymentRequest.merchantCapabilities = transaction.merchantCapability
         paymentRequest.requiredRecipientContactFields = transaction.requiredRecipientDetails
+        paymentRequest.applicationData = transaction.applicationData
 
         return paymentRequest
     }
@@ -367,6 +373,8 @@ public class EvervaultPaymentView: UIView {
         paymentRequest.requiredBillingContactFields = transaction.requestPayerDetails
         paymentRequest.supportsCouponCode = transaction.supportsCouponCode
         paymentRequest.couponCode = transaction.couponCode
+        paymentRequest.applicationData = transaction.applicationData
+        paymentRequest.supportedCountries = transaction.supportedCountries
 
         paymentRequest.shippingType = transaction.shippingType
         paymentRequest.requiredShippingContactFields = transaction.requiredShippingContactFields
