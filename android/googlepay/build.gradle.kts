@@ -91,7 +91,6 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.google.code.gson:gson:2.10.1")
 
-    implementation("com.google.android.gms:play-services-wallet:18.1.3")
     api("com.google.pay.button:compose-pay-button:0.1.3")
 
     val composeBom = platform("androidx.compose:compose-bom:2023.03.00")
