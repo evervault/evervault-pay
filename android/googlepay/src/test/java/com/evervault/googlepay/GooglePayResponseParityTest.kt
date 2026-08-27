@@ -33,6 +33,30 @@ class GooglePayResponseParityTest {
     }
 
     @Test
+    fun `retains card constructors from before lastFour and displayName`() {
+        GooglePayCard::class.java.getConstructor(
+            String::class.java,
+            String::class.java,
+            String::class.java,
+            String::class.java,
+            String::class.java,
+            String::class.java,
+            String::class.java,
+        )
+        FpanCardDetails::class.java.getConstructor(
+            String::class.java,
+            CardExpiry::class.java,
+            String::class.java,
+            String::class.java,
+            String::class.java,
+            String::class.java,
+            String::class.java,
+            String::class.java,
+            String::class.java,
+        )
+    }
+
+    @Test
     fun `enriches a network token response with every Google Pay field returned on web`() {
         val response = enrich(networkTokenDecryptionResponse, paymentData)
             as NetworkTokenResponse
@@ -40,6 +64,8 @@ class GooglePayResponseParityTest {
         assertEquals("visa", response.card.brand)
         assertEquals("credit", response.card.funding)
         assertEquals("credit", response.card.paymentMethodType)
+        assertEquals("1111", response.card.lastFour)
+        assertEquals("Visa •••• 1111", response.card.displayName)
         assertEquals("4111111111111111", response.token.number)
         assertEquals(12, response.token.expiry.month)
         assertEquals(2030, response.token.expiry.year)
@@ -62,6 +88,8 @@ class GooglePayResponseParityTest {
         assertEquals("visa", response.card.brand)
         assertEquals("credit", response.card.funding)
         assertEquals("credit", response.card.paymentMethodType)
+        assertEquals("1111", response.card.lastFour)
+        assertEquals("Visa •••• 1111", response.card.displayName)
         assertEquals("4111111111111111", response.card.number)
         assertEquals(12, response.card.expiry.month)
         assertEquals(2030, response.card.expiry.year)
@@ -102,10 +130,11 @@ class GooglePayResponseParityTest {
     private fun enrich(decryptionResponse: String, paymentInformation: String): TokenResponse {
         val response = gson.fromJson(decryptionResponse, TokenResponse::class.java)
         extractPaymentBillingName(paymentInformation)?.let { response.billingAddress = it }
-        return attachPaymentMethodType(
+        val responseWithMethodType = attachPaymentMethodType(
             attachPaymentEmail(response, paymentInformation),
             paymentInformation,
         )
+        return attachPaymentCardDisplayDetails(responseWithMethodType, paymentInformation)
     }
 
     private companion object {
