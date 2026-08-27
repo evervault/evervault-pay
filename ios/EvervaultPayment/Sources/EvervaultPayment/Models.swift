@@ -43,6 +43,11 @@ public struct ApplePayCard: Codable, Sendable, Equatable {
     public let issuer: String?
     public let lastFour: String? = nil
     public let displayName: String? = nil
+
+    /// Returns a copy with `lastFour`/`displayName` set, leaving the backend-sourced fields untouched.
+    func with(lastFour: String?, displayName: String?) -> ApplePayCard {
+        ApplePayCard(brand: brand, funding: funding, segment: segment, country: country, currency: currency, issuer: issuer, lastFour: lastFour, displayName: displayName)
+    }
 }
 
 private func nilIfEmpty(_ value: String?) -> String? {
@@ -238,10 +243,10 @@ public struct ApplePayResponse: Codable, Sendable, Equatable {
         self.transactionType = transactionType
     }
 
-    func enriched(billingContact: ApplePayContact?, shippingContact: ApplePayContact?, transactionType: ApplePayTransactionType) -> ApplePayResponse {
+    func enriched(billingContact: ApplePayContact?, shippingContact: ApplePayContact?, transactionType: ApplePayTransactionType, displayName: String?, lastFour: String?) -> ApplePayResponse {
         ApplePayResponse(
             networkToken: networkToken,
-            card: card,
+            card: card.with(lastFour: lastFour, displayName: displayName),
             cryptogram: cryptogram,
             eci: eci,
             paymentDataType: paymentDataType,
