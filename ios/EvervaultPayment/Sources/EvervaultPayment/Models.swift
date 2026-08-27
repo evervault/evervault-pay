@@ -41,6 +41,8 @@ public struct ApplePayCard: Codable, Sendable, Equatable {
     public let country: String?
     public let currency: String?
     public let issuer: String?
+    public let lastFour: String? = nil
+    public let displayName: String? = nil
 }
 
 private func nilIfEmpty(_ value: String?) -> String? {
