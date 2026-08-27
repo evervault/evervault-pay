@@ -71,6 +71,7 @@ class MainActivity : AppCompatActivity() {
                     type = EvervaultButtonType.Order,
                     theme = EvervaultButtonTheme.Light,
                 )
+                is PaymentState.PaymentAuthorized -> Text("Payment authorized")
                 is PaymentState.PaymentCompleted -> {
                     when (val token = state.response) {
                         is NetworkTokenResponse -> {

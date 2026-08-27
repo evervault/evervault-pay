@@ -107,6 +107,31 @@ class EvervaultPayAPI(private val baseUrl: String, private val appUuid: String) 
         })
     }
 
+    internal suspend fun fetchCryptogram(paymentData: PaymentData, merchantId: String): TokenResponse {
+        val paymentMethodData = JSONObject(paymentData.toJson()).getJSONObject("paymentMethodData")
+        val tokenizationData = paymentMethodData.getJSONObject("tokenizationData")
+        val body = JSONObject()
+            .put("merchantId", merchantId)
+            .put("token", JSONObject(tokenizationData.getString("token")))
+            .toString()
+            .toRequestBody("application/json".toMediaTypeOrNull())
+        val request = Request.Builder()
+            .url("${baseUrl}/frontend/google-pay/credentials")
+            .post(body)
+            .addHeader("x-evervault-app-id", this.appUuid)
+            .build()
+
+        return withContext(Dispatchers.IO) {
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) throw IOException("Unexpected code $response")
+                GsonBuilder()
+                    .registerTypeAdapter(TokenResponse::class.java, TokenResponseAdapter())
+                    .create()
+                    .fromJson(response.body?.string(), TokenResponse::class.java)
+            }
+        }
+    }
+
     suspend fun fetchSDKConfig(appId: String): SDKConfig {
         val request = Request.Builder()
             .url("${baseUrl}/frontend/sdk/config")

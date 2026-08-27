@@ -113,6 +113,8 @@ class EvervaultPayViewModel(application: Application, val config: Config) : Andr
         if (this.isStarted) return
         this.isStarted = true
 
+        GooglePayAuthorizationConfigStore.save(getApplication(), config)
+
         viewModelScope.launch {
             verifyGooglePayReadiness()
         }
@@ -149,10 +151,14 @@ class EvervaultPayViewModel(application: Application, val config: Config) : Andr
     /**
      * Build the Google Pay PaymentDataRequest for the given transaction.
      */
-    suspend fun createPaymentRequest(transaction: Transaction): PaymentDataRequest =
-        PaymentDataRequest.fromJson(
-            buildPaymentRequestJson(config, transaction, getMerchantName())
+    suspend fun createPaymentRequest(transaction: Transaction): PaymentDataRequest {
+        if (config.googlePayAuthorization != null) {
+            GooglePayAuthorizationConfigStore.saveTransaction(getApplication(), transaction)
+        }
+        return PaymentDataRequest.fromJson(
+            buildPaymentRequestJson(config, transaction, getMerchantName()),
         )
+    }
 
     /**
      * Fetches the `PaymentResult` after doing the token exchange from Evervault.
@@ -188,40 +194,25 @@ class EvervaultPayViewModel(application: Application, val config: Config) : Andr
     }
 
     fun handlePaymentData(paymentData: PaymentData) {
-        this.apiClient.fetchCryptogram(paymentData, config.merchantId, object : EvervaultPayAPICallback {
-            override fun onFailure(e: IOException) {
-                Log.e(LOG_TAG, "An exception occured while fetching the cryptogram", e)
-                _paymentState.update { PaymentState.Error(CommonStatusCodes.INTERNAL_ERROR, e.toString()) }
-            }
+        if (config.googlePayAuthorization != null) {
+            _paymentState.update { PaymentState.PaymentAuthorized }
+            return
+        }
 
-            override fun onResponse(response: ResponseBody) {
-                try {
-                    val raw = response.string()
-                    val gson: Gson = GsonBuilder()
-                        .registerTypeAdapter(TokenResponse::class.java, TokenResponseAdapter())
-                        .create()
-                    val tokenResponse = gson.fromJson(raw, TokenResponse::class.java)
-
-                    val paymentInformation = paymentData.toJson()
-                    extractPaymentBillingName(paymentInformation)?.let { billingName ->
-                        tokenResponse.billingAddress = billingName
-                    }
-                    val responseWithEmail = attachPaymentEmail(tokenResponse, paymentInformation)
-                    val responseWithPaymentMethodType = attachPaymentMethodType(
-                        responseWithEmail,
-                        paymentInformation,
+        viewModelScope.launch {
+            try {
+                _paymentState.update {
+                    PaymentState.PaymentCompleted(
+                        response = decryptPaymentData(apiClient, paymentData, config.merchantId),
                     )
-
-                    _paymentState.update {
-                        PaymentState.PaymentCompleted(response = responseWithPaymentMethodType)
-                    }
-                } catch (_: JsonSyntaxException) {
-                    _paymentState.update {
-                        PaymentState.Error(CommonStatusCodes.INTERNAL_ERROR,"Error decoding payment token data")
-                    }
+                }
+            } catch (error: Exception) {
+                Log.e(LOG_TAG, "An exception occurred while fetching the cryptogram", error)
+                _paymentState.update {
+                    PaymentState.Error(CommonStatusCodes.INTERNAL_ERROR, "Error decoding payment token data")
                 }
             }
-        })
+        }
     }
 
     private suspend fun verifyGooglePayReadiness() {
@@ -242,6 +233,22 @@ class EvervaultPayViewModel(application: Application, val config: Config) : Andr
         val request = IsReadyToPayRequest.fromJson(isReadyToPayRequest(this).toString())
         return paymentsClient.await().isReadyToPay(request).await()
     }
+}
+
+internal suspend fun decryptPaymentData(
+    apiClient: EvervaultPayAPI,
+    paymentData: PaymentData,
+    merchantId: String,
+): TokenResponse {
+    val tokenResponse = apiClient.fetchCryptogram(paymentData, merchantId)
+    val paymentInformation = paymentData.toJson()
+    extractPaymentBillingName(paymentInformation)?.let { billingName ->
+        tokenResponse.billingAddress = billingName
+    }
+    return attachPaymentMethodType(
+        attachPaymentEmail(tokenResponse, paymentInformation),
+        paymentInformation,
+    )
 }
 
 internal fun extractPaymentBillingName(paymentInformation: String): BillingAddress? =

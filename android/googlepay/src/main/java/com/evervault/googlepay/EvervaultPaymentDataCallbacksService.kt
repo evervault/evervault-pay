@@ -9,8 +9,7 @@ import com.google.android.gms.wallet.callback.PaymentAuthorizationResult
 /**
  * Internal Google Pay service for payment authorization callbacks.
  *
- * This service is inactive until a later SDK release provides a merchant
- * authorization handler. It completes unexpected callbacks with an error.
+ * The SDK decrypts the payment and invokes the configured merchant handler.
  */
 class EvervaultPaymentDataCallbacksService : BasePaymentDataCallbacksService() {
     override fun createPaymentDataCallbacks(): BasePaymentDataCallbacks =
@@ -19,10 +18,17 @@ class EvervaultPaymentDataCallbacksService : BasePaymentDataCallbacksService() {
                 paymentData: PaymentData?,
                 onCompleteListener: OnCompleteListener<PaymentAuthorizationResult>,
             ) {
-                onCompleteListener.complete(
-                    PaymentAuthorizationResult.fromJson(
-                        """{"transactionState":"ERROR","error":{"reason":"OTHER_ERROR","intent":"PAYMENT_AUTHORIZATION","message":"Payment authorization is unavailable"}}""",
-                    ),
+                if (paymentData == null) {
+                    onCompleteListener.complete(
+                        authorizationError("Payment data is unavailable"),
+                    )
+                    return
+                }
+
+                GooglePayAuthorizationCoordinator.authorize(
+                    applicationContext,
+                    paymentData,
+                    onCompleteListener,
                 )
             }
         }

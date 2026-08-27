@@ -81,4 +81,9 @@ internal fun buildPaymentRequestJson(
                 .put("currencyCode", transaction.currency)
         )
         .put("merchantInfo", JSONObject().put("merchantName", merchantName))
+        .apply {
+            if (config.googlePayAuthorization != null) {
+                put("callbackIntents", JSONArray().put("PAYMENT_AUTHORIZATION"))
+            }
+        }
         .toString()
