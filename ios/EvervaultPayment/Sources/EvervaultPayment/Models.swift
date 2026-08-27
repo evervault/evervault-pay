@@ -41,8 +41,20 @@ public struct ApplePayCard: Codable, Sendable, Equatable {
     public let country: String?
     public let currency: String?
     public let issuer: String?
-    public let lastFour: String? = nil
-    public let displayName: String? = nil
+    public let lastFour: String?
+    public let displayName: String?
+
+    /// Retains the memberwise initializer signature from before `lastFour`/`displayName` were added.
+    init(brand: String?, funding: String?, segment: String?, country: String?, currency: String?, issuer: String?, lastFour: String? = nil, displayName: String? = nil) {
+        self.brand = brand
+        self.funding = funding
+        self.segment = segment
+        self.country = country
+        self.currency = currency
+        self.issuer = issuer
+        self.lastFour = lastFour
+        self.displayName = displayName
+    }
 
     /// Returns a copy with `displayName` set, and `lastFour` derived from it (e.g. "Visa 1234" -> "1234").
     /// Leaves the backend-sourced fields untouched.
