@@ -211,9 +211,13 @@ class EvervaultPayViewModel(application: Application, val config: Config) : Andr
                         responseWithEmail,
                         paymentInformation,
                     )
+                    val responseWithCardDisplayDetails = attachPaymentCardDisplayDetails(
+                        responseWithPaymentMethodType,
+                        paymentInformation,
+                    )
 
                     _paymentState.update {
-                        PaymentState.PaymentCompleted(response = responseWithPaymentMethodType)
+                        PaymentState.PaymentCompleted(response = responseWithCardDisplayDetails)
                     }
                 } catch (_: JsonSyntaxException) {
                     _paymentState.update {
@@ -304,6 +308,54 @@ internal fun extractPaymentMethodType(paymentInformation: String): String? =
             "DEBIT" -> "debit"
             "PREPAID" -> "prepaid"
             else -> null
+        }
+    } catch (error: JSONException) {
+        Log.e(EvervaultPayViewModel.LOG_TAG, "Error: $error")
+        null
+    }
+
+internal fun attachPaymentCardDisplayDetails(
+    tokenResponse: TokenResponse,
+    paymentInformation: String,
+): TokenResponse {
+    val displayName = extractPaymentDisplayName(paymentInformation)
+    val lastFour = extractPaymentLastFour(paymentInformation)
+    if (displayName == null && lastFour == null) return tokenResponse
+
+    return when (tokenResponse) {
+        is NetworkTokenResponse -> tokenResponse.copy(
+            card = tokenResponse.card.copy(displayName = displayName, lastFour = lastFour),
+        )
+        is CardResponse -> tokenResponse.copy(
+            card = tokenResponse.card.copy(displayName = displayName, lastFour = lastFour),
+        )
+    }
+}
+
+internal fun extractPaymentDisplayName(paymentInformation: String): String? =
+    try {
+        JSONObject(paymentInformation)
+            .getJSONObject("paymentMethodData")
+            .optString("description")
+            .takeIf { it.isNotBlank() }
+    } catch (error: JSONException) {
+        Log.e(EvervaultPayViewModel.LOG_TAG, "Error: $error")
+        null
+    }
+
+internal fun extractPaymentLastFour(paymentInformation: String): String? =
+    try {
+        val paymentMethodData = JSONObject(paymentInformation).getJSONObject("paymentMethodData")
+        val fourDigitRegex = Regex("(\\d{4})$")
+
+        val cardDetails = paymentMethodData.optJSONObject("info")?.optString("cardDetails")
+        val lastFour = cardDetails?.let { fourDigitRegex.find(it)?.value }
+
+        if (lastFour != null) {
+            lastFour
+        } else {
+            // If the last four digits are not found in cardDetails, try to get them from the description
+            fourDigitRegex.find(paymentMethodData.optString("description"))?.value
         }
     } catch (error: JSONException) {
         Log.e(EvervaultPayViewModel.LOG_TAG, "Error: $error")
