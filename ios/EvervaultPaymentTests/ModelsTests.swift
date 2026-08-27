@@ -616,6 +616,8 @@ private final class SpyDelegate: EvervaultPaymentViewDelegate {
     var didSelectShippingContactHandler: ((PKContact) -> PKPaymentRequestShippingContactUpdate?)?
     /// Lets a test control what `didUpdatePaymentMethod` returns; nil (the default) exercises the SDK's fallback.
     var didUpdatePaymentMethodHandler: ((PKPaymentMethod) -> PKPaymentRequestPaymentMethodUpdate?)?
+    /// Lets a test control what `didSelectShippingMethod` returns; nil (the default) exercises the SDK's fallback.
+    var didSelectShippingMethodHandler: ((PKShippingMethod) -> PKPaymentRequestShippingMethodUpdate?)?
 
     func evervaultPaymentView(_ view: EvervaultPaymentView, didAuthorizePayment result: ApplePayResponse?) {}
 
@@ -629,6 +631,10 @@ private final class SpyDelegate: EvervaultPaymentViewDelegate {
 
     func evervaultPaymentView(_ view: EvervaultPaymentView, didUpdatePaymentMethod paymentMethod: PKPaymentMethod) async -> PKPaymentRequestPaymentMethodUpdate? {
         return didUpdatePaymentMethodHandler?(paymentMethod)
+    }
+
+    func evervaultPaymentView(_ view: EvervaultPaymentView, didSelectShippingMethod shippingMethod: PKShippingMethod) async -> PKPaymentRequestShippingMethodUpdate? {
+        return didSelectShippingMethodHandler?(shippingMethod)
     }
 
     func evervaultPaymentView(_ view: EvervaultPaymentView, didFinishWithResult result: Result<Void, EvervaultError>) {
@@ -1081,6 +1087,101 @@ final class PaymentMethodDelegateTests: XCTestCase {
         XCTAssertEqual(result.paymentSummaryItems.map(\.amount), [
             NSDecimalNumber(string: "10.00"),
             NSDecimalNumber(string: "9.99")
+        ])
+    }
+}
+
+/// PassKit dispatches via `respondsToSelector:`, so this checks the real ObjC selector is wired up.
+final class DelegateObjCSelectorRegistrationTests: XCTestCase {
+    func testRespondsToDidSelectShippingMethodSelector() {
+        let sel = NSSelectorFromString("paymentAuthorizationViewController:didSelectShippingMethod:handler:")
+        XCTAssertTrue(EvervaultPaymentView.instancesRespond(to: sel), "EvervaultPaymentView doesn't respond to \(sel) - PassKit will silently treat didSelectShippingMethod as unimplemented.")
+    }
+
+    // Known-working control, for comparison.
+    func testRespondsToDidChangeCouponCodeSelector() {
+        let sel = NSSelectorFromString("paymentAuthorizationViewController:didChangeCouponCode:handler:")
+        XCTAssertTrue(EvervaultPaymentView.instancesRespond(to: sel))
+    }
+
+    func testRespondsToDidSelectShippingContactSelector() {
+        let sel = NSSelectorFromString("paymentAuthorizationViewController:didSelectShippingContact:handler:")
+        XCTAssertTrue(EvervaultPaymentView.instancesRespond(to: sel))
+    }
+
+    // @required methods can't have this bug - a wrong label fails to compile.
+    func testRespondsToDidAuthorizePaymentSelector() {
+        let sel = NSSelectorFromString("paymentAuthorizationViewController:didAuthorizePayment:handler:")
+        XCTAssertTrue(EvervaultPaymentView.instancesRespond(to: sel))
+    }
+
+    func testRespondsToDidSelectPaymentMethodSelector() {
+        let sel = NSSelectorFromString("paymentAuthorizationViewController:didSelectPaymentMethod:handler:")
+        XCTAssertTrue(EvervaultPaymentView.instancesRespond(to: sel))
+    }
+}
+
+@MainActor
+final class ShippingMethodDelegateTests: XCTestCase {
+    func testReturnsDelegateProvidedUpdateWhenImplemented() async {
+        let spy = SpyDelegate()
+        let view = makeViewForDispositionTests(delegate: spy)
+        let expectedUpdate = PKPaymentRequestShippingMethodUpdate(
+            paymentSummaryItems: [PKPaymentSummaryItem(label: "Total (shipping method)", amount: NSDecimalNumber(string: "19.99"))]
+        )
+        spy.didSelectShippingMethodHandler = { _ in expectedUpdate }
+
+        let result = await view.paymentAuthorizationViewController(makeAuthorizationController(), didSelect: PKShippingMethod(label: "Express", amount: NSDecimalNumber(string: "9.99")))
+
+        // Same instance the delegate returned - proves it's a straight passthrough.
+        XCTAssertTrue(result === expectedUpdate)
+    }
+
+    // Regression coverage: getPaymentSummaryItems() is shared across all PassKit fallback entry
+    // points, but CouponCodeDelegateTests only exercises it via didChangeCouponCode. This proves
+    // didSelectShippingMethod is wired to the same (fixed) method.
+    func testFallsBackToSummaryItemsIncludingRegularBillingForRecurringPayment() async throws {
+        let spy = SpyDelegate()
+        let transaction = Transaction.recurringPayment(try RecurringPaymentTransaction(
+            country: "IE",
+            currency: "EUR",
+            paymentSummaryItems: [SummaryItem(label: "Total", amount: Amount("10.00"))],
+            paymentDescription: "Subscription",
+            regularBilling: PKRecurringPaymentSummaryItem(label: "Monthly", amount: NSDecimalNumber(string: "9.99")),
+            managementURL: URL(string: "https://example.com/manage")!
+        ))
+        let view = makeViewForDispositionTests(delegate: spy, transaction: transaction)
+        // didSelectShippingMethodHandler left unset - exercises the SDK's getPaymentSummaryItems() fallback.
+
+        let result = await view.paymentAuthorizationViewController(makeAuthorizationController(), didSelect: PKShippingMethod(label: "Express", amount: NSDecimalNumber(string: "9.99")))
+
+        XCTAssertEqual(result.paymentSummaryItems.map(\.label), ["Total", "Monthly"])
+        XCTAssertEqual(result.paymentSummaryItems.map(\.amount), [
+            NSDecimalNumber(string: "10.00"),
+            NSDecimalNumber(string: "9.99")
+        ])
+    }
+
+    // Same rationale as above, covering the other transaction type that appends an item.
+    func testFallsBackToSummaryItemsIncludingDisbursementItemForDisbursement() async throws {
+        let spy = SpyDelegate()
+        let transaction = Transaction.disbursement(try DisbursementTransaction(
+            country: "IE",
+            currency: "EUR",
+            paymentSummaryItems: [SummaryItem(label: "Total", amount: Amount("10.00"))],
+            disbursementItem: SummaryItem(label: "Payout", amount: Amount("10.00")),
+            requiredRecipientDetails: [],
+            merchantCapability: .capability3DS
+        ))
+        let view = makeViewForDispositionTests(delegate: spy, transaction: transaction)
+        // didSelectShippingMethodHandler left unset - exercises the SDK's getPaymentSummaryItems() fallback.
+
+        let result = await view.paymentAuthorizationViewController(makeAuthorizationController(), didSelect: PKShippingMethod(label: "Express", amount: NSDecimalNumber(string: "9.99")))
+
+        XCTAssertEqual(result.paymentSummaryItems.map(\.label), ["Total", "Payout"])
+        XCTAssertEqual(result.paymentSummaryItems.map(\.amount), [
+            NSDecimalNumber(string: "10.00"),
+            NSDecimalNumber(string: "10.00")
         ])
     }
 }
