@@ -5,7 +5,10 @@ updates:
     schedule:
       interval: "monthly"
   - package-ecosystem: "gradle"
-    directory: "/"
+    directories:
+      - "/android"
+      - "/android/app"
+      - "/android/googlepay"
     schedule:
       interval: "monthly"
   - package-ecosystem: "github-actions"
