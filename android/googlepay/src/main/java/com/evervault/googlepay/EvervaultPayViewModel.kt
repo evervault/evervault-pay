@@ -151,14 +151,10 @@ class EvervaultPayViewModel(application: Application, val config: Config) : Andr
     /**
      * Build the Google Pay PaymentDataRequest for the given transaction.
      */
-    suspend fun createPaymentRequest(transaction: Transaction): PaymentDataRequest {
-        if (config.googlePayAuthorization != null) {
-            GooglePayAuthorizationConfigStore.saveTransaction(getApplication(), transaction)
-        }
-        return PaymentDataRequest.fromJson(
+    suspend fun createPaymentRequest(transaction: Transaction): PaymentDataRequest =
+        PaymentDataRequest.fromJson(
             buildPaymentRequestJson(config, transaction, getMerchantName()),
         )
-    }
 
     /**
      * Fetches the `PaymentResult` after doing the token exchange from Evervault.

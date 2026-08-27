@@ -7,7 +7,6 @@ import org.junit.Test
 class TestAuthorizationHandler : GooglePayAuthorizationHandler {
     override suspend fun authorize(
         payment: TokenResponse,
-        transaction: Transaction,
     ): GooglePayAuthorizationResult = GooglePayAuthorizationResult.Accept
 }
 
@@ -24,7 +23,7 @@ class GooglePayAuthorizationTest {
         val result = authorizationResult(
             GooglePayAuthorizationResult.Reject(
                 message = "Your card was declined",
-                reason = "PAYMENT_DATA_INVALID",
+                reason = GooglePayAuthorizationErrorReason.PaymentDataInvalid,
             ),
         )
 
@@ -34,5 +33,14 @@ class GooglePayAuthorizationTest {
         assertEquals("Your card was declined", error.getString("message"))
         assertEquals("PAYMENT_DATA_INVALID", error.getString("reason"))
         assertEquals("PAYMENT_AUTHORIZATION", error.getString("intent"))
+    }
+
+    @Test
+    fun `creates a handler from its class name`() {
+        val handler = GooglePayAuthorizationCoordinator.createHandler(
+            TestAuthorizationHandler::class.java.name,
+        )
+
+        assertEquals(TestAuthorizationHandler::class.java, handler::class.java)
     }
 }

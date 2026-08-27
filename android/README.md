@@ -20,17 +20,15 @@ an `Activity`, `ViewModel`, or composable.
 
 ```kotlin
 class CheckoutAuthorizationHandler : GooglePayAuthorizationHandler {
-    override suspend fun authorize(
-        payment: TokenResponse,
-        transaction: Transaction,
-    ): GooglePayAuthorizationResult {
+    override suspend fun authorize(payment: TokenResponse): GooglePayAuthorizationResult {
         return try {
-            checkoutApi.charge(payment, transaction)
+            // Resolve dependencies from an application-safe container.
+            CheckoutApplication.instance.checkoutApi.charge(payment)
             GooglePayAuthorizationResult.Accept
         } catch (_: CardDeclined) {
             GooglePayAuthorizationResult.Reject(
                 message = "Your card was declined. Try another card.",
-                reason = "PAYMENT_DATA_INVALID",
+                reason = GooglePayAuthorizationErrorReason.PaymentDataInvalid,
             )
         }
     }
@@ -46,9 +44,12 @@ val config = Config(
 ```
 
 `Accept` completes Google Pay. `Reject` returns an inline error and keeps the
-sheet open so the buyer can retry or choose another card. After acceptance, the
-view model emits `PaymentState.PaymentAuthorized`. Without this configuration,
-the existing `PaymentState.PaymentCompleted` flow remains unchanged.
+sheet open so the buyer can retry or choose another card. The handler runs
+outside the checkout UI. Resolve the order and amount in your application-safe
+backend or dependency container, not from transient UI state. After acceptance,
+the view model emits `PaymentState.PaymentAuthorized`. Without this
+configuration, the existing `PaymentState.PaymentCompleted` flow remains
+unchanged.
 
 ## Releasing a new version
 
