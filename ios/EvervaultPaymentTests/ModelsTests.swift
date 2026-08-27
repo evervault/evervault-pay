@@ -491,33 +491,70 @@ final class ApplePayResponseEnrichedTests: XCTestCase {
         let billingContact = ApplePayContact(makeContact(givenName: "John"))
         let shippingContact = ApplePayContact(makeContact(givenName: "Jane"))
 
-        let enriched = base.enriched(billingContact: billingContact, shippingContact: shippingContact, transactionType: .oneOff)
+        let enriched = base.enriched(billingContact: billingContact, shippingContact: shippingContact, transactionType: .oneOff, displayName: "Visa 1234")
 
         XCTAssertEqual(enriched.networkToken, base.networkToken)
-        XCTAssertEqual(enriched.card, base.card)
         XCTAssertEqual(enriched.cryptogram, base.cryptogram)
         XCTAssertEqual(enriched.eci, base.eci)
         XCTAssertEqual(enriched.paymentDataType, base.paymentDataType)
         XCTAssertEqual(enriched.deviceManufacturerIdentifier, base.deviceManufacturerIdentifier)
         XCTAssertEqual(enriched.transactionId, base.transactionId)
 
+        XCTAssertEqual(enriched.card.brand, base.card.brand)
+        XCTAssertEqual(enriched.card.funding, base.card.funding)
+        XCTAssertEqual(enriched.card.segment, base.card.segment)
+        XCTAssertEqual(enriched.card.country, base.card.country)
+        XCTAssertEqual(enriched.card.currency, base.card.currency)
+        XCTAssertEqual(enriched.card.issuer, base.card.issuer)
+
         XCTAssertNil(base.billingContact)
         XCTAssertNil(base.shippingContact)
         XCTAssertNil(base.transactionType)
+        XCTAssertNil(base.card.displayName)
+        XCTAssertNil(base.card.lastFour)
 
         XCTAssertEqual(enriched.billingContact?.givenName, "John")
         XCTAssertEqual(enriched.shippingContact?.givenName, "Jane")
         XCTAssertEqual(enriched.transactionType, .oneOff)
+        XCTAssertEqual(enriched.card.displayName, "Visa 1234")
+        XCTAssertEqual(enriched.card.lastFour, "1234")
     }
 
     func testEnrichedWithNilContactsKeepsThemNil() {
         let base = makeBaseResponse()
 
-        let enriched = base.enriched(billingContact: nil, shippingContact: nil, transactionType: .disbursement)
+        let enriched = base.enriched(billingContact: nil, shippingContact: nil, transactionType: .disbursement, displayName: nil)
 
         XCTAssertNil(enriched.billingContact)
         XCTAssertNil(enriched.shippingContact)
         XCTAssertEqual(enriched.transactionType, .disbursement)
+    }
+
+    func testEnrichedWithNilDisplayNameLeavesCardDisplayFieldsNil() {
+        let base = makeBaseResponse()
+
+        let enriched = base.enriched(billingContact: nil, shippingContact: nil, transactionType: .oneOff, displayName: nil)
+
+        XCTAssertNil(enriched.card.displayName)
+        XCTAssertNil(enriched.card.lastFour)
+    }
+}
+
+final class ExtractLastFourTests: XCTestCase {
+    func testMatchesTrailingFourDigits() {
+        XCTAssertEqual(extractLastFour(from: "Visa 1234"), "1234")
+    }
+
+    func testReturnsNilWhenNoDigitsPresent() {
+        XCTAssertNil(extractLastFour(from: "Visa"))
+    }
+
+    func testReturnsNilWhenDigitsAreNotAtTheEnd() {
+        XCTAssertNil(extractLastFour(from: "1234 Visa"))
+    }
+
+    func testReturnsNilForNilInput() {
+        XCTAssertNil(extractLastFour(from: nil))
     }
 }
 
