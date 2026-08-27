@@ -413,7 +413,8 @@ extension EvervaultPaymentView : PKPaymentAuthorizationViewControllerDelegate {
             let enriched = decoded?.enriched(
                 billingContact: ApplePayContact(payment.billingContact),
                 shippingContact: ApplePayContact(payment.shippingContact),
-                transactionType: transactionType
+                transactionType: transactionType,
+                displayName: payment.token.paymentMethod.displayName
             )
             await MainActor.run {
                 // Notify the delegate on the main actor
