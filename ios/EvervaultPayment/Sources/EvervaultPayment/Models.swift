@@ -44,15 +44,23 @@ public struct ApplePayCard: Codable, Sendable, Equatable {
     public let lastFour: String? = nil
     public let displayName: String? = nil
 
-    /// Returns a copy with `lastFour`/`displayName` set, leaving the backend-sourced fields untouched.
-    func with(lastFour: String?, displayName: String?) -> ApplePayCard {
-        ApplePayCard(brand: brand, funding: funding, segment: segment, country: country, currency: currency, issuer: issuer, lastFour: lastFour, displayName: displayName)
+    /// Returns a copy with `displayName` set, and `lastFour` derived from it (e.g. "Visa 1234" -> "1234").
+    /// Leaves the backend-sourced fields untouched.
+    func withCardDisplayDetails(from displayName: String?) -> ApplePayCard {
+        ApplePayCard(brand: brand, funding: funding, segment: segment, country: country, currency: currency, issuer: issuer, lastFour: extractLastFour(from: displayName), displayName: displayName)
     }
 }
 
 private func nilIfEmpty(_ value: String?) -> String? {
     guard let value, !value.isEmpty else { return nil }
     return value
+}
+
+/// Extracts the trailing 4 digits from Apple Pay's `PKPaymentMethod.displayName` (e.g. "Visa 1234").
+/// Apple Pay has no separate "card details" source, so this is the only place these digits can come from.
+func extractLastFour(from displayName: String?) -> String? {
+    guard let displayName, let match = displayName.range(of: "\\d{4}$", options: .regularExpression) else { return nil }
+    return String(displayName[match])
 }
 
 public struct ApplePayPostalAddress: Codable, Sendable, Equatable {
@@ -243,10 +251,12 @@ public struct ApplePayResponse: Codable, Sendable, Equatable {
         self.transactionType = transactionType
     }
 
-    func enriched(billingContact: ApplePayContact?, shippingContact: ApplePayContact?, transactionType: ApplePayTransactionType, displayName: String?, lastFour: String?) -> ApplePayResponse {
+    /// - Parameter displayName: Apple Pay's `PKPaymentMethod.displayName`. Sets `card.displayName` and,
+    ///   since Apple Pay exposes no separate card-details field, is also the source `card.lastFour` is derived from.
+    func enriched(billingContact: ApplePayContact?, shippingContact: ApplePayContact?, transactionType: ApplePayTransactionType, displayName: String?) -> ApplePayResponse {
         ApplePayResponse(
             networkToken: networkToken,
-            card: card.with(lastFour: lastFour, displayName: displayName),
+            card: card.withCardDisplayDetails(from: displayName),
             cryptogram: cryptogram,
             eci: eci,
             paymentDataType: paymentDataType,
