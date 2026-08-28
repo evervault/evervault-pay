@@ -52,6 +52,7 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
     private var onShippingAddressChangeCallback: ((_ shippingContact: PKContact) -> [SummaryItem])?
     private var onPaymentMethodChangeCallback: ((_ paymentMethod: PKPaymentMethod) -> PKPaymentRequestPaymentMethodUpdate)?
     private var onCouponCodeChangeCallback: ((_ couponCode: String) -> PKPaymentRequestCouponCodeUpdate)?
+    private var onShippingMethodChangeCallback: ((_ shippingMethod: PKShippingMethod) -> PKPaymentRequestShippingMethodUpdate)?
     private var prepareTransactionCallback: ((_ transaction: inout Transaction) -> Void)?
     private var onCancelCallback: (() -> Void)?
     private var onDeclineCallback: ((_ reason: Error) -> Void)?
@@ -173,6 +174,14 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
             return nil
         }
 
+        public func evervaultPaymentView(_ view: EvervaultPaymentView, didSelectShippingMethod shippingMethod: PKShippingMethod) async -> PKPaymentRequestShippingMethodUpdate? {
+            if let handler = await self.parent.onShippingMethodChangeCallback {
+                return handler(shippingMethod)
+            }
+
+            return nil
+        }
+
         public func evervaultPaymentView(_ view: EvervaultPaymentView, prepareTransaction transaction: inout Transaction) {
             if let handler = self.parent.prepareTransactionCallback {
                 handler(&transaction)
@@ -216,6 +225,13 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
     public func onCouponCodeChange(_ action: @escaping (String) -> PKPaymentRequestCouponCodeUpdate) -> EvervaultPaymentViewRepresentable {
         var copy = self
         copy.onCouponCodeChangeCallback = action
+        return copy
+    }
+
+    /// Called when the buyer selects a shipping method on the Apple Pay sheet.
+    public func onShippingMethodChange(_ action: @escaping (PKShippingMethod) -> PKPaymentRequestShippingMethodUpdate) -> EvervaultPaymentViewRepresentable {
+        var copy = self
+        copy.onShippingMethodChangeCallback = action
         return copy
     }
 
