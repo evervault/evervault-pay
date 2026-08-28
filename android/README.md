@@ -7,6 +7,18 @@ EVERVAULT_APP_ID=<YOUR_EVERVAULT_APP_ID>
 EVERVAULT_MERCHANT_ID=<YOUR_EVERVAULT_MERCHANT_ID>
 ```
 
+The sample app uses the existing Google Pay flow by default. To test inline
+merchant authorization, add these optional properties:
+
+```
+ENABLE_GOOGLE_PAY_AUTHORIZATION=true
+GOOGLE_PAY_AUTHORIZATION_RESULT=accept
+```
+
+Set `GOOGLE_PAY_AUTHORIZATION_RESULT` to `reject` to show an inline rejection.
+The sample handler uses a fixed result for demonstration only. A production
+handler must ask the merchant backend whether to accept the payment.
+
 ```bash
 ./gradlew build
 ```
