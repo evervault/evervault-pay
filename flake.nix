@@ -34,7 +34,7 @@
       devShells = forAllSystems ({ pkgs }:
         let
           androidComposition = pkgs.androidenv.composeAndroidPackages {
-            platformVersions = [ "33" ];
+            platformVersions = [ "34" ];
             buildToolsVersions = [ "36.0.0" ];
             includeEmulator = false;
             includeSystemImages = false;
@@ -46,7 +46,7 @@
           default = pkgs.mkShell {
             # The Nix packages provided in the environment
             packages = with pkgs; [
-              nodejs_20
+              nodejs_22
               openjdk17
               cocoapods
               androidComposition.androidsdk

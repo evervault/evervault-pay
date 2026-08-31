@@ -32,7 +32,7 @@ android {
 
 android {
     namespace = "com.evervault.samplepayapp"
-    compileSdk = 33
+    compileSdk = 34
     // Keep in step with buildToolsVersions in flake.nix.
     buildToolsVersion = "36.0.0"
 
@@ -80,7 +80,7 @@ android {
 dependencies {
     implementation(project(":googlepay"))
 
-    val lifecycleVersion = "2.5.1"
+    val lifecycleVersion = "2.6.1"
 
     implementation("com.google.android.gms:play-services-wallet:18.1.3")
     implementation("com.google.pay.button:compose-pay-button:0.1.3")

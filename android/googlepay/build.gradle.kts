@@ -17,7 +17,7 @@ version = "android-v0.0.30" // Bump per release
 
 android {
     namespace = "com.evervault.payments"
-    compileSdk = 33
+    compileSdk = 34
     // Keep in step with buildToolsVersions in flake.nix.
     buildToolsVersion = "36.0.0"
 
@@ -87,7 +87,7 @@ publishing {
 }
 
 dependencies {
-    val lifecycleVersion = "2.5.1"
+    val lifecycleVersion = "2.6.1"
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.google.code.gson:gson:2.10.1")
 
