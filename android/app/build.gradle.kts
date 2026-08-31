@@ -1,10 +1,16 @@
 import java.util.Properties
 import java.io.FileInputStream
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.compose.compiler)
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget = JvmTarget.JVM_11
+    }
 }
 
 val localProperties = Properties().apply {
@@ -28,7 +34,7 @@ android {
     namespace = "com.evervault.samplepayapp"
     compileSdk = 33
     // Keep in step with buildToolsVersions in flake.nix.
-    buildToolsVersion = "35.0.0"
+    buildToolsVersion = "36.0.0"
 
     defaultConfig {
         applicationId = "com.evervault.samplepayapp"
@@ -58,9 +64,6 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
-    }
-    kotlinOptions {
-        jvmTarget = "11"
     }
     defaultConfig {
         // Temporary until upgrade to 34

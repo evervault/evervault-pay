@@ -35,7 +35,7 @@
         let
           androidComposition = pkgs.androidenv.composeAndroidPackages {
             platformVersions = [ "33" ];
-            buildToolsVersions = [ "35.0.0" ];
+            buildToolsVersions = [ "36.0.0" ];
             includeEmulator = false;
             includeSystemImages = false;
             includeNDK = false;
@@ -58,7 +58,7 @@
             JAVA_HOME = pkgs.openjdk17.home;
 
             GRADLE_OPTS =
-              "-Dorg.gradle.project.android.aapt2FromMavenOverride=${androidSdk}/build-tools/35.0.0/aapt2";
+              "-Dorg.gradle.project.android.aapt2FromMavenOverride=${androidSdk}/build-tools/36.0.0/aapt2";
 
             shellHook = ''
               echo "[INFO] Using Node: $(node -v)"
