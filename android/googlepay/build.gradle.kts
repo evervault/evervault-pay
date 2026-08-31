@@ -1,8 +1,15 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
     alias(libs.plugins.android.library)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.compose.compiler)
     id("maven-publish")
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget = JvmTarget.JVM_11
+    }
 }
 
 group = "com.evervault.payments" // Maven group ID
@@ -10,9 +17,9 @@ version = "android-v0.0.30" // Bump per release
 
 android {
     namespace = "com.evervault.payments"
-    compileSdk = 33
+    compileSdk = 34
     // Keep in step with buildToolsVersions in flake.nix.
-    buildToolsVersion = "35.0.0"
+    buildToolsVersion = "36.0.0"
 
     defaultConfig {
         minSdk = 24
@@ -33,9 +40,6 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
-    }
-    kotlinOptions {
-        jvmTarget = "11"
     }
     buildFeatures {
         compose = true
@@ -83,7 +87,7 @@ publishing {
 }
 
 dependencies {
-    val lifecycleVersion = "2.5.1"
+    val lifecycleVersion = "2.6.1"
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.google.code.gson:gson:2.10.1")
 

@@ -1,10 +1,16 @@
 import java.util.Properties
 import java.io.FileInputStream
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.compose.compiler)
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget = JvmTarget.JVM_11
+    }
 }
 
 val localProperties = Properties().apply {
@@ -26,9 +32,9 @@ android {
 
 android {
     namespace = "com.evervault.samplepayapp"
-    compileSdk = 33
+    compileSdk = 34
     // Keep in step with buildToolsVersions in flake.nix.
-    buildToolsVersion = "35.0.0"
+    buildToolsVersion = "36.0.0"
 
     defaultConfig {
         applicationId = "com.evervault.samplepayapp"
@@ -59,9 +65,6 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
-    kotlinOptions {
-        jvmTarget = "11"
-    }
     defaultConfig {
         // Temporary until upgrade to 34
         configurations.all {
@@ -77,7 +80,7 @@ android {
 dependencies {
     implementation(project(":googlepay"))
 
-    val lifecycleVersion = "2.5.1"
+    val lifecycleVersion = "2.6.1"
 
     implementation("com.google.android.gms:play-services-wallet:18.1.3")
     implementation("com.google.pay.button:compose-pay-button:0.1.3")

@@ -34,8 +34,8 @@
       devShells = forAllSystems ({ pkgs }:
         let
           androidComposition = pkgs.androidenv.composeAndroidPackages {
-            platformVersions = [ "33" ];
-            buildToolsVersions = [ "35.0.0" ];
+            platformVersions = [ "34" ];
+            buildToolsVersions = [ "36.0.0" ];
             includeEmulator = false;
             includeSystemImages = false;
             includeNDK = false;
@@ -46,7 +46,7 @@
           default = pkgs.mkShell {
             # The Nix packages provided in the environment
             packages = with pkgs; [
-              nodejs_20
+              nodejs_22
               openjdk17
               cocoapods
               androidComposition.androidsdk
@@ -58,7 +58,7 @@
             JAVA_HOME = pkgs.openjdk17.home;
 
             GRADLE_OPTS =
-              "-Dorg.gradle.project.android.aapt2FromMavenOverride=${androidSdk}/build-tools/35.0.0/aapt2";
+              "-Dorg.gradle.project.android.aapt2FromMavenOverride=${androidSdk}/build-tools/36.0.0/aapt2";
 
             shellHook = ''
               echo "[INFO] Using Node: $(node -v)"
