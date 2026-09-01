@@ -247,6 +247,27 @@ class PaymentRequestTest {
     }
 
     @Test
+    fun `inline authorization requests the Google Pay callback`() {
+        val authorization = config.copy(
+            googlePayAuthorization = GooglePayAuthorizationConfig(TestAuthorizationHandler::class.java),
+        )
+
+        val json = JSONObject(buildPaymentRequestJson(authorization, transaction, "Test Merchant"))
+
+        assertEquals(
+            "PAYMENT_AUTHORIZATION",
+            json.getJSONArray("callbackIntents").getString(0),
+        )
+    }
+
+    @Test
+    fun `payment requests omit callbacks without inline authorization`() {
+        val json = JSONObject(buildPaymentRequestJson(config, transaction, "Test Merchant"))
+
+        assertFalse(json.has("callbackIntents"))
+    }
+
+    @Test
     fun `isReadyToPayRequest does not carry emailRequired`() {
         val request = isReadyToPayRequest(config.copy(emailRequired = true))!!
 

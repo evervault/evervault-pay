@@ -19,10 +19,27 @@ import com.evervault.googlepay.EvervaultConstants
 import com.evervault.googlepay.EvervaultCustomConfig
 import com.evervault.googlepay.EvervaultPayViewModel
 import com.evervault.googlepay.EvervaultPayViewModelFactory
+import com.evervault.googlepay.GooglePayAuthorizationConfig
+import com.evervault.googlepay.GooglePayAuthorizationErrorReason
+import com.evervault.googlepay.GooglePayAuthorizationHandler
+import com.evervault.googlepay.GooglePayAuthorizationResult
 import com.evervault.googlepay.NetworkTokenResponse
 import com.evervault.googlepay.LineItem
 import com.evervault.googlepay.PaymentState
 import com.evervault.googlepay.Transaction
+import com.evervault.googlepay.TokenResponse
+
+/** Demonstrates the callback contract. Production handlers must authorize with a merchant backend. */
+class SampleGooglePayAuthorizationHandler : GooglePayAuthorizationHandler {
+    override suspend fun authorize(payment: TokenResponse): GooglePayAuthorizationResult =
+        when (BuildConfig.GOOGLE_PAY_AUTHORIZATION_RESULT) {
+            "reject" -> GooglePayAuthorizationResult.Reject(
+                message = "Sample authorization rejected this payment.",
+                reason = GooglePayAuthorizationErrorReason.PaymentDataInvalid,
+            )
+            else -> GooglePayAuthorizationResult.Accept
+        }
+}
 
 class MainActivity : AppCompatActivity() {
 
@@ -39,6 +56,11 @@ class MainActivity : AppCompatActivity() {
                     CardNetwork.MASTERCARD
                 ),
                 emailRequired = true,
+                googlePayAuthorization = if (BuildConfig.ENABLE_GOOGLE_PAY_AUTHORIZATION) {
+                    GooglePayAuthorizationConfig(SampleGooglePayAuthorizationHandler::class.java)
+                } else {
+                    null
+                },
             )
         )
     }
@@ -71,6 +93,7 @@ class MainActivity : AppCompatActivity() {
                     type = EvervaultButtonType.Order,
                     theme = EvervaultButtonTheme.Light,
                 )
+                is PaymentState.PaymentAuthorized -> Text("Payment authorized")
                 is PaymentState.PaymentCompleted -> {
                     when (val token = state.response) {
                         is NetworkTokenResponse -> {

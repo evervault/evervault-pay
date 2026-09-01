@@ -30,6 +30,8 @@ abstract class PaymentState internal constructor() {
     object NotStarted : PaymentState()
     object Available : PaymentState()
     object Unavailable: PaymentState()
+    /** The merchant accepted an inline-authorized payment. */
+    object PaymentAuthorized : PaymentState()
     class PaymentCompleted(val response: TokenResponse) : PaymentState()
     object Cancelled : PaymentState()
     class Error(val code: Int, val message: String? = null) : PaymentState()

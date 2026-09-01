@@ -7,6 +7,7 @@ data class Config(
     val supportedMethods: List<CardAuthMethod> = Constants.SUPPORTED_METHODS,
     val billingAddress: BillingAddressConfig = BillingAddressConfig.Enabled(),
     val emailRequired: Boolean = false,
+    val googlePayAuthorization: GooglePayAuthorizationConfig? = null,
 ) {
     /** Retains the constructor signature from releases before `emailRequired`. */
     constructor(
@@ -22,5 +23,6 @@ data class Config(
         supportedMethods = supportedMethods,
         billingAddress = billingAddress,
         emailRequired = false,
+        googlePayAuthorization = null,
     )
 }
