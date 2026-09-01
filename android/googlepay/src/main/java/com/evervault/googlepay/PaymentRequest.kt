@@ -1,5 +1,6 @@
 package com.evervault.googlepay
 
+import com.evervault.payments.BuildConfig
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
@@ -22,6 +23,11 @@ private fun baseCardPaymentMethod(config: Config): JSONObject {
         .put("allowedAuthMethods", JSONArray(config.supportedMethods.asGooglePayStrings()))
         .put("allowedCardNetworks", allowedCardNetworks(config))
         .put("billingAddressRequired", billingAddress != null)
+
+    // Omit Google Pay defaults to preserve cross-SDK request parity.
+    if (!config.allowPrepaidCards) parameters.put("allowPrepaidCards", false)
+    if (!config.allowCreditCards) parameters.put("allowCreditCards", false)
+    if (config.assuranceDetailsRequired) parameters.put("assuranceDetailsRequired", true)
 
     if (billingAddress != null) {
         parameters.put("billingAddressParameters", JSONObject()
@@ -50,13 +56,25 @@ internal fun isReadyToPayRequest(config: Config): JSONObject? =
     try {
         baseRequest()
             .put("allowedPaymentMethods", JSONArray().put(baseCardPaymentMethod(config)))
+            .apply {
+                if (config.existingPaymentMethodRequired) {
+                    put("existingPaymentMethodRequired", true)
+                }
+            }
     } catch (e: JSONException) {
         null
     }
 
 internal fun defaultPriceLabel(merchantName: String) = "Pay $merchantName"
 
-// https://developers.google.com/pay/api/web/reference/request-objects#TransactionInfo
+private fun merchantInfo(merchantName: String) = JSONObject()
+    .put("merchantName", merchantName)
+    .put("softwareInfo", JSONObject()
+        .put("id", Constants.SOFTWARE_INFO_ID)
+        .put("version", BuildConfig.SDK_VERSION)
+    )
+
+// https://developers.google.com/pay/api/android/reference/request-objects#TransactionInfo
 internal fun buildPaymentRequestJson(
     config: Config,
     transaction: Transaction,
@@ -70,17 +88,21 @@ internal fun buildPaymentRequestJson(
                 .put("displayItems", JSONArray(transaction.lineItems.map {
                     JSONObject()
                         .put("label", it.label)
-                        .put("type", "LINE_ITEM")
+                        .put("type", it.type.name)
                         .put("price", it.amount.format(transaction.currency))
                         .put("status", "FINAL")
                 }))
                 .put("totalPriceLabel", transaction.priceLabel ?: defaultPriceLabel(merchantName))
                 .put("totalPrice", transaction.total.format(transaction.currency))
-                .put("totalPriceStatus", "FINAL")
+                .put("totalPriceStatus", transaction.totalPriceStatus.name)
                 .put("countryCode", transaction.country)
                 .put("currencyCode", transaction.currency)
+                .apply {
+                    transaction.checkoutOption?.let { put("checkoutOption", it.name) }
+                    transaction.transactionId?.let { put("transactionId", it) }
+                }
         )
-        .put("merchantInfo", JSONObject().put("merchantName", merchantName))
+        .put("merchantInfo", merchantInfo(merchantName))
         .apply {
             if (config.googlePayAuthorization != null) {
                 put("callbackIntents", JSONArray().put("PAYMENT_AUTHORIZATION"))

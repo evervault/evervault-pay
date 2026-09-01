@@ -12,6 +12,17 @@ data class PaymentToken(
     val tokenServiceProvider: String
 )
 
+/**
+ * Google's assessment of the card and the buyer, when `assuranceDetailsRequired`
+ * is set on the request.
+ *
+ * https://developers.google.com/pay/api/android/reference/response-objects#AssuranceDetails
+ */
+data class AssuranceDetails(
+    val accountVerified: Boolean = false,
+    val cardHolderAuthenticated: Boolean = false,
+)
+
 data class Merchant(
     val id: String,
     val name: String,
@@ -32,6 +43,7 @@ data class GooglePayCard(
     val paymentMethodType: String? = null,
     val lastFour: String? = null,
     val displayName: String? = null,
+    val assuranceDetails: AssuranceDetails? = null,
 ) {
     /** Retains the constructor signature from releases before `paymentMethodType`. */
     constructor(
@@ -70,6 +82,31 @@ data class GooglePayCard(
         paymentMethodType = paymentMethodType,
         lastFour = null,
         displayName = null,
+        assuranceDetails = null,
+    )
+
+    /** Retains the constructor signature from releases before `assuranceDetails`. */
+    constructor(
+        brand: String?,
+        funding: String?,
+        segment: String?,
+        country: String?,
+        currency: String?,
+        issuer: String?,
+        paymentMethodType: String?,
+        lastFour: String?,
+        displayName: String?,
+    ) : this(
+        brand = brand,
+        funding = funding,
+        segment = segment,
+        country = country,
+        currency = currency,
+        issuer = issuer,
+        paymentMethodType = paymentMethodType,
+        lastFour = lastFour,
+        displayName = displayName,
+        assuranceDetails = null,
     )
 }
 
@@ -96,6 +133,7 @@ data class FpanCardDetails(
     val paymentMethodType: String? = null,
     val lastFour: String? = null,
     val displayName: String? = null,
+    val assuranceDetails: AssuranceDetails? = null,
 ) {
     /** Retains the constructor signature from releases before `paymentMethodType`. */
     constructor(
@@ -142,6 +180,35 @@ data class FpanCardDetails(
         paymentMethodType = paymentMethodType,
         lastFour = null,
         displayName = null,
+        assuranceDetails = null,
+    )
+
+    /** Retains the constructor signature from releases before `assuranceDetails`. */
+    constructor(
+        number: String,
+        expiry: CardExpiry,
+        brand: String?,
+        funding: String?,
+        segment: String?,
+        country: String?,
+        currency: String?,
+        issuer: String?,
+        paymentMethodType: String?,
+        lastFour: String?,
+        displayName: String?,
+    ) : this(
+        number = number,
+        expiry = expiry,
+        brand = brand,
+        funding = funding,
+        segment = segment,
+        country = country,
+        currency = currency,
+        issuer = issuer,
+        paymentMethodType = paymentMethodType,
+        lastFour = lastFour,
+        displayName = displayName,
+        assuranceDetails = null,
     )
 }
 

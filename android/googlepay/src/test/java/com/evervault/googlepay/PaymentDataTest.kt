@@ -88,6 +88,42 @@ class PaymentDataTest {
         assertNull(response.card.displayName)
     }
 
+    @Test
+    fun `attaches assurance details returned by Google Pay`() {
+        val response = attachAssuranceDetails(
+            networkTokenResponse(),
+            """{"paymentMethodData":{"info":{"assuranceDetails":{"accountVerified":true,"cardHolderAuthenticated":true}}}}""",
+        )
+
+        assertEquals(
+            AssuranceDetails(accountVerified = true, cardHolderAuthenticated = true),
+            (response as NetworkTokenResponse).card.assuranceDetails,
+        )
+    }
+
+    @Test
+    fun `attaches assurance details to a card response`() {
+        val response = attachAssuranceDetails(
+            cardResponse(),
+            """{"paymentMethodData":{"info":{"assuranceDetails":{"accountVerified":true,"cardHolderAuthenticated":false}}}}""",
+        )
+
+        assertEquals(
+            AssuranceDetails(accountVerified = true, cardHolderAuthenticated = false),
+            (response as CardResponse).card.assuranceDetails,
+        )
+    }
+
+    @Test
+    fun `does not attach assurance details when Google Pay did not return them`() {
+        val response = attachAssuranceDetails(
+            networkTokenResponse(),
+            """{"paymentMethodData":{"info":{}}}""",
+        )
+
+        assertNull((response as NetworkTokenResponse).card.assuranceDetails)
+    }
+
     private fun networkTokenResponse() = NetworkTokenResponse(
         card = GooglePayCard(),
         token = PaymentToken(
