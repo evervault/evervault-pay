@@ -30,6 +30,8 @@ data class GooglePayCard(
     val currency: String? = null,
     val issuer: String? = null,
     val paymentMethodType: String? = null,
+    val lastFour: String? = null,
+    val displayName: String? = null,
 ) {
     /** Retains the constructor signature from releases before `paymentMethodType`. */
     constructor(
@@ -47,6 +49,27 @@ data class GooglePayCard(
         currency = currency,
         issuer = issuer,
         paymentMethodType = null,
+    )
+
+    /** Retains the constructor signature from releases before `lastFour`/`displayName`. */
+    constructor(
+        brand: String?,
+        funding: String?,
+        segment: String?,
+        country: String?,
+        currency: String?,
+        issuer: String?,
+        paymentMethodType: String?,
+    ) : this(
+        brand = brand,
+        funding = funding,
+        segment = segment,
+        country = country,
+        currency = currency,
+        issuer = issuer,
+        paymentMethodType = paymentMethodType,
+        lastFour = null,
+        displayName = null,
     )
 }
 
@@ -71,6 +94,8 @@ data class FpanCardDetails(
     val currency: String? = null,
     val issuer: String? = null,
     val paymentMethodType: String? = null,
+    val lastFour: String? = null,
+    val displayName: String? = null,
 ) {
     /** Retains the constructor signature from releases before `paymentMethodType`. */
     constructor(
@@ -92,6 +117,31 @@ data class FpanCardDetails(
         currency = currency,
         issuer = issuer,
         paymentMethodType = null,
+    )
+
+    /** Retains the constructor signature from releases before `lastFour`/`displayName`. */
+    constructor(
+        number: String,
+        expiry: CardExpiry,
+        brand: String?,
+        funding: String?,
+        segment: String?,
+        country: String?,
+        currency: String?,
+        issuer: String?,
+        paymentMethodType: String?,
+    ) : this(
+        number = number,
+        expiry = expiry,
+        brand = brand,
+        funding = funding,
+        segment = segment,
+        country = country,
+        currency = currency,
+        issuer = issuer,
+        paymentMethodType = paymentMethodType,
+        lastFour = null,
+        displayName = null,
     )
 }
 

@@ -15,12 +15,10 @@ import com.google.android.gms.wallet.IsReadyToPayRequest
 import com.google.android.gms.wallet.PaymentData
 import com.google.android.gms.wallet.PaymentDataRequest
 import com.google.gson.Gson
-import com.google.gson.GsonBuilder
 import com.google.gson.JsonDeserializationContext
 import com.google.gson.JsonDeserializer
 import com.google.gson.JsonElement
 import com.google.gson.JsonParseException
-import com.google.gson.JsonSyntaxException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -241,10 +239,11 @@ internal suspend fun decryptPaymentData(
     extractPaymentBillingName(paymentInformation)?.let { billingName ->
         tokenResponse.billingAddress = billingName
     }
-    return attachPaymentMethodType(
+    val responseWithPaymentMethodType = attachPaymentMethodType(
         attachPaymentEmail(tokenResponse, paymentInformation),
         paymentInformation,
     )
+    return attachPaymentCardDisplayDetails(responseWithPaymentMethodType, paymentInformation)
 }
 
 internal fun extractPaymentBillingName(paymentInformation: String): BillingAddress? =
@@ -307,6 +306,54 @@ internal fun extractPaymentMethodType(paymentInformation: String): String? =
             "DEBIT" -> "debit"
             "PREPAID" -> "prepaid"
             else -> null
+        }
+    } catch (error: JSONException) {
+        Log.e(EvervaultPayViewModel.LOG_TAG, "Error: $error")
+        null
+    }
+
+internal fun attachPaymentCardDisplayDetails(
+    tokenResponse: TokenResponse,
+    paymentInformation: String,
+): TokenResponse {
+    val displayName = extractPaymentDisplayName(paymentInformation)
+    val lastFour = extractPaymentLastFour(paymentInformation)
+    if (displayName == null && lastFour == null) return tokenResponse
+
+    return when (tokenResponse) {
+        is NetworkTokenResponse -> tokenResponse.copy(
+            card = tokenResponse.card.copy(displayName = displayName, lastFour = lastFour),
+        )
+        is CardResponse -> tokenResponse.copy(
+            card = tokenResponse.card.copy(displayName = displayName, lastFour = lastFour),
+        )
+    }
+}
+
+internal fun extractPaymentDisplayName(paymentInformation: String): String? =
+    try {
+        JSONObject(paymentInformation)
+            .getJSONObject("paymentMethodData")
+            .optString("description")
+            .takeIf { it.isNotBlank() }
+    } catch (error: JSONException) {
+        Log.e(EvervaultPayViewModel.LOG_TAG, "Error: $error")
+        null
+    }
+
+internal fun extractPaymentLastFour(paymentInformation: String): String? =
+    try {
+        val paymentMethodData = JSONObject(paymentInformation).getJSONObject("paymentMethodData")
+        val fourDigitRegex = Regex("(\\d{4})$")
+
+        val cardDetails = paymentMethodData.optJSONObject("info")?.optString("cardDetails")
+        val lastFour = cardDetails?.let { fourDigitRegex.find(it)?.value }
+
+        if (lastFour != null) {
+            lastFour
+        } else {
+            // If the last four digits are not found in cardDetails, try to get them from the description
+            fourDigitRegex.find(paymentMethodData.optString("description"))?.value
         }
     } catch (error: JSONException) {
         Log.e(EvervaultPayViewModel.LOG_TAG, "Error: $error")
