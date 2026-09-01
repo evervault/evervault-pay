@@ -23,46 +23,6 @@ handler must ask the merchant backend whether to accept the payment.
 ./gradlew build
 ```
 
-## Inline Google Pay authorization
-
-Use inline authorization when your app must accept or reject a payment before
-Google Pay closes its sheet. Configure a handler with a public no-argument
-constructor. Google Pay creates the handler in a service, so it must not retain
-an `Activity`, `ViewModel`, or composable.
-
-```kotlin
-class CheckoutAuthorizationHandler : GooglePayAuthorizationHandler {
-    override suspend fun authorize(payment: TokenResponse): GooglePayAuthorizationResult {
-        return try {
-            // Resolve dependencies from an application-safe container.
-            CheckoutApplication.instance.checkoutApi.charge(payment)
-            GooglePayAuthorizationResult.Accept
-        } catch (_: CardDeclined) {
-            GooglePayAuthorizationResult.Reject(
-                message = "Your card was declined. Try another card.",
-                reason = GooglePayAuthorizationErrorReason.PaymentDataInvalid,
-            )
-        }
-    }
-}
-
-val config = Config(
-    appId = "app_123",
-    merchantId = "merchant_123",
-    googlePayAuthorization = GooglePayAuthorizationConfig(
-        CheckoutAuthorizationHandler::class.java,
-    ),
-)
-```
-
-`Accept` completes Google Pay. `Reject` returns an inline error and keeps the
-sheet open so the buyer can retry or choose another card. The handler runs
-outside the checkout UI. Resolve the order and amount in your application-safe
-backend or dependency container, not from transient UI state. After acceptance,
-the view model emits `PaymentState.PaymentAuthorized`. Without this
-configuration, the existing `PaymentState.PaymentCompleted` flow remains
-unchanged.
-
 ## Releasing a new version
 
 1. Bump the version in the `googlepay/build.gradle.kts` file (could be done in the same PR as your change, or as its own separate version-bump PR — there's no technical requirement either way; a separate PR just lets you batch several merged changes into one release instead of releasing on every merge)
