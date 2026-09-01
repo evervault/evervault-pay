@@ -10,6 +10,10 @@ data class Transaction(
     val checkoutOption: CheckoutOption? = null,
     /** A unique identifier for this Google Pay facilitation attempt. */
     val transactionId: String? = null,
+    /** The fixed shipping options offered for this transaction, if any. */
+    val shippingOptions: List<ShippingOption> = emptyList(),
+    /** Must match the `id` of one of [shippingOptions] when set. */
+    val defaultShippingOptionId: String? = null,
 ) {
     init {
         require(
@@ -51,7 +55,17 @@ data class Transaction(
         totalPriceStatus = TotalPriceStatus.FINAL,
         checkoutOption = null,
         transactionId = null,
+        shippingOptions = emptyList(),
+        defaultShippingOptionId = null,
     )
+
+    init {
+        if (defaultShippingOptionId != null) {
+            require(shippingOptions.any { it.id == defaultShippingOptionId }) {
+                "defaultShippingOptionId \"$defaultShippingOptionId\" must match the id of one of shippingOptions"
+            }
+        }
+    }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -67,6 +81,8 @@ data class Transaction(
         if (totalPriceStatus != other.totalPriceStatus) return false
         if (checkoutOption != other.checkoutOption) return false
         if (transactionId != other.transactionId) return false
+        if (shippingOptions != other.shippingOptions) return false
+        if (defaultShippingOptionId != other.defaultShippingOptionId) return false
         return true
     }
 
@@ -79,6 +95,8 @@ data class Transaction(
         result = 31 * result + totalPriceStatus.hashCode()
         result = 31 * result + checkoutOption.hashCode()
         result = 31 * result + transactionId.hashCode()
+        result = 31 * result + shippingOptions.hashCode()
+        result = 31 * result + defaultShippingOptionId.hashCode()
         return result
     }
 }
