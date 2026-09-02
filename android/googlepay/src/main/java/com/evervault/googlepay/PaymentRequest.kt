@@ -66,13 +66,45 @@ internal fun isReadyToPayRequest(config: Config): JSONObject? =
 
 internal fun defaultPriceLabel(merchantName: String) = "Pay $merchantName"
 
+// https://developers.google.com/pay/api/web/reference/request-objects#ShippingAddressParameters
+private fun shippingAddressParameters(shippingAddress: ShippingAddressConfig.Enabled): JSONObject {
+    val parameters = JSONObject()
+        .put("phoneNumberRequired", shippingAddress.phoneNumberRequired)
+
+    if (shippingAddress.allowedCountryCodes != null) {
+        parameters.put("allowedCountryCodes", JSONArray(shippingAddress.allowedCountryCodes))
+    }
+
+    return parameters
+}
+
+// https://developers.google.com/pay/api/web/reference/request-objects#ShippingOptionParameters
+private fun shippingOptionParameters(transaction: Transaction): JSONObject {
+    val parameters = JSONObject()
+        .put("shippingOptions", JSONArray(transaction.shippingOptions.map {
+            JSONObject()
+                .put("id", it.id)
+                .put("label", it.label)
+                .apply { if (it.description != null) put("description", it.description) }
+        }))
+
+    if (transaction.defaultShippingOptionId != null) {
+        parameters.put("defaultSelectedOptionId", transaction.defaultShippingOptionId)
+    }
+
+    return parameters
+}
+
 // https://developers.google.com/pay/api/android/reference/request-objects#TransactionInfo
 internal fun buildPaymentRequestJson(
     config: Config,
     transaction: Transaction,
     merchantName: String
-): String =
-    baseRequest()
+): String {
+    val shippingAddress = config.shippingAddress as? ShippingAddressConfig.Enabled
+    val shippingOptionsEnabled = transaction.shippingOptions.isNotEmpty()
+
+    return baseRequest()
         .put("emailRequired", config.emailRequired)
         .put("allowedPaymentMethods", allowedPaymentMethods(config))
         .put(
@@ -95,9 +127,27 @@ internal fun buildPaymentRequestJson(
                 }
         )
         .put("merchantInfo", JSONObject().put("merchantName", merchantName))
+        .put("shippingAddressRequired", shippingAddress != null)
         .apply {
-            if (config.googlePayAuthorization != null) {
-                put("callbackIntents", JSONArray().put("PAYMENT_AUTHORIZATION"))
+            if (shippingAddress != null) {
+                put("shippingAddressParameters", shippingAddressParameters(shippingAddress))
             }
         }
+        .put("shippingOptionRequired", shippingOptionsEnabled)
+        .apply {
+            if (shippingOptionsEnabled) {
+                put("shippingOptionParameters", shippingOptionParameters(transaction))
+            }
+        }
+        .apply {
+            // Compose every active feature's callback intents into one array — each
+            // only fires the callback for what it actually needs a live recompute for.
+            val intents = buildList {
+                if (config.googlePayShipping != null && shippingAddress != null) add("SHIPPING_ADDRESS")
+                if (config.googlePayShipping != null && shippingOptionsEnabled) add("SHIPPING_OPTION")
+                if (config.googlePayAuthorization != null) add("PAYMENT_AUTHORIZATION")
+            }
+            if (intents.isNotEmpty()) put("callbackIntents", JSONArray(intents))
+        }
         .toString()
+}
