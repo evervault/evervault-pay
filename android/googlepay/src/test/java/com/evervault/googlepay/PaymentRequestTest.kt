@@ -1,6 +1,5 @@
 package com.evervault.googlepay
 
-import com.evervault.payments.BuildConfig
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -70,11 +69,7 @@ class PaymentRequestTest {
         assertEquals("54.99", info.getString("totalPrice"))
         assertEquals("EUR", info.getString("currencyCode"))
         assertEquals("IE", info.getString("countryCode"))
-        val merchantInfo = json.getJSONObject("merchantInfo")
-        assertEquals("Test Merchant", merchantInfo.getString("merchantName"))
-        val softwareInfo = merchantInfo.getJSONObject("softwareInfo")
-        assertEquals(Constants.SOFTWARE_INFO_ID, softwareInfo.getString("id"))
-        assertEquals(BuildConfig.SDK_VERSION, softwareInfo.getString("version"))
+        assertEquals("Test Merchant", json.getJSONObject("merchantInfo").getString("merchantName"))
 
         val tokenization = json.getJSONArray("allowedPaymentMethods")
             .getJSONObject(0)

@@ -1,6 +1,5 @@
 package com.evervault.googlepay
 
-import com.evervault.payments.BuildConfig
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
@@ -67,13 +66,6 @@ internal fun isReadyToPayRequest(config: Config): JSONObject? =
 
 internal fun defaultPriceLabel(merchantName: String) = "Pay $merchantName"
 
-private fun merchantInfo(merchantName: String) = JSONObject()
-    .put("merchantName", merchantName)
-    .put("softwareInfo", JSONObject()
-        .put("id", Constants.SOFTWARE_INFO_ID)
-        .put("version", BuildConfig.SDK_VERSION)
-    )
-
 // https://developers.google.com/pay/api/android/reference/request-objects#TransactionInfo
 internal fun buildPaymentRequestJson(
     config: Config,
@@ -102,7 +94,7 @@ internal fun buildPaymentRequestJson(
                     transaction.transactionId?.let { put("transactionId", it) }
                 }
         )
-        .put("merchantInfo", merchantInfo(merchantName))
+        .put("merchantInfo", JSONObject().put("merchantName", merchantName))
         .apply {
             if (config.googlePayAuthorization != null) {
                 put("callbackIntents", JSONArray().put("PAYMENT_AUTHORIZATION"))
