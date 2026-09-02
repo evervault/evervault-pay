@@ -128,11 +128,16 @@ internal object GooglePayAuthorizationCoordinator {
                     paymentData,
                     config.merchantId,
                 )
-                authorizationResult(
-                    withTimeout(config.timeoutMillis) {
-                        createHandler(config.handlerName).authorize(payment)
-                    },
-                )
+                val decision = withTimeout(config.timeoutMillis) {
+                    createHandler(config.handlerName).authorize(payment)
+                }
+                if (decision is GooglePayAuthorizationResult.Accept) {
+                    // Only clear on Accept: a Reject keeps the Google Pay sheet open
+                    // for the buyer to retry, and the retry needs the same shipping
+                    // state (option, selected address) that a clear would erase.
+                    GooglePayShippingStateStore.clear()
+                }
+                authorizationResult(decision)
             } catch (error: CancellationException) {
                 if (error is TimeoutCancellationException) {
                     Log.e(EvervaultPayViewModel.LOG_TAG, "Google Pay authorization timed out", error)
