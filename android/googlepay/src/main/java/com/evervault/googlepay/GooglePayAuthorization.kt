@@ -72,7 +72,7 @@ internal data class StoredGooglePayAuthorizationConfig(
 )
 
 internal object GooglePayAuthorizationConfigStore {
-    private const val PREFERENCES = "evervault_google_pay_authorization"
+    private const val PREFS_FILE = "evervault_google_pay_authorization"
     private const val APP_ID = "app_id"
     private const val MERCHANT_ID = "merchant_id"
     private const val API_BASE_URL = "api_base_url"
@@ -80,7 +80,7 @@ internal object GooglePayAuthorizationConfigStore {
     private const val TIMEOUT_MILLIS = "timeout_millis"
 
     fun save(context: Context, config: Config) {
-        val preferences = context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
+        val preferences = context.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)
         val authorization = config.googlePayAuthorization
         val editor = preferences.edit()
         if (authorization == null) {
@@ -97,7 +97,7 @@ internal object GooglePayAuthorizationConfigStore {
     }
 
     fun load(context: Context): StoredGooglePayAuthorizationConfig? {
-        val preferences = context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
+        val preferences = context.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)
         val appId = preferences.getString(APP_ID, null) ?: return null
         val merchantId = preferences.getString(MERCHANT_ID, null) ?: return null
         val apiBaseUrl = preferences.getString(API_BASE_URL, null) ?: return null
