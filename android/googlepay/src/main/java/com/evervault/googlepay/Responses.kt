@@ -31,6 +31,8 @@ data class Merchant(
 sealed interface TokenResponse {
     var billingAddress: BillingAddress?
     val email: String?
+    var shippingAddress: ShippingAddress?
+    var shippingOption: ShippingOption?
 }
 
 data class GooglePayCard(
@@ -119,7 +121,32 @@ data class NetworkTokenResponse(
     val messageId: String? = null,
     val messageExpiration: String? = null,
     override val email: String? = null,
-) : TokenResponse
+    override var shippingAddress: ShippingAddress? = null,
+    override var shippingOption: ShippingOption? = null,
+) : TokenResponse {
+    /** Retains the constructor signature from releases before `shippingAddress`/`shippingOption`. */
+    constructor(
+        card: GooglePayCard,
+        token: PaymentToken,
+        cryptogram: String,
+        eci: String,
+        billingAddress: BillingAddress?,
+        messageId: String?,
+        messageExpiration: String?,
+        email: String?,
+    ) : this(
+        card = card,
+        token = token,
+        cryptogram = cryptogram,
+        eci = eci,
+        billingAddress = billingAddress,
+        messageId = messageId,
+        messageExpiration = messageExpiration,
+        email = email,
+        shippingAddress = null,
+        shippingOption = null,
+    )
+}
 
 data class FpanCardDetails(
     val number: String,
@@ -218,4 +245,23 @@ data class CardResponse(
     val messageId: String? = null,
     val messageExpiration: String? = null,
     override val email: String? = null,
-) : TokenResponse
+    override var shippingAddress: ShippingAddress? = null,
+    override var shippingOption: ShippingOption? = null,
+) : TokenResponse {
+    /** Retains the constructor signature from releases before `shippingAddress`/`shippingOption`. */
+    constructor(
+        card: FpanCardDetails,
+        billingAddress: BillingAddress?,
+        messageId: String?,
+        messageExpiration: String?,
+        email: String?,
+    ) : this(
+        card = card,
+        billingAddress = billingAddress,
+        messageId = messageId,
+        messageExpiration = messageExpiration,
+        email = email,
+        shippingAddress = null,
+        shippingOption = null,
+    )
+}
