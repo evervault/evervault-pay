@@ -61,19 +61,36 @@ class EvervaultPayAPI(private val baseUrl: String, private val appUuid: String) 
         })
     }
 
+    /**
+     * Exchanges Google Pay payment data for Evervault payment credentials.
+     *
+     * @deprecated Use [EvervaultPayViewModel] to process Google Pay payment data.
+     */
+    @Deprecated("Use EvervaultPayViewModel to process Google Pay payment data.")
+    fun fetchCryptogram(
+        paymentData: PaymentData,
+        merchantId: String,
+        callback: EvervaultPayAPICallback,
+    ) {
+        client.newCall(fetchCryptogramRequest(paymentData, merchantId)).enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) {
+                callback.onFailure(e)
+            }
+
+            override fun onResponse(call: Call, response: Response) {
+                response.use {
+                    if (!response.isSuccessful) {
+                        callback.onFailure(IOException("Unexpected code $response"))
+                        return
+                    }
+                    response.body?.let(callback::onResponse)
+                }
+            }
+        })
+    }
+
     internal suspend fun fetchCryptogram(paymentData: PaymentData, merchantId: String): TokenResponse {
-        val paymentMethodData = JSONObject(paymentData.toJson()).getJSONObject("paymentMethodData")
-        val tokenizationData = paymentMethodData.getJSONObject("tokenizationData")
-        val body = JSONObject()
-            .put("merchantId", merchantId)
-            .put("token", JSONObject(tokenizationData.getString("token")))
-            .toString()
-            .toRequestBody("application/json".toMediaTypeOrNull())
-        val request = Request.Builder()
-            .url("${baseUrl}/frontend/google-pay/credentials")
-            .post(body)
-            .addHeader("x-evervault-app-id", this.appUuid)
-            .build()
+        val request = fetchCryptogramRequest(paymentData, merchantId)
 
         return withContext(Dispatchers.IO) {
             client.newCall(request).execute().use { response ->
@@ -84,6 +101,21 @@ class EvervaultPayAPI(private val baseUrl: String, private val appUuid: String) 
                     .fromJson(response.body?.string(), TokenResponse::class.java)
             }
         }
+    }
+
+    private fun fetchCryptogramRequest(paymentData: PaymentData, merchantId: String): Request {
+        val paymentMethodData = JSONObject(paymentData.toJson()).getJSONObject("paymentMethodData")
+        val tokenizationData = paymentMethodData.getJSONObject("tokenizationData")
+        val body = JSONObject()
+            .put("merchantId", merchantId)
+            .put("token", JSONObject(tokenizationData.getString("token")))
+            .toString()
+            .toRequestBody("application/json".toMediaTypeOrNull())
+        return Request.Builder()
+            .url("${baseUrl}/frontend/google-pay/credentials")
+            .post(body)
+            .addHeader("x-evervault-app-id", this.appUuid)
+            .build()
     }
 
     suspend fun fetchSDKConfig(appId: String): SDKConfig {
