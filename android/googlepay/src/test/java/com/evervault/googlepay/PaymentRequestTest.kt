@@ -60,6 +60,34 @@ class PaymentRequestTest {
     }
 
     @Test
+    fun `retains the pre-shippingOptions Transaction constructor`() {
+        assertNotNull(
+            Transaction::class.java.getConstructor(
+                String::class.java,
+                String::class.java,
+                Amount::class.java,
+                Array<LineItem>::class.java,
+                String::class.java,
+            )
+        )
+    }
+
+    @Test
+    fun `retains the pre-shippingAddress Config constructor`() {
+        assertNotNull(
+            Config::class.java.getConstructor(
+                String::class.java,
+                String::class.java,
+                List::class.java,
+                List::class.java,
+                BillingAddressConfig::class.java,
+                Boolean::class.javaPrimitiveType,
+                GooglePayAuthorizationConfig::class.java,
+            )
+        )
+    }
+
+    @Test
     fun `builds a request from config and transaction alone`() {
         val json = JSONObject(buildPaymentRequestJson(config, transaction, "Test Merchant"))
 
@@ -337,6 +365,30 @@ class PaymentRequestTest {
         )
     }
 
+    private val shippableTransaction = transaction.copy(
+        shippingOptions = listOf(
+            ShippingOption("standard", "Standard", Amount("5.00")),
+            ShippingOption("express", "Express", Amount("15.00")),
+        ),
+        defaultShippingOptionId = "standard",
+    )
+
+    @Test
+    fun `defaultShippingOptionId must match one of the shipping options`() {
+        assertThrows(IllegalArgumentException::class.java) {
+            transaction.copy(
+                shippingOptions = listOf(ShippingOption("standard", "Standard", Amount("5.00"))),
+                defaultShippingOptionId = "express",
+            )
+        }
+    }
+
+    @Test
+    fun `shipping options take part in transaction equality`() {
+        assertEquals(shippableTransaction, shippableTransaction.copy())
+        assertNotEquals(transaction, shippableTransaction)
+    }
+
     @Test
     fun `default card networks match the web SDK exactly`() {
         // The literal web sends when the merchant omits `allowedCardNetworks`.
@@ -401,6 +453,184 @@ class PaymentRequestTest {
     @Test
     fun `payment requests omit callbacks without inline authorization`() {
         val json = JSONObject(buildPaymentRequestJson(config, transaction, "Test Merchant"))
+
+        assertFalse(json.has("callbackIntents"))
+    }
+
+    @Test
+    fun `shipping address is not collected by default`() {
+        val json = JSONObject(buildPaymentRequestJson(config, transaction, "Test Merchant"))
+
+        assertFalse(json.getBoolean("shippingAddressRequired"))
+        assertFalse(json.has("shippingAddressParameters"))
+    }
+
+    @Test
+    fun `shipping address requests allowed countries and a phone number when configured`() {
+        val json = JSONObject(
+            buildPaymentRequestJson(
+                config.copy(
+                    shippingAddress = ShippingAddressConfig.Enabled(
+                        allowedCountryCodes = listOf("US", "CA"),
+                        phoneNumberRequired = true,
+                    ),
+                ),
+                transaction,
+                "Test Merchant",
+            )
+        )
+
+        assertTrue(json.getBoolean("shippingAddressRequired"))
+        val parameters = json.getJSONObject("shippingAddressParameters")
+        assertTrue(parameters.getBoolean("phoneNumberRequired"))
+        val countries = parameters.getJSONArray("allowedCountryCodes")
+        assertEquals(listOf("US", "CA"), (0 until countries.length()).map { countries.getString(it) })
+    }
+
+    @Test
+    fun `shipping address defaults omit allowedCountryCodes and require no phone number`() {
+        val json = JSONObject(
+            buildPaymentRequestJson(
+                config.copy(shippingAddress = ShippingAddressConfig.Enabled()),
+                transaction,
+                "Test Merchant",
+            )
+        )
+
+        val parameters = json.getJSONObject("shippingAddressParameters")
+        assertFalse(parameters.getBoolean("phoneNumberRequired"))
+        assertFalse(parameters.has("allowedCountryCodes"))
+    }
+
+    @Test
+    fun `shipping is required in the sheet without firing a callback when no handler is configured`() {
+        val json = JSONObject(
+            buildPaymentRequestJson(
+                config.copy(shippingAddress = ShippingAddressConfig.Enabled()),
+                shippableTransaction,
+                "Test Merchant",
+            )
+        )
+
+        assertTrue(json.getBoolean("shippingAddressRequired"))
+        assertTrue(json.getBoolean("shippingOptionRequired"))
+        assertFalse(json.has("callbackIntents"))
+    }
+
+    @Test
+    fun `shipping option is not requested without shippingOptions on the transaction`() {
+        val json = JSONObject(buildPaymentRequestJson(config, transaction, "Test Merchant"))
+
+        assertFalse(json.getBoolean("shippingOptionRequired"))
+        assertFalse(json.has("shippingOptionParameters"))
+    }
+
+    @Test
+    fun `shipping option parameters list every option and the default selection`() {
+        val json = JSONObject(buildPaymentRequestJson(config, shippableTransaction, "Test Merchant"))
+
+        assertTrue(json.getBoolean("shippingOptionRequired"))
+        val parameters = json.getJSONObject("shippingOptionParameters")
+        assertEquals("standard", parameters.getString("defaultSelectedOptionId"))
+        val options = parameters.getJSONArray("shippingOptions")
+        assertEquals(2, options.length())
+        assertEquals("standard", options.getJSONObject(0).getString("id"))
+        assertEquals("Standard: 5.00 EUR", options.getJSONObject(0).getString("label"))
+        assertFalse(options.getJSONObject(0).has("description"))
+    }
+
+    @Test
+    fun `shipping option description is included only when given`() {
+        val json = JSONObject(
+            buildPaymentRequestJson(
+                config,
+                shippableTransaction.copy(
+                    shippingOptions = listOf(
+                        ShippingOption("standard", "Standard", Amount("5.00"), "Arrives in 5-7 days"),
+                    ),
+                    defaultShippingOptionId = "standard",
+                ),
+                "Test Merchant",
+            )
+        )
+
+        val option = json.getJSONObject("shippingOptionParameters")
+            .getJSONArray("shippingOptions")
+            .getJSONObject(0)
+        assertEquals("Arrives in 5-7 days", option.getString("description"))
+    }
+
+    @Test
+    fun `shipping option price is baked into the label since Google Pay has none of its own`() {
+        val json = JSONObject(
+            buildPaymentRequestJson(
+                config,
+                shippableTransaction.copy(
+                    currency = "JPY",
+                    shippingOptions = listOf(ShippingOption("express", "Express", Amount.ofMinorUnits(1500))),
+                    defaultShippingOptionId = "express",
+                ),
+                "Test Merchant",
+            )
+        )
+
+        val label = json.getJSONObject("shippingOptionParameters")
+            .getJSONArray("shippingOptions")
+            .getJSONObject(0)
+            .getString("label")
+        assertEquals("Express: 1500 JPY", label)
+    }
+
+    @Test
+    fun `shipping callbacks compose with inline authorization`() {
+        val json = JSONObject(
+            buildPaymentRequestJson(
+                config.copy(
+                    shippingAddress = ShippingAddressConfig.Enabled(),
+                    googlePayShipping = GooglePayShippingConfig(TestShippingHandler::class.java),
+                    googlePayAuthorization = GooglePayAuthorizationConfig(TestAuthorizationHandler::class.java),
+                ),
+                shippableTransaction,
+                "Test Merchant",
+            )
+        )
+
+        val intents = json.getJSONArray("callbackIntents")
+        assertEquals(
+            listOf("SHIPPING_ADDRESS", "SHIPPING_OPTION", "PAYMENT_AUTHORIZATION"),
+            (0 until intents.length()).map { intents.getString(it) },
+        )
+    }
+
+    @Test
+    fun `shipping option callback fires even without shipping address collection`() {
+        val json = JSONObject(
+            buildPaymentRequestJson(
+                config.copy(googlePayShipping = GooglePayShippingConfig(TestShippingHandler::class.java)),
+                shippableTransaction,
+                "Test Merchant",
+            )
+        )
+
+        val intents = json.getJSONArray("callbackIntents")
+        assertEquals(listOf("SHIPPING_OPTION"), (0 until intents.length()).map { intents.getString(it) })
+    }
+
+    @Test
+    fun `shipping callbacks do not fire without shipping options on the transaction`() {
+        // Every recompute resolves a selected shipping option (see
+        // GooglePayShippingCoordinator.recompute), so a callback would reject every
+        // time without shipping options to resolve against - even an address-only one.
+        val json = JSONObject(
+            buildPaymentRequestJson(
+                config.copy(
+                    shippingAddress = ShippingAddressConfig.Enabled(),
+                    googlePayShipping = GooglePayShippingConfig(TestShippingHandler::class.java),
+                ),
+                transaction,
+                "Test Merchant",
+            )
+        )
 
         assertFalse(json.has("callbackIntents"))
     }

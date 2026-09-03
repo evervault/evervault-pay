@@ -84,7 +84,11 @@ private fun shippingOptionParameters(transaction: Transaction): JSONObject {
         .put("shippingOptions", JSONArray(transaction.shippingOptions.map {
             JSONObject()
                 .put("id", it.id)
-                .put("label", it.label)
+                // Google Pay has no price field of its own for a shipping option, so
+                // the price is baked into the label. No currency symbol lookup exists
+                // in this SDK (and symbols like "$" are ambiguous across currencies
+                // anyway), so the ISO currency code is used instead.
+                .put("label", "${it.label}: ${it.amount.format(transaction.currency)} ${transaction.currency}")
                 .apply { if (it.description != null) put("description", it.description) }
         }))
 
@@ -140,10 +144,13 @@ internal fun buildPaymentRequestJson(
             }
         }
         .apply {
-            // Compose every active feature's callback intents into one array — each
-            // only fires the callback for what it actually needs a live recompute for.
+            // Compose every active feature's callback intents into one array. Both
+            // shipping intents need shippingOptionsEnabled, since every recompute
+            // resolves a selected shipping option and would otherwise always reject.
             val intents = buildList {
-                if (config.googlePayShipping != null && shippingAddress != null) add("SHIPPING_ADDRESS")
+                if (config.googlePayShipping != null && shippingAddress != null && shippingOptionsEnabled) {
+                    add("SHIPPING_ADDRESS")
+                }
                 if (config.googlePayShipping != null && shippingOptionsEnabled) add("SHIPPING_OPTION")
                 if (config.googlePayAuthorization != null) add("PAYMENT_AUTHORIZATION")
             }
