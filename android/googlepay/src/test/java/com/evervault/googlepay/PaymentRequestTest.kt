@@ -33,6 +33,21 @@ class PaymentRequestTest {
     }
 
     @Test
+    fun `retains the pre-config-batch Config constructor`() {
+        assertNotNull(
+            Config::class.java.getConstructor(
+                String::class.java,
+                String::class.java,
+                List::class.java,
+                List::class.java,
+                BillingAddressConfig::class.java,
+                Boolean::class.javaPrimitiveType,
+                GooglePayAuthorizationConfig::class.java,
+            )
+        )
+    }
+
+    @Test
     fun `retains the pre-priceLabel Transaction constructor`() {
         assertNotNull(
             Transaction::class.java.getConstructor(
@@ -190,12 +205,135 @@ class PaymentRequestTest {
     }
 
     @Test
+    fun `display item types default to LINE_ITEM and are overridable`() {
+        val info = transactionInfo(
+            transaction.copy(
+                lineItems = arrayOf(
+                    LineItem("Shell Jacket", Amount("50.00")),
+                    LineItem("Subtotal", Amount("50.00"), LineItemType.SUBTOTAL),
+                    LineItem("VAT", Amount("4.99"), LineItemType.TAX),
+                    LineItem("Promo", Amount("1.00"), LineItemType.DISCOUNT),
+                    LineItem("Delivery", Amount("0.00"), LineItemType.SHIPPING_OPTION),
+                )
+            )
+        )
+
+        val items = info.getJSONArray("displayItems")
+        assertEquals("LINE_ITEM", items.getJSONObject(0).getString("type"))
+        assertEquals("SUBTOTAL", items.getJSONObject(1).getString("type"))
+        assertEquals("TAX", items.getJSONObject(2).getString("type"))
+        assertEquals("DISCOUNT", items.getJSONObject(3).getString("type"))
+        assertEquals("SHIPPING_OPTION", items.getJSONObject(4).getString("type"))
+    }
+
+    @Test
+    fun `retains the pre-type LineItem constructor`() {
+        assertNotNull(
+            LineItem::class.java.getConstructor(String::class.java, Amount::class.java)
+        )
+    }
+
+    @Test
+    fun `the total price status defaults to FINAL and is overridable`() {
+        assertEquals("FINAL", transactionInfo(transaction).getString("totalPriceStatus"))
+        assertEquals(
+            "ESTIMATED",
+            transactionInfo(transaction.copy(totalPriceStatus = TotalPriceStatus.ESTIMATED))
+                .getString("totalPriceStatus")
+        )
+    }
+
+    @Test
+    fun `the checkout option and transaction id are omitted unless set`() {
+        val info = transactionInfo(transaction)
+
+        assertFalse(info.has("checkoutOption"))
+        assertFalse(info.has("transactionId"))
+    }
+
+    @Test
+    fun `the checkout option and transaction id are sent when set`() {
+        val info = transactionInfo(
+            transaction.copy(
+                checkoutOption = CheckoutOption.COMPLETE_IMMEDIATE_PURCHASE,
+                transactionId = "txn_123",
+            )
+        )
+
+        assertEquals("COMPLETE_IMMEDIATE_PURCHASE", info.getString("checkoutOption"))
+        assertEquals("txn_123", info.getString("transactionId"))
+    }
+
+    @Test
+    fun `an immediate purchase checkout option requires a final total`() {
+        assertThrows(IllegalArgumentException::class.java) {
+            transaction.copy(
+                totalPriceStatus = TotalPriceStatus.ESTIMATED,
+                checkoutOption = CheckoutOption.COMPLETE_IMMEDIATE_PURCHASE,
+            )
+        }
+    }
+
+    @Test
+    fun `retains the pre-totalPriceStatus Transaction constructor`() {
+        assertNotNull(
+            Transaction::class.java.getConstructor(
+                String::class.java,
+                String::class.java,
+                Amount::class.java,
+                Array<LineItem>::class.java,
+                String::class.java,
+            )
+        )
+    }
+
+    @Test
+    fun `prepaid and credit cards are allowed by default and can be refused`() {
+        val default = cardParameters(config)
+        assertFalse(default.has("allowPrepaidCards"))
+        assertFalse(default.has("allowCreditCards"))
+
+        val restricted = cardParameters(
+            config.copy(allowPrepaidCards = false, allowCreditCards = false)
+        )
+        assertFalse(restricted.getBoolean("allowPrepaidCards"))
+        assertFalse(restricted.getBoolean("allowCreditCards"))
+    }
+
+    @Test
+    fun `assurance details are not requested by default`() {
+        assertFalse(cardParameters(config).has("assuranceDetailsRequired"))
+        assertTrue(
+            cardParameters(config.copy(assuranceDetailsRequired = true))
+                .getBoolean("assuranceDetailsRequired")
+        )
+    }
+
+    @Test
+    fun `isReadyToPay carries the existing payment method requirement`() {
+        assertFalse(isReadyToPayRequest(config)!!.has("existingPaymentMethodRequired"))
+        assertTrue(
+            isReadyToPayRequest(config.copy(existingPaymentMethodRequired = true))!!
+                .getBoolean("existingPaymentMethodRequired")
+        )
+    }
+
+    @Test
     fun `the price label takes part in transaction equality`() {
         assertEquals(transaction, transaction.copy())
         assertNotEquals(transaction, transaction.copy(priceLabel = "Subscription"))
         assertNotEquals(
             transaction.copy(priceLabel = "Subscription"),
             transaction.copy(priceLabel = "Donation")
+        )
+        assertNotEquals(transaction, transaction.copy(transactionId = "txn_123"))
+        assertNotEquals(
+            transaction,
+            transaction.copy(totalPriceStatus = TotalPriceStatus.ESTIMATED)
+        )
+        assertNotEquals(
+            transaction,
+            transaction.copy(checkoutOption = CheckoutOption.COMPLETE_IMMEDIATE_PURCHASE)
         )
     }
 

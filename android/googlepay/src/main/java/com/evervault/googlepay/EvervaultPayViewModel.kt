@@ -243,7 +243,9 @@ internal suspend fun decryptPaymentData(
         attachPaymentEmail(tokenResponse, paymentInformation),
         paymentInformation,
     )
-    return attachPaymentCardDisplayDetails(responseWithPaymentMethodType, paymentInformation)
+    val responseWithDisplayDetails =
+        attachPaymentCardDisplayDetails(responseWithPaymentMethodType, paymentInformation)
+    return attachAssuranceDetails(responseWithDisplayDetails, paymentInformation)
 }
 
 internal fun extractPaymentBillingName(paymentInformation: String): BillingAddress? =
@@ -355,6 +357,39 @@ internal fun extractPaymentLastFour(paymentInformation: String): String? =
             // If the last four digits are not found in cardDetails, try to get them from the description
             fourDigitRegex.find(paymentMethodData.optString("description"))?.value
         }
+    } catch (error: JSONException) {
+        Log.e(EvervaultPayViewModel.LOG_TAG, "Error: $error")
+        null
+    }
+
+internal fun attachAssuranceDetails(
+    tokenResponse: TokenResponse,
+    paymentInformation: String,
+): TokenResponse {
+    val assuranceDetails = extractAssuranceDetails(paymentInformation) ?: return tokenResponse
+
+    return when (tokenResponse) {
+        is NetworkTokenResponse -> tokenResponse.copy(
+            card = tokenResponse.card.copy(assuranceDetails = assuranceDetails),
+        )
+        is CardResponse -> tokenResponse.copy(
+            card = tokenResponse.card.copy(assuranceDetails = assuranceDetails),
+        )
+    }
+}
+
+internal fun extractAssuranceDetails(paymentInformation: String): AssuranceDetails? =
+    try {
+        JSONObject(paymentInformation)
+            .getJSONObject("paymentMethodData")
+            .getJSONObject("info")
+            .optJSONObject("assuranceDetails")
+            ?.let {
+                AssuranceDetails(
+                    accountVerified = it.optBoolean("accountVerified"),
+                    cardHolderAuthenticated = it.optBoolean("cardHolderAuthenticated"),
+                )
+            }
     } catch (error: JSONException) {
         Log.e(EvervaultPayViewModel.LOG_TAG, "Error: $error")
         null
