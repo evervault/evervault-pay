@@ -70,6 +70,15 @@ class PaymentDataTest {
     }
 
     @Test
+    fun `does not carry through shipping address fields Google Pay sent blank`() {
+        val address = extractPaymentShippingAddress(
+            """{"shippingAddress":{"name":"Buyer","postalCode":"D01 F5P2","countryCode":"IE","address2":""}}""",
+        )
+
+        assertNull(address?.address2)
+    }
+
+    @Test
     fun `resolves the selected shipping option against the in-progress transaction`() {
         val transaction = Transaction(
             country = "IE",

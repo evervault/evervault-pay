@@ -282,10 +282,26 @@ internal fun extractPaymentBillingName(paymentInformation: String): BillingAddre
 
 // Unlike billingAddress (nested under paymentMethodData.info), Google Pay
 // returns shippingAddress as a top-level field on the final PaymentData.
+//
+// Built field-by-field rather than via Gson: Google Pay sends inapplicable
+// fields (e.g. address2 for a country with no second address line) as ""
+// rather than omitting them, and a raw Gson parse would carry that blank
+// string through rather than leaving the field null.
 internal fun extractPaymentShippingAddress(paymentInformation: String): ShippingAddress? =
     try {
-        val shippingAddress = JSONObject(paymentInformation).optJSONObject("shippingAddress")
-        shippingAddress?.let { Gson().fromJson(it.toString(), ShippingAddress::class.java) }
+        JSONObject(paymentInformation).optJSONObject("shippingAddress")?.let { address ->
+            ShippingAddress(
+                name = address.optString("name").takeIf { it.isNotEmpty() },
+                postalCode = address.optString("postalCode").takeIf { it.isNotEmpty() },
+                countryCode = address.optString("countryCode").takeIf { it.isNotEmpty() },
+                address1 = address.optString("address1").takeIf { it.isNotEmpty() },
+                address2 = address.optString("address2").takeIf { it.isNotEmpty() },
+                address3 = address.optString("address3").takeIf { it.isNotEmpty() },
+                locality = address.optString("locality").takeIf { it.isNotEmpty() },
+                administrativeArea = address.optString("administrativeArea").takeIf { it.isNotEmpty() },
+                sortingCode = address.optString("sortingCode").takeIf { it.isNotEmpty() },
+            )
+        }
     } catch (error: JSONException) {
         Log.e(EvervaultPayViewModel.LOG_TAG, "Error: $error")
         null
