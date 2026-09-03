@@ -13,7 +13,7 @@ kotlin {
 }
 
 group = "com.evervault.payments" // Maven group ID
-version = "android-v0.0.30" // Bump per release
+version = "android-v1.0.0" // Bump per release
 
 android {
     namespace = "com.evervault.payments"
