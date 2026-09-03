@@ -2,5 +2,5 @@
 
 # These owners will be the default owners for everything in
 # the repo, unless a match on a later line takes precedence.
-# "@evervault/product-engineering" below requests review from all members of Product Engineering.
-*       @evervault/product-engineering
+# "@evervault/payment-team" below requests review from all members of the Payment team.
+*       @evervault/payment-team
