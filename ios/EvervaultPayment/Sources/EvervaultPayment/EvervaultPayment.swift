@@ -270,6 +270,15 @@ public class EvervaultPaymentView: UIView {
 
                     // Present the Payment Sheet from the frontmost window
                     rootVC?.present(vc, animated: true)
+                } else if #available(iOS 16.4, *), case let .deferredPayment(deferredTransaction) = self.transaction {
+                    let paymentRequest = self.buildPaymentRequest(transaction: deferredTransaction)
+                    guard let vc = PKPaymentAuthorizationViewController(paymentRequest: paymentRequest) else {
+                        throw EvervaultError.ApplePayPaymentSheetError
+                    }
+                    vc.delegate = self
+
+                    // Present the Payment Sheet from the frontmost window
+                    rootVC?.present(vc, animated: true)
                 } else {
                     throw EvervaultError.UnsupportedVersionError
                 }
@@ -456,6 +465,46 @@ public class EvervaultPaymentView: UIView {
         return paymentRequest
     }
 
+    @available(iOS 16.4, *)
+    private func buildPaymentRequest(transaction: DeferredPaymentTransaction) -> PKPaymentRequest {
+        let paymentRequest = PKPaymentRequest()
+        paymentRequest.merchantIdentifier = self.appleMerchantIdentifier
+        paymentRequest.supportedNetworks = self.supportedNetworks
+        paymentRequest.countryCode = transaction.country
+        paymentRequest.currencyCode = transaction.currency
+        paymentRequest.paymentSummaryItems = transaction.paymentSummaryItems.map { item in
+            PKPaymentSummaryItem(label: item.label, amount: item.amount.amount)
+        }
+        paymentRequest.merchantCapabilities = .threeDSecure
+
+        paymentRequest.paymentSummaryItems.append(transaction.deferredBilling)
+        let deferred = PKDeferredPaymentRequest(
+            paymentDescription: transaction.paymentDescription,
+            deferredBilling: transaction.deferredBilling,
+            managementURL: transaction.managementURL
+        )
+        deferred.billingAgreement = transaction.billingAgreement
+        deferred.tokenNotificationURL = transaction.tokenNotificationURL
+        deferred.freeCancellationDate = transaction.freeCancellationDate
+        deferred.freeCancellationDateTimeZone = transaction.freeCancellationDateTimeZone
+        paymentRequest.deferredPaymentRequest = deferred
+        paymentRequest.requiredBillingContactFields = transaction.requestPayerDetails
+        paymentRequest.supportsCouponCode = transaction.supportsCouponCode
+        paymentRequest.couponCode = transaction.couponCode
+
+        paymentRequest.shippingType = transaction.shippingType
+        paymentRequest.requiredShippingContactFields = transaction.requiredShippingContactFields
+
+        if let billingContact = transaction.billingContact {
+            paymentRequest.billingContact = PKContact(billingContact)
+        }
+        if let shippingContact = transaction.shippingContact {
+            paymentRequest.shippingContact = PKContact(shippingContact)
+        }
+
+        return paymentRequest
+    }
+
     private func getPaymentSummaryItems() -> [PKPaymentSummaryItem] {
         switch self.transaction {
         case let .oneOffPayment(oneOffTransaction):
@@ -465,12 +514,23 @@ public class EvervaultPaymentView: UIView {
         case let .recurringPayment(recurringTransaction):
             return self.buildSummaryItems(for: recurringTransaction)
         default:
-            // Covers .automaticReload (gated to iOS 16+) while this switch compiles at the package's iOS 15 minimum.
+            // Covers .automaticReload and .deferredPayment, which can't be named directly
+            // here since they're gated to iOS 16+ while this switch compiles at the
+            // package's iOS 15 minimum.
             if #available(iOS 16.0, *), case let .automaticReload(automaticReloadTransaction) = self.transaction {
                 var items = automaticReloadTransaction.paymentSummaryItems.map { item in
                     PKPaymentSummaryItem(label: item.label, amount: item.amount.amount)
                 }
                 items.append(Self.buildAutomaticReloadBillingItem(transaction: automaticReloadTransaction))
+                return items
+            } else if #available(iOS 16.4, *), case let .deferredPayment(deferredTransaction) = self.transaction {
+                // The deferred billing item is stored on the model as the real PassKit type already
+                // (unlike automaticReloadBilling, which is reconstructed - see buildAutomaticReloadBillingItem),
+                // so it just needs appending, same reasoning as buildPaymentRequest(transaction: DeferredPaymentTransaction).
+                var items = deferredTransaction.paymentSummaryItems.map { item in
+                    PKPaymentSummaryItem(label: item.label, amount: item.amount.amount)
+                }
+                items.append(deferredTransaction.deferredBilling)
                 return items
             }
             return []
