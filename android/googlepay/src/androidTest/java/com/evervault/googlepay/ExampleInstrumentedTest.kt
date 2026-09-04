@@ -19,6 +19,6 @@ class ExampleInstrumentedTest {
     fun useAppContext() {
         // Context of the app under test.
         val appContext = InstrumentationRegistry.getInstrumentation().targetContext
-        assertEquals("com.evervault.googlepay.test", appContext.packageName)
+        assertEquals("com.evervault.payments.test", appContext.packageName)
     }
 }
