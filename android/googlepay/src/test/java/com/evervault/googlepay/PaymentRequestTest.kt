@@ -535,7 +535,7 @@ class PaymentRequestTest {
         val options = parameters.getJSONArray("shippingOptions")
         assertEquals(2, options.length())
         assertEquals("standard", options.getJSONObject(0).getString("id"))
-        assertEquals("Standard: 5.00 EUR", options.getJSONObject(0).getString("label"))
+        assertEquals("Standard", options.getJSONObject(0).getString("label"))
         assertFalse(options.getJSONObject(0).has("description"))
     }
 
@@ -561,13 +561,12 @@ class PaymentRequestTest {
     }
 
     @Test
-    fun `shipping option price is baked into the label since Google Pay has none of its own`() {
+    fun `shipping option label is sent exactly as given, since Google Pay has no price field of its own`() {
         val json = JSONObject(
             buildPaymentRequestJson(
                 config,
                 shippableTransaction.copy(
-                    currency = "JPY",
-                    shippingOptions = listOf(ShippingOption("express", "Express", Amount.ofMinorUnits(1500))),
+                    shippingOptions = listOf(ShippingOption("express", "Express: €15.00", Amount("15.00"))),
                     defaultShippingOptionId = "express",
                 ),
                 "Test Merchant",
@@ -578,7 +577,7 @@ class PaymentRequestTest {
             .getJSONArray("shippingOptions")
             .getJSONObject(0)
             .getString("label")
-        assertEquals("Express: 1500 JPY", label)
+        assertEquals("Express: €15.00", label)
     }
 
     @Test

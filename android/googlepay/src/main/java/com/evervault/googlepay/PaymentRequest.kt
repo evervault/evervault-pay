@@ -79,16 +79,15 @@ private fun shippingAddressParameters(shippingAddress: ShippingAddressConfig.Ena
 }
 
 // https://developers.google.com/pay/api/web/reference/request-objects#ShippingOptionParameters
+//
+// Sent once, before the buyer has entered a destination, and never resent -
+// see ShippingOption.label.
 private fun shippingOptionParameters(transaction: Transaction): JSONObject {
     val parameters = JSONObject()
         .put("shippingOptions", JSONArray(transaction.shippingOptions.map {
             JSONObject()
                 .put("id", it.id)
-                // Google Pay has no price field of its own for a shipping option, so
-                // the price is baked into the label. No currency symbol lookup exists
-                // in this SDK (and symbols like "$" are ambiguous across currencies
-                // anyway), so the ISO currency code is used instead.
-                .put("label", "${it.label}: ${it.amount.format(transaction.currency)} ${transaction.currency}")
+                .put("label", it.label)
                 .apply { if (it.description != null) put("description", it.description) }
         }))
 

@@ -3,7 +3,9 @@ package com.evervault.googlepay
 import org.json.JSONObject
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
 import org.junit.Test
 
 class TestShippingHandler : GooglePayShippingHandler {
@@ -55,6 +57,17 @@ class GooglePayShippingTest {
     }
 
     @Test
+    fun `acceptance can only update totals, not replace the shipping option list`() {
+        val result = shippingUpdate(
+            GooglePayShippingUpdateResult.Accept(lineItems = transaction.lineItems.toList(), total = transaction.total),
+            transaction,
+            "Test Merchant",
+        )
+
+        assertFalse(JSONObject(result.toJson()).has("newShippingOptionParameters"))
+    }
+
+    @Test
     fun `rejection returns the merchant error to Google Pay`() {
         val result = shippingUpdate(
             GooglePayShippingUpdateResult.Reject(
@@ -94,6 +107,13 @@ class GooglePayShippingTest {
     }
 
     @Test
+    fun `shipping config requires a positive timeout`() {
+        assertThrows(IllegalArgumentException::class.java) {
+            GooglePayShippingConfig(TestShippingHandler::class.java, timeoutMillis = 0L)
+        }
+    }
+
+    @Test
     fun `creates a handler from its class name`() {
         val handler = GooglePayShippingCoordinator.createHandler(TestShippingHandler::class.java.name)
 
@@ -114,6 +134,23 @@ class GooglePayShippingTest {
         assertEquals("Dublin", address.locality)
         assertEquals("Dublin", address.administrativeArea)
         assertEquals("D01 F5P2", address.postalCode)
+        assertNull(address.name)
+        assertNull(address.address1)
+    }
+
+    @Test
+    fun `extracts a redacted mid-flow shipping address missing some fields`() {
+        // e.g. a locale with no administrative area to redact in the first place.
+        val address = extractIntermediateShippingAddress(
+            JSONObject()
+                .put("countryCode", "IE")
+                .put("postalCode", "D01 F5P2"),
+        )
+
+        assertEquals("IE", address.countryCode)
+        assertEquals("D01 F5P2", address.postalCode)
+        assertNull(address.locality)
+        assertNull(address.administrativeArea)
         assertNull(address.name)
         assertNull(address.address1)
     }
