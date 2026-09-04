@@ -202,7 +202,7 @@ final class ApplePayTransactionTypeTests: XCTestCase {
             paymentSummaryItems: [SummaryItem(label: "Total", amount: Amount("10.00"))]
         ))
 
-        XCTAssertEqual(ApplePayTransactionType(transaction), .oneOff)
+        XCTAssertEqual(try ApplePayTransactionType(transaction), .oneOff)
     }
 
     func testMapsRecurringPayment() throws {
@@ -214,7 +214,7 @@ final class ApplePayTransactionTypeTests: XCTestCase {
             managementURL: URL(string: "https://example.com/manage")!
         ))
 
-        XCTAssertEqual(ApplePayTransactionType(transaction), .recurring)
+        XCTAssertEqual(try ApplePayTransactionType(transaction), .recurring)
     }
 
     func testMapsDisbursement() throws {
@@ -227,7 +227,19 @@ final class ApplePayTransactionTypeTests: XCTestCase {
             merchantCapability: .capability3DS
         ))
 
-        XCTAssertEqual(ApplePayTransactionType(transaction), .disbursement)
+        XCTAssertEqual(try ApplePayTransactionType(transaction), .disbursement)
+    }
+
+    func testMapsAutomaticReloadPayment() throws {
+        let transaction = Transaction.automaticReload(try AutomaticReloadPaymentTransaction(
+            country: "IE",
+            currency: "EUR",
+            paymentDescription: "Gift Card Reload",
+            automaticReloadBilling: SummaryItem(label: "Reload", amount: Amount("20.00")),
+            managementURL: URL(string: "https://example.com/manage")!
+        ))
+
+        XCTAssertEqual(try ApplePayTransactionType(transaction), .automaticReload)
     }
 }
 
@@ -299,6 +311,40 @@ final class TransactionPrefillFieldsTests: XCTestCase {
             currency: "EUR",
             paymentDescription: "Subscription",
             regularBilling: PKRecurringPaymentSummaryItem(label: "Monthly", amount: NSDecimalNumber(string: "10.00")),
+            managementURL: URL(string: "https://example.com/manage")!,
+            billingContact: makeBillingContact(),
+            shippingType: .delivery,
+            requiredShippingContactFields: [.postalAddress],
+            shippingContact: makeShippingContact()
+        )
+
+        XCTAssertEqual(transaction.billingContact?.givenName, "John")
+        XCTAssertEqual(transaction.shippingContact?.givenName, "Jane")
+        XCTAssertEqual(transaction.shippingType, .delivery)
+        XCTAssertEqual(transaction.requiredShippingContactFields, [.postalAddress])
+    }
+
+    func testAutomaticReloadDefaultsBillingContactAndShippingFieldsToNilOrEmpty() throws {
+        let transaction = try AutomaticReloadPaymentTransaction(
+            country: "IE",
+            currency: "EUR",
+            paymentDescription: "Gift Card Reload",
+            automaticReloadBilling: SummaryItem(label: "Reload", amount: Amount("20.00")),
+            managementURL: URL(string: "https://example.com/manage")!
+        )
+
+        XCTAssertNil(transaction.billingContact)
+        XCTAssertNil(transaction.shippingContact)
+        XCTAssertEqual(transaction.shippingType, .shipping)
+        XCTAssertTrue(transaction.requiredShippingContactFields.isEmpty)
+    }
+
+    func testAutomaticReloadStoresProvidedBillingShippingAndShippingFields() throws {
+        let transaction = try AutomaticReloadPaymentTransaction(
+            country: "IE",
+            currency: "EUR",
+            paymentDescription: "Gift Card Reload",
+            automaticReloadBilling: SummaryItem(label: "Reload", amount: Amount("20.00")),
             managementURL: URL(string: "https://example.com/manage")!,
             billingContact: makeBillingContact(),
             shippingType: .delivery,
@@ -863,9 +909,7 @@ final class CouponCodeDelegateTests: XCTestCase {
         ])
     }
 
-    // Regression test: regularBilling and trialBilling are stored on the model as the real
-    // PassKit types (no reconstruction needed), so it's easy for the fallback to forget to
-    // append them too - which is exactly what happens today.
+    // Regression test. Easy to forget to append regularBilling and trialBilling to the fallback's summary items.
     func testFallsBackToSummaryItemsIncludingRegularAndTrialBillingForRecurringPayment() async throws {
         let spy = SpyDelegate()
         let transaction = Transaction.recurringPayment(try RecurringPaymentTransaction(
@@ -912,9 +956,7 @@ final class CouponCodeDelegateTests: XCTestCase {
         ])
     }
 
-    // Regression test: disbursementItem is stored on the model as a plain SummaryItem (reconstructed
-    // into a PKDisbursementSummaryItem in buildPaymentRequest), so it's easy for the fallback to
-    // forget to append it too - which is exactly what happens today.
+    // Regression test. Easy to forget to append disbursementItem to the fallback's summary items.
     func testFallsBackToSummaryItemsIncludingDisbursementItemForDisbursement() async throws {
         let spy = SpyDelegate()
         let transaction = Transaction.disbursement(try DisbursementTransaction(
@@ -934,6 +976,29 @@ final class CouponCodeDelegateTests: XCTestCase {
         XCTAssertEqual(result.paymentSummaryItems.map(\.amount), [
             NSDecimalNumber(string: "10.00"),
             NSDecimalNumber(string: "10.00")
+        ])
+    }
+
+    // Regression test. Easy to forget to append the reload line item to the fallback's summary items.
+    func testFallsBackToSummaryItemsIncludingReloadLineItemForAutomaticReload() async throws {
+        let spy = SpyDelegate()
+        let transaction = Transaction.automaticReload(try AutomaticReloadPaymentTransaction(
+            country: "IE",
+            currency: "EUR",
+            paymentSummaryItems: [SummaryItem(label: "Total", amount: Amount("10.00"))],
+            paymentDescription: "Gift Card Reload",
+            automaticReloadBilling: SummaryItem(label: "Reload", amount: Amount("20.00")),
+            managementURL: URL(string: "https://example.com/manage")!
+        ))
+        let view = makeViewForDispositionTests(delegate: spy, transaction: transaction)
+        // didChangeCouponCodeHandler left unset - exercises the SDK's getPaymentSummaryItems() fallback.
+
+        let result = await view.paymentAuthorizationViewController(makeAuthorizationController(), didChangeCouponCode: "SAVE20")
+
+        XCTAssertEqual(result.paymentSummaryItems.map(\.label), ["Total", "Reload"])
+        XCTAssertEqual(result.paymentSummaryItems.map(\.amount), [
+            NSDecimalNumber(string: "10.00"),
+            NSDecimalNumber(string: "20.00")
         ])
     }
 

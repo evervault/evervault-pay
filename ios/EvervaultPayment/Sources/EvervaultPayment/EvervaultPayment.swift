@@ -254,7 +254,20 @@ public class EvervaultPaymentView: UIView {
                         throw EvervaultError.ApplePayPaymentSheetError
                     }
                     vc.delegate = self
-                    
+
+                    // Present the Payment Sheet from the frontmost window
+                    rootVC?.present(vc, animated: true)
+                } else {
+                    throw EvervaultError.UnsupportedVersionError
+                }
+            default:
+                if #available(iOS 16.0, *), case let .automaticReload(automaticReloadTransaction) = self.transaction {
+                    let paymentRequest = self.buildPaymentRequest(transaction: automaticReloadTransaction)
+                    guard let vc = PKPaymentAuthorizationViewController(paymentRequest: paymentRequest) else {
+                        throw EvervaultError.ApplePayPaymentSheetError
+                    }
+                    vc.delegate = self
+
                     // Present the Payment Sheet from the frontmost window
                     rootVC?.present(vc, animated: true)
                 } else {
@@ -388,7 +401,61 @@ public class EvervaultPaymentView: UIView {
 
         return paymentRequest
     }
-    
+
+    // Reconstructs the real PassKit type here so the model is iOS-15-safe.
+    // Shared by `buildPaymentRequest` and `getPaymentSummaryItems` to keep what's shown
+    // initially and what's shown after PassKit-triggered summary-item rebuilds
+    // (shipping/payment-method/coupon changes) consistent.
+    @available(iOS 16.0, *)
+    private static func buildAutomaticReloadBillingItem(transaction: AutomaticReloadPaymentTransaction) -> PKAutomaticReloadPaymentSummaryItem {
+        let automaticReloadBilling = PKAutomaticReloadPaymentSummaryItem(
+            label: transaction.automaticReloadBilling.label,
+            amount: transaction.automaticReloadBilling.amount.amount
+        )
+        if let thresholdAmount = transaction.automaticReloadThresholdAmount {
+            automaticReloadBilling.thresholdAmount = thresholdAmount.amount
+        }
+        return automaticReloadBilling
+    }
+
+    @available(iOS 16.0, *)
+    private func buildPaymentRequest(transaction: AutomaticReloadPaymentTransaction) -> PKPaymentRequest {
+        let paymentRequest = PKPaymentRequest()
+        paymentRequest.merchantIdentifier = self.appleMerchantIdentifier
+        paymentRequest.supportedNetworks = self.supportedNetworks
+        paymentRequest.countryCode = transaction.country
+        paymentRequest.currencyCode = transaction.currency
+        paymentRequest.paymentSummaryItems = transaction.paymentSummaryItems.map { item in
+            PKPaymentSummaryItem(label: item.label, amount: item.amount.amount)
+        }
+        paymentRequest.merchantCapabilities = .threeDSecure
+
+        let automaticReloadBilling = Self.buildAutomaticReloadBillingItem(transaction: transaction)
+        paymentRequest.paymentSummaryItems.append(automaticReloadBilling)
+        let automaticReload = PKAutomaticReloadPaymentRequest(
+            paymentDescription: transaction.paymentDescription,
+            automaticReloadBilling: automaticReloadBilling,
+            managementURL: transaction.managementURL
+        )
+        automaticReload.billingAgreement = transaction.billingAgreement
+        paymentRequest.automaticReloadPaymentRequest = automaticReload
+        paymentRequest.requiredBillingContactFields = transaction.requestPayerDetails
+        paymentRequest.supportsCouponCode = transaction.supportsCouponCode
+        paymentRequest.couponCode = transaction.couponCode
+
+        paymentRequest.shippingType = transaction.shippingType
+        paymentRequest.requiredShippingContactFields = transaction.requiredShippingContactFields
+
+        if let billingContact = transaction.billingContact {
+            paymentRequest.billingContact = PKContact(billingContact)
+        }
+        if let shippingContact = transaction.shippingContact {
+            paymentRequest.shippingContact = PKContact(shippingContact)
+        }
+
+        return paymentRequest
+    }
+
     private func getPaymentSummaryItems() -> [PKPaymentSummaryItem] {
         switch self.transaction {
         case let .oneOffPayment(oneOffTransaction):
@@ -397,6 +464,16 @@ public class EvervaultPaymentView: UIView {
             return self.buildSummaryItems(for: dispersementTransaction)
         case let .recurringPayment(recurringTransaction):
             return self.buildSummaryItems(for: recurringTransaction)
+        default:
+            // Covers .automaticReload (gated to iOS 16+) while this switch compiles at the package's iOS 15 minimum.
+            if #available(iOS 16.0, *), case let .automaticReload(automaticReloadTransaction) = self.transaction {
+                var items = automaticReloadTransaction.paymentSummaryItems.map { item in
+                    PKPaymentSummaryItem(label: item.label, amount: item.amount.amount)
+                }
+                items.append(Self.buildAutomaticReloadBillingItem(transaction: automaticReloadTransaction))
+                return items
+            }
+            return []
         }
     }
 }
@@ -409,7 +486,7 @@ extension EvervaultPaymentView : PKPaymentAuthorizationViewControllerDelegate {
         do {
             // Send the token to the Evervault backend for decryption and re-encryption with Evervault Encryption
             let decoded = try await EvervaultApi.sendPaymentToken(appUuid, payment)
-            let transactionType = await MainActor.run { ApplePayTransactionType(self.transaction) }
+            let transactionType = try await MainActor.run { try ApplePayTransactionType(self.transaction) }
             let enriched = decoded?.enriched(
                 billingContact: ApplePayContact(payment.billingContact),
                 shippingContact: ApplePayContact(payment.shippingContact),
