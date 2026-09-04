@@ -14,6 +14,7 @@ runtimeAndroid = "1.4.3"
 uiAndroid = "1.4.3"
 playServicesWallet = "20.0.0"
 json = "20240303"
+jsonassert = "1.5.3"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -29,6 +30,7 @@ androidx-lifecycle-runtime-compose = { group = "androidx.lifecycle", name = "lif
 #androidx-ui-android = { group = "androidx.compose.ui", name = "ui-android", version.ref = "uiAndroid" }
 play-services-wallet = { group = "com.google.android.gms", name = "play-services-wallet", version.ref = "playServicesWallet" }
 json = { group = "org.json", name = "json", version.ref = "json" }
+jsonassert = { group = "org.skyscreamer", name = "jsonassert", version.ref = "jsonassert" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
