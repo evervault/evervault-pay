@@ -112,6 +112,7 @@ class EvervaultPayViewModel(application: Application, val config: Config) : Andr
         this.isStarted = true
 
         GooglePayAuthorizationConfigStore.save(getApplication(), config)
+        GooglePayShippingConfigStore.save(getApplication(), config)
 
         viewModelScope.launch {
             verifyGooglePayReadiness()
@@ -149,10 +150,17 @@ class EvervaultPayViewModel(application: Application, val config: Config) : Andr
     /**
      * Build the Google Pay PaymentDataRequest for the given transaction.
      */
-    suspend fun createPaymentRequest(transaction: Transaction): PaymentDataRequest =
-        PaymentDataRequest.fromJson(
-            buildPaymentRequestJson(config, transaction, getMerchantName()),
+    suspend fun createPaymentRequest(transaction: Transaction): PaymentDataRequest {
+        val merchantName = getMerchantName()
+
+        if (config.googlePayShipping != null) {
+            GooglePayShippingStateStore.start(transaction, merchantName)
+        }
+
+        return PaymentDataRequest.fromJson(
+            buildPaymentRequestJson(config, transaction, merchantName),
         )
+    }
 
     /**
      * Fetches the `PaymentResult` after doing the token exchange from Evervault.
@@ -180,6 +188,7 @@ class EvervaultPayViewModel(application: Application, val config: Config) : Andr
     }
 
     fun handlePaymentFailure(error: Throwable) {
+        GooglePayShippingStateStore.clear()
         val state = classifyPaymentFailure(error)
         if (state is PaymentState.Error) {
             Log.e(LOG_TAG, "Payment failed", error)
@@ -205,6 +214,10 @@ class EvervaultPayViewModel(application: Application, val config: Config) : Andr
                 _paymentState.update {
                     PaymentState.Error(CommonStatusCodes.INTERNAL_ERROR, "Error decoding payment token data")
                 }
+            } finally {
+                // No-authorization payments never retry once the sheet has closed, so
+                // this is always the true end of the attempt, success or failure.
+                GooglePayShippingStateStore.clear()
             }
         }
     }
@@ -239,6 +252,13 @@ internal suspend fun decryptPaymentData(
     extractPaymentBillingName(paymentInformation)?.let { billingName ->
         tokenResponse.billingAddress = billingName
     }
+    extractPaymentShippingAddress(paymentInformation)?.let { shippingAddress ->
+        tokenResponse.shippingAddress = shippingAddress
+    }
+    extractPaymentShippingOption()?.let { shippingOption ->
+        tokenResponse.shippingOption = shippingOption
+    }
+
     val responseWithPaymentMethodType = attachPaymentMethodType(
         attachPaymentEmail(tokenResponse, paymentInformation),
         paymentInformation,
@@ -259,6 +279,41 @@ internal fun extractPaymentBillingName(paymentInformation: String): BillingAddre
         Log.e(EvervaultPayViewModel.LOG_TAG, "Error: $error")
         null
     }
+
+// Unlike billingAddress (nested under paymentMethodData.info), Google Pay
+// returns shippingAddress as a top-level field on the final PaymentData.
+//
+// Built field-by-field rather than via Gson: Google Pay sends inapplicable
+// fields (e.g. address2 for a country with no second address line) as ""
+// rather than omitting them, and a raw Gson parse would carry that blank
+// string through rather than leaving the field null.
+internal fun extractPaymentShippingAddress(paymentInformation: String): ShippingAddress? =
+    try {
+        JSONObject(paymentInformation).optJSONObject("shippingAddress")?.let { address ->
+            ShippingAddress(
+                name = address.optString("name").takeIf { it.isNotEmpty() },
+                postalCode = address.optString("postalCode").takeIf { it.isNotEmpty() },
+                countryCode = address.optString("countryCode").takeIf { it.isNotEmpty() },
+                address1 = address.optString("address1").takeIf { it.isNotEmpty() },
+                address2 = address.optString("address2").takeIf { it.isNotEmpty() },
+                address3 = address.optString("address3").takeIf { it.isNotEmpty() },
+                locality = address.optString("locality").takeIf { it.isNotEmpty() },
+                administrativeArea = address.optString("administrativeArea").takeIf { it.isNotEmpty() },
+                sortingCode = address.optString("sortingCode").takeIf { it.isNotEmpty() },
+            )
+        }
+    } catch (error: JSONException) {
+        Log.e(EvervaultPayViewModel.LOG_TAG, "Error: $error")
+        null
+    }
+
+// Google Pay's final PaymentData never includes the selected shipping option id,
+// only the redacted mid-flow callback does, so the SDK has to remember it via
+// GooglePayShippingStateStore for it to still be available here.
+internal fun extractPaymentShippingOption(): ShippingOption? {
+    val state = GooglePayShippingStateStore.current() ?: return null
+    return state.transaction.shippingOptions.find { it.id == state.selectedShippingOptionId }
+}
 
 internal fun attachPaymentEmail(
     tokenResponse: TokenResponse,

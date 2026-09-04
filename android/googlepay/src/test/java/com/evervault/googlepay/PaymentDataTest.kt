@@ -1,10 +1,16 @@
 package com.evervault.googlepay
 
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
 class PaymentDataTest {
+    @After
+    fun tearDown() {
+        GooglePayShippingStateStore.clear()
+    }
+
     @Test
     fun `attaches email returned by Google Pay to the token response`() {
         val response = attachPaymentEmail(
@@ -43,6 +49,59 @@ class PaymentDataTest {
         )
 
         assertNull(response.email)
+    }
+
+    @Test
+    fun `extracts the top-level shipping address returned by Google Pay`() {
+        val address = extractPaymentShippingAddress(
+            """{"shippingAddress":{"name":"Buyer","postalCode":"D01 F5P2","countryCode":"IE"}}""",
+        )
+
+        assertEquals("Buyer", address?.name)
+        assertEquals("D01 F5P2", address?.postalCode)
+        assertEquals("IE", address?.countryCode)
+    }
+
+    @Test
+    fun `does not extract a shipping address when Google Pay did not return one`() {
+        val address = extractPaymentShippingAddress("""{"paymentMethodData":{}}""")
+
+        assertNull(address)
+    }
+
+    @Test
+    fun `does not carry through shipping address fields Google Pay sent blank`() {
+        val address = extractPaymentShippingAddress(
+            """{"shippingAddress":{"name":"Buyer","postalCode":"D01 F5P2","countryCode":"IE","address2":""}}""",
+        )
+
+        assertNull(address?.address2)
+    }
+
+    @Test
+    fun `resolves the selected shipping option against the in-progress transaction`() {
+        val transaction = Transaction(
+            country = "IE",
+            currency = "EUR",
+            total = Amount("54.99"),
+            lineItems = arrayOf(LineItem("Shell Jacket", Amount("50.00"))),
+            shippingOptions = listOf(
+                ShippingOption("standard", "Standard", Amount("5.00")),
+                ShippingOption("express", "Express", Amount("15.00")),
+            ),
+            defaultShippingOptionId = "standard",
+        )
+        GooglePayShippingStateStore.start(transaction, "Test Merchant")
+        GooglePayShippingStateStore.updateSelectedShippingOptionId("express")
+
+        val option = extractPaymentShippingOption()
+
+        assertEquals("express", option?.id)
+    }
+
+    @Test
+    fun `does not resolve a shipping option without a Google Pay shipping transaction in progress`() {
+        assertNull(extractPaymentShippingOption())
     }
 
     @Test

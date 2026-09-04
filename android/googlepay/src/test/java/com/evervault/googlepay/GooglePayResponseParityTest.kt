@@ -1,14 +1,21 @@
 package com.evervault.googlepay
 
 import com.google.gson.GsonBuilder
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 class GooglePayResponseParityTest {
     private val gson = GsonBuilder()
         .registerTypeAdapter(TokenResponse::class.java, TokenResponseAdapter())
         .create()
+
+    @After
+    fun tearDown() {
+        GooglePayShippingStateStore.clear()
+    }
 
     @Test
     fun `retains card constructors from before paymentMethodType`() {
@@ -78,6 +85,9 @@ class GooglePayResponseParityTest {
         assertNotNull(response.billingAddress)
         assertEquals("Buyer", response.billingAddress?.name)
         assertEquals("D01 F5P2", response.billingAddress?.postalCode)
+        assertNotNull(response.shippingAddress)
+        assertEquals("Ship Buyer", response.shippingAddress?.name)
+        assertEquals("D02 X285", response.shippingAddress?.postalCode)
     }
 
     @Test
@@ -99,6 +109,33 @@ class GooglePayResponseParityTest {
         assertNotNull(response.billingAddress)
         assertEquals("Buyer", response.billingAddress?.name)
         assertEquals("D01 F5P2", response.billingAddress?.postalCode)
+        assertNotNull(response.shippingAddress)
+        assertEquals("Ship Buyer", response.shippingAddress?.name)
+        assertEquals("D02 X285", response.shippingAddress?.postalCode)
+    }
+
+    @Test
+    fun `enriches a response with the buyer's selected shipping option`() {
+        val transaction = Transaction(
+            country = "IE",
+            currency = "EUR",
+            total = Amount("54.99"),
+            lineItems = arrayOf(LineItem("Shell Jacket", Amount("50.00"))),
+            shippingOptions = listOf(ShippingOption("standard", "Standard", Amount("5.00"))),
+            defaultShippingOptionId = "standard",
+        )
+        GooglePayShippingStateStore.start(transaction, "Test Merchant")
+
+        val response = enrich(networkTokenDecryptionResponse, paymentData) as NetworkTokenResponse
+
+        assertEquals("standard", response.shippingOption?.id)
+    }
+
+    @Test
+    fun `does not attach a shipping option without a Google Pay shipping transaction in progress`() {
+        val response = enrich(networkTokenDecryptionResponse, paymentData) as NetworkTokenResponse
+
+        assertNull(response.shippingOption)
     }
 
     @Test
@@ -130,6 +167,8 @@ class GooglePayResponseParityTest {
     private fun enrich(decryptionResponse: String, paymentInformation: String): TokenResponse {
         val response = gson.fromJson(decryptionResponse, TokenResponse::class.java)
         extractPaymentBillingName(paymentInformation)?.let { response.billingAddress = it }
+        extractPaymentShippingAddress(paymentInformation)?.let { response.shippingAddress = it }
+        extractPaymentShippingOption()?.let { response.shippingOption = it }
         val responseWithMethodType = attachPaymentMethodType(
             attachPaymentEmail(response, paymentInformation),
             paymentInformation,
@@ -182,6 +221,13 @@ class GooglePayResponseParityTest {
                     "locality": "Dublin"
                   }
                 }
+              },
+              "shippingAddress": {
+                "name": "Ship Buyer",
+                "postalCode": "D02 X285",
+                "countryCode": "IE",
+                "address1": "2 Example Street",
+                "locality": "Dublin"
               }
             }
         """

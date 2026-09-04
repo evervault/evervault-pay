@@ -19,6 +19,26 @@ Set `GOOGLE_PAY_AUTHORIZATION_RESULT` to `reject` to show an inline rejection.
 The sample handler uses a fixed result for demonstration only. A production
 handler must ask the merchant backend whether to accept the payment.
 
+To test shipping address collection, shipping option selection, and dynamic
+total recompute, add this optional property:
+
+```
+ENABLE_GOOGLE_PAY_SHIPPING=true
+```
+
+The shipping option list itself is fixed - a handler can only accept the
+current selection (with a recomputed total) or reject it, not add, remove,
+or reprice options in the list shown to the buyer. Google Pay also has no
+price field of its own for a shipping option, so labels are shown exactly as
+given; bake a price in yourself if you want one shown, e.g. "Express: £9.99".
+
+The sample offers a fixed "Standard"/"Express" list. Standard is priced by
+destination (free normally, a flat 14.95 for Hong Kong/Japan, unavailable
+for Brazil/Canada), so its label is left bare rather than show a price that
+would go stale; Express is a flat rate everywhere, so its label bakes the
+price in. The result screen prints the returned `shippingAddress` and
+`shippingOption`.
+
 ```bash
 ./gradlew build
 ```
