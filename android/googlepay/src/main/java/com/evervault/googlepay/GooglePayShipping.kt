@@ -15,8 +15,12 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * Recomputes totals when the buyer changes their shipping address or selected
- * shipping option in the Google Pay sheet.
+ * Called when the buyer changes their shipping address or selected shipping
+ * option in the Google Pay sheet.
+ *
+ * The shipping option list ([Transaction.shippingOptions]) can't change here.
+ * The current selection can be accepted (with a recomputed total) or rejected.
+ * See [GooglePayShippingUpdateResult].
  *
  * The handler must have a public no-argument constructor. Google Pay creates it
  * through a service. Do not retain an Activity, ViewModel, or composable in it.
@@ -56,8 +60,10 @@ enum class GooglePayShippingErrorReason(internal val googlePayValue: String) {
 
 /** The merchant decision returned from [GooglePayShippingHandler]. */
 sealed interface GooglePayShippingUpdateResult {
+    /** Accepts the current selection with a recomputed total, e.g. a destination-specific rate. */
     data class Accept(val lineItems: List<LineItem>, val total: Amount) : GooglePayShippingUpdateResult
 
+    /** Rejects the current selection, e.g. an unserviceable country. */
     data class Reject(
         val message: String,
         val intent: GooglePayShippingIntent,
