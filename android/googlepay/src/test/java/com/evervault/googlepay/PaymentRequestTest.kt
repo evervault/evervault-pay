@@ -143,8 +143,16 @@ class PaymentRequestTest {
             .getJSONObject("parameters")
 
     @Test
-    fun `billing address defaults to FULL without a phone number`() {
+    fun `billing address is not collected by default`() {
         val parameters = cardParameters(config)
+
+        assertFalse(parameters.getBoolean("billingAddressRequired"))
+        assertFalse(parameters.has("billingAddressParameters"))
+    }
+
+    @Test
+    fun `an enabled billing address defaults to FULL without a phone number`() {
+        val parameters = cardParameters(config.copy(billingAddress = BillingAddressConfig.Enabled()))
 
         assertTrue(parameters.getBoolean("billingAddressRequired"))
         val billing = parameters.getJSONObject("billingAddressParameters")

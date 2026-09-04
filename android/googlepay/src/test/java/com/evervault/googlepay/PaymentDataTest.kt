@@ -6,6 +6,44 @@ import org.junit.Test
 
 class PaymentDataTest {
     @Test
+    fun `extracts a billing address returned by Google Pay`() {
+        val address = extractPaymentBillingAddress(
+            """
+            {
+              "paymentMethodData": {
+                "info": {
+                  "billingAddress": {
+                    "name": "Grace Hopper",
+                    "postalCode": "10001",
+                    "countryCode": "US",
+                    "address1": "123 Main Street",
+                    "locality": "New York",
+                    "administrativeArea": "NY"
+                  }
+                }
+              }
+            }
+            """.trimIndent(),
+        )
+
+        assertEquals("Grace Hopper", address?.name)
+        assertEquals("10001", address?.postalCode)
+        assertEquals("US", address?.countryCode)
+        assertEquals("123 Main Street", address?.address1)
+        assertEquals("New York", address?.locality)
+        assertEquals("NY", address?.administrativeArea)
+    }
+
+    @Test
+    fun `returns no billing address when Google Pay did not return one`() {
+        val address = extractPaymentBillingAddress(
+            """{"paymentMethodData":{"info":{}}}""",
+        )
+
+        assertNull(address)
+    }
+
+    @Test
     fun `attaches email returned by Google Pay to the token response`() {
         val response = attachPaymentEmail(
             networkTokenResponse(),

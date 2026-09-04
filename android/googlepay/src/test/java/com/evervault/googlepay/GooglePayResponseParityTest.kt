@@ -129,7 +129,7 @@ class GooglePayResponseParityTest {
 
     private fun enrich(decryptionResponse: String, paymentInformation: String): TokenResponse {
         val response = gson.fromJson(decryptionResponse, TokenResponse::class.java)
-        extractPaymentBillingName(paymentInformation)?.let { response.billingAddress = it }
+        extractPaymentBillingAddress(paymentInformation)?.let { response.billingAddress = it }
         val responseWithMethodType = attachPaymentMethodType(
             attachPaymentEmail(response, paymentInformation),
             paymentInformation,
