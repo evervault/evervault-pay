@@ -57,6 +57,34 @@ class GooglePayShippingTest {
     }
 
     @Test
+    fun `acceptance preserves each line item's original type`() {
+        val result = shippingUpdate(
+            GooglePayShippingUpdateResult.Accept(
+                lineItems = listOf(
+                    LineItem("Shell Jacket", Amount("50.00"), LineItemType.LINE_ITEM),
+                    LineItem("Discount", Amount("5.00"), LineItemType.DISCOUNT),
+                    LineItem("Tax", Amount("2.00"), LineItemType.TAX),
+                    LineItem("Subtotal", Amount("47.00"), LineItemType.SUBTOTAL),
+                    LineItem("Standard", Amount("5.00"), LineItemType.SHIPPING_OPTION),
+                ),
+                total = Amount("54.00"),
+            ),
+            transaction,
+            "Test Merchant",
+        )
+
+        val displayItems = JSONObject(result.toJson())
+            .getJSONObject("newTransactionInfo")
+            .getJSONArray("displayItems")
+
+        assertEquals("LINE_ITEM", displayItems.getJSONObject(0).getString("type"))
+        assertEquals("DISCOUNT", displayItems.getJSONObject(1).getString("type"))
+        assertEquals("TAX", displayItems.getJSONObject(2).getString("type"))
+        assertEquals("SUBTOTAL", displayItems.getJSONObject(3).getString("type"))
+        assertEquals("SHIPPING_OPTION", displayItems.getJSONObject(4).getString("type"))
+    }
+
+    @Test
     fun `acceptance can only update totals, not replace the shipping option list`() {
         val result = shippingUpdate(
             GooglePayShippingUpdateResult.Accept(lineItems = transaction.lineItems.toList(), total = transaction.total),

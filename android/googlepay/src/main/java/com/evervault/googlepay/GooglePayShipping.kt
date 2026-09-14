@@ -288,7 +288,7 @@ internal fun shippingUpdate(
                         .put("displayItems", JSONArray(result.lineItems.map {
                             JSONObject()
                                 .put("label", it.label)
-                                .put("type", "LINE_ITEM")
+                                .put("type", it.type.name)
                                 .put("price", it.amount.format(transaction.currency))
                                 .put("status", "FINAL")
                         }))
