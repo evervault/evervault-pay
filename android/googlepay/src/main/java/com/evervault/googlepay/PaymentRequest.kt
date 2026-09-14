@@ -104,6 +104,11 @@ internal fun buildPaymentRequestJson(
     transaction: Transaction,
     merchantName: String
 ): String {
+    require(!(transaction.shippingOptions.isNotEmpty() && config.googlePayShipping == null)) {
+        "Config.googlePayShipping is required when Transaction.shippingOptions is set. " +
+            "Google Pay reports the buyer's selected option via that callback"
+    }
+
     val shippingAddress = config.shippingAddress as? ShippingAddressConfig.Enabled
     val shippingOptionsEnabled = transaction.shippingOptions.isNotEmpty()
 

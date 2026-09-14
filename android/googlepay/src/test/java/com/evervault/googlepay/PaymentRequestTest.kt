@@ -381,6 +381,11 @@ class PaymentRequestTest {
         defaultShippingOptionId = "standard",
     )
 
+    // Config.googlePayShipping is required whenever Transaction.shippingOptions is set.
+    private val shippingHandlerConfig = config.copy(
+        googlePayShipping = GooglePayShippingConfig(TestShippingHandler::class.java),
+    )
+
     @Test
     fun `defaultShippingOptionId must match one of the shipping options`() {
         assertThrows(IllegalArgumentException::class.java) {
@@ -511,18 +516,14 @@ class PaymentRequestTest {
     }
 
     @Test
-    fun `shipping is required in the sheet without firing a callback when no handler is configured`() {
-        val json = JSONObject(
+    fun `building a request fails when shipping options are set without a shipping handler`() {
+        assertThrows(IllegalArgumentException::class.java) {
             buildPaymentRequestJson(
                 config.copy(shippingAddress = ShippingAddressConfig.Enabled()),
                 shippableTransaction,
                 "Test Merchant",
             )
-        )
-
-        assertTrue(json.getBoolean("shippingAddressRequired"))
-        assertTrue(json.getBoolean("shippingOptionRequired"))
-        assertFalse(json.has("callbackIntents"))
+        }
     }
 
     @Test
@@ -535,7 +536,9 @@ class PaymentRequestTest {
 
     @Test
     fun `shipping option parameters list every option and the default selection`() {
-        val json = JSONObject(buildPaymentRequestJson(config, shippableTransaction, "Test Merchant"))
+        val json = JSONObject(
+            buildPaymentRequestJson(shippingHandlerConfig, shippableTransaction, "Test Merchant")
+        )
 
         assertTrue(json.getBoolean("shippingOptionRequired"))
         val parameters = json.getJSONObject("shippingOptionParameters")
@@ -551,7 +554,7 @@ class PaymentRequestTest {
     fun `shipping option description is included only when given`() {
         val json = JSONObject(
             buildPaymentRequestJson(
-                config,
+                shippingHandlerConfig,
                 shippableTransaction.copy(
                     shippingOptions = listOf(
                         ShippingOption("standard", "Standard", Amount("5.00"), "Arrives in 5-7 days"),
@@ -572,7 +575,7 @@ class PaymentRequestTest {
     fun `shipping option label is sent exactly as given, since Google Pay has no price field of its own`() {
         val json = JSONObject(
             buildPaymentRequestJson(
-                config,
+                shippingHandlerConfig,
                 shippableTransaction.copy(
                     shippingOptions = listOf(ShippingOption("express", "Express: €15.00", Amount("15.00"))),
                     defaultShippingOptionId = "express",

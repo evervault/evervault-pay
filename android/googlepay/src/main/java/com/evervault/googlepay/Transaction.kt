@@ -10,7 +10,12 @@ data class Transaction(
     val checkoutOption: CheckoutOption? = null,
     /** A unique identifier for this Google Pay facilitation attempt. */
     val transactionId: String? = null,
-    /** The fixed shipping options offered for this transaction, if any. */
+    /**
+     * The fixed shipping options offered for this transaction, if any.
+     *
+     * Requires [Config.googlePayShipping] to be set, as Google Pay only reports the
+     * buyer's selected option via that callback.
+     */
     val shippingOptions: List<ShippingOption> = emptyList(),
     /** Must match the `id` of one of [shippingOptions] when set. */
     val defaultShippingOptionId: String? = null,

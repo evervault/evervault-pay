@@ -79,6 +79,9 @@ sealed interface GooglePayShippingUpdateResult {
  * fixed [Transaction.shippingOptions] list while the sheet stays open. Requires
  * [Transaction.shippingOptions] to be non-empty; every recompute is rejected
  * otherwise.
+ *
+ * This is required whenever [Transaction.shippingOptions] is set, as Google Pay
+ * uses this callback to provide the buyer's selected shipping option.
  */
 data class GooglePayShippingConfig(
     val handler: Class<out GooglePayShippingHandler>,
