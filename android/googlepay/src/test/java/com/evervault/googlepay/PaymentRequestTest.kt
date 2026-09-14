@@ -397,6 +397,36 @@ class PaymentRequestTest {
     }
 
     @Test
+    fun `shipping options must have a non-blank id`() {
+        assertThrows(IllegalArgumentException::class.java) {
+            transaction.copy(
+                shippingOptions = listOf(ShippingOption(" ", "Standard", Amount("5.00"))),
+            )
+        }
+    }
+
+    @Test
+    fun `shipping options must have a non-blank label`() {
+        assertThrows(IllegalArgumentException::class.java) {
+            transaction.copy(
+                shippingOptions = listOf(ShippingOption("standard", " ", Amount("5.00"))),
+            )
+        }
+    }
+
+    @Test
+    fun `shipping option ids must be unique`() {
+        assertThrows(IllegalArgumentException::class.java) {
+            transaction.copy(
+                shippingOptions = listOf(
+                    ShippingOption("standard", "Standard", Amount("5.00")),
+                    ShippingOption("standard", "Express", Amount("15.00")),
+                ),
+            )
+        }
+    }
+
+    @Test
     fun `shipping options take part in transaction equality`() {
         assertEquals(shippableTransaction, shippableTransaction.copy())
         assertNotEquals(transaction, shippableTransaction)

@@ -66,6 +66,15 @@ data class Transaction(
     )
 
     init {
+        require(shippingOptions.all { it.id.isNotBlank() }) {
+            "shippingOptions must have non-blank ids"
+        }
+        require(shippingOptions.all { it.label.isNotBlank() }) {
+            "shippingOptions must have non-blank labels"
+        }
+        require(shippingOptions.map { it.id }.distinct().size == shippingOptions.size) {
+            "shippingOptions ids must be unique"
+        }
         if (defaultShippingOptionId != null) {
             require(shippingOptions.any { it.id == defaultShippingOptionId }) {
                 "defaultShippingOptionId \"$defaultShippingOptionId\" must match the id of one of shippingOptions"
