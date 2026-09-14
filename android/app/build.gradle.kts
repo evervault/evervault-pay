@@ -26,6 +26,8 @@ val enableGooglePayAuthorization: Boolean =
     localProperties.getProperty("ENABLE_GOOGLE_PAY_AUTHORIZATION")?.toBooleanStrictOrNull() ?: false
 val googlePayAuthorizationResult: String =
     localProperties.getProperty("GOOGLE_PAY_AUTHORIZATION_RESULT", "accept").lowercase()
+val enableGooglePayShipping: Boolean =
+    localProperties.getProperty("ENABLE_GOOGLE_PAY_SHIPPING")?.toBooleanStrictOrNull() ?: false
 
 require(googlePayAuthorizationResult in setOf("accept", "reject")) {
     "GOOGLE_PAY_AUTHORIZATION_RESULT must be 'accept' or 'reject'"
@@ -37,6 +39,7 @@ android {
         buildConfigField("String", "EVERVAULT_MERCHANT_ID", "\"$evervaultMerchantId\"")
         buildConfigField("boolean", "ENABLE_GOOGLE_PAY_AUTHORIZATION", enableGooglePayAuthorization.toString())
         buildConfigField("String", "GOOGLE_PAY_AUTHORIZATION_RESULT", "\"$googlePayAuthorizationResult\"")
+        buildConfigField("boolean", "ENABLE_GOOGLE_PAY_SHIPPING", enableGooglePayShipping.toString())
     }
 }
 

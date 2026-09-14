@@ -16,6 +16,8 @@ data class Config(
      * This excludes buyers who could add a card during checkout.
      */
     val existingPaymentMethodRequired: Boolean = false,
+    val shippingAddress: ShippingAddressConfig = ShippingAddressConfig.Disabled,
+    val googlePayShipping: GooglePayShippingConfig? = null,
 ) {
     /** Retains the constructor signature from releases before this config batch. */
     constructor(
