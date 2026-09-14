@@ -109,8 +109,11 @@ internal fun buildPaymentRequestJson(
             "Google Pay reports the buyer's selected option via that callback"
     }
 
-    val shippingAddress = config.shippingAddress as? ShippingAddressConfig.Enabled
     val shippingOptionsEnabled = transaction.shippingOptions.isNotEmpty()
+
+    // Shipping options need a destination to ship to.
+    val shippingAddress = (config.shippingAddress as? ShippingAddressConfig.Enabled)
+        ?: if (shippingOptionsEnabled) ShippingAddressConfig.Enabled() else null
 
     return baseRequest()
         .put("emailRequired", config.emailRequired)

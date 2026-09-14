@@ -613,7 +613,18 @@ class PaymentRequestTest {
     }
 
     @Test
-    fun `shipping option callback fires even without shipping address collection`() {
+    fun `shipping options auto-enable address collection even when shippingAddress is Disabled`() {
+        val json = JSONObject(
+            buildPaymentRequestJson(shippingHandlerConfig, shippableTransaction, "Test Merchant")
+        )
+
+        assertTrue(json.getBoolean("shippingAddressRequired"))
+    }
+
+    @Test
+    fun `both shipping callbacks fire even when shippingAddress is Disabled`() {
+        // Address collection auto-enables (see the test above), so both callbacks fire
+        // exactly as they would if shippingAddress had been explicitly Enabled.
         val json = JSONObject(
             buildPaymentRequestJson(
                 config.copy(googlePayShipping = GooglePayShippingConfig(TestShippingHandler::class.java)),
@@ -623,7 +634,10 @@ class PaymentRequestTest {
         )
 
         val intents = json.getJSONArray("callbackIntents")
-        assertEquals(listOf("SHIPPING_OPTION"), (0 until intents.length()).map { intents.getString(it) })
+        assertEquals(
+            listOf("SHIPPING_ADDRESS", "SHIPPING_OPTION"),
+            (0 until intents.length()).map { intents.getString(it) },
+        )
     }
 
     @Test

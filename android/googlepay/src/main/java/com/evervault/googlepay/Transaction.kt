@@ -14,7 +14,8 @@ data class Transaction(
      * The fixed shipping options offered for this transaction, if any.
      *
      * Requires [Config.googlePayShipping] to be set, as Google Pay only reports the
-     * buyer's selected option via that callback.
+     * buyer's selected option via that callback. Also requires shipping address
+     * collection, even if [Config.shippingAddress] is [ShippingAddressConfig.Disabled].
      */
     val shippingOptions: List<ShippingOption> = emptyList(),
     /** Must match the `id` of one of [shippingOptions] when set. */
