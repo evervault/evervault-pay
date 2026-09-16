@@ -67,8 +67,32 @@ sealed interface GooglePayShippingUpdateResult {
      * Accepts the current selection with a recomputed total, e.g. a destination-specific rate.
      *
      * [lineItems] and [total] are optional - omit either to leave it unchanged.
+     *
+     * [shippingOptions] is also optional and, when set, replaces the sheet's shipping-option
+     * list for the rest of this attempt - e.g. offering pickup only in certain destinations.
+     * [defaultShippingOptionId] picks which of [shippingOptions] to preselect; if omitted, the
+     * buyer's previous selection carries over when it still exists in the new list.
      */
-    data class Accept(val lineItems: List<LineItem>? = null, val total: Amount? = null) : GooglePayShippingUpdateResult
+    data class Accept(
+        val lineItems: List<LineItem>? = null,
+        val total: Amount? = null,
+        val shippingOptions: List<ShippingOption>? = null,
+        val defaultShippingOptionId: String? = null,
+    ) : GooglePayShippingUpdateResult {
+        init {
+            if (shippingOptions != null) {
+                require(shippingOptions.isNotEmpty()) { "A replacement shippingOptions list must not be empty" }
+            }
+            if (defaultShippingOptionId != null) {
+                require(shippingOptions != null) {
+                    "defaultShippingOptionId requires a replacement shippingOptions list"
+                }
+                require(shippingOptions.any { it.id == defaultShippingOptionId }) {
+                    "defaultShippingOptionId \"$defaultShippingOptionId\" must match the id of one of shippingOptions"
+                }
+            }
+        }
+    }
 
     /** Rejects the current selection, e.g. an unserviceable country. */
     data class Reject(

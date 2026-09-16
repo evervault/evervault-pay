@@ -181,6 +181,40 @@ class GooglePayShippingTest {
     }
 
     @Test
+    fun `accept allows a replacement shipping options list with a matching default`() {
+        val accept = GooglePayShippingUpdateResult.Accept(
+            shippingOptions = listOf(ShippingOption("pickup", "Local Pickup", Amount("0.00"))),
+            defaultShippingOptionId = "pickup",
+        )
+
+        assertEquals("pickup", accept.defaultShippingOptionId)
+    }
+
+    @Test
+    fun `accept's replacement shipping options list must not be empty`() {
+        assertThrows(IllegalArgumentException::class.java) {
+            GooglePayShippingUpdateResult.Accept(shippingOptions = emptyList())
+        }
+    }
+
+    @Test
+    fun `accept's default shipping option id requires a replacement shipping options list`() {
+        assertThrows(IllegalArgumentException::class.java) {
+            GooglePayShippingUpdateResult.Accept(defaultShippingOptionId = "pickup")
+        }
+    }
+
+    @Test
+    fun `accept's default shipping option id must match one of the replacement options`() {
+        assertThrows(IllegalArgumentException::class.java) {
+            GooglePayShippingUpdateResult.Accept(
+                shippingOptions = listOf(ShippingOption("pickup", "Local Pickup", Amount("0.00"))),
+                defaultShippingOptionId = "standard",
+            )
+        }
+    }
+
+    @Test
     fun `creates a handler from its class name`() {
         val handler = GooglePayShippingCoordinator.createHandler(TestShippingHandler::class.java.name)
 
