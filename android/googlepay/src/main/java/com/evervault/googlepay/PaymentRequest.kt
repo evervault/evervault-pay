@@ -108,6 +108,10 @@ internal fun buildPaymentRequestJson(
         "Config.googlePayShipping is required when Transaction.shippingOptions is set. " +
             "Google Pay reports the buyer's selected option via that callback"
     }
+    require(!(config.googlePayShipping != null && transaction.shippingOptions.isEmpty())) {
+        "Transaction.shippingOptions is required when Config.googlePayShipping is set. " +
+            "Without any options, the callback would never have one to report"
+    }
 
     val shippingOptionsEnabled = transaction.shippingOptions.isNotEmpty()
 

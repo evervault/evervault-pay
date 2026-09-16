@@ -557,6 +557,13 @@ class PaymentRequestTest {
     }
 
     @Test
+    fun `building a request fails when a shipping handler is configured without shipping options`() {
+        assertThrows(IllegalArgumentException::class.java) {
+            buildPaymentRequestJson(shippingHandlerConfig, transaction, "Test Merchant")
+        }
+    }
+
+    @Test
     fun `shipping option is not requested without shippingOptions on the transaction`() {
         val json = JSONObject(buildPaymentRequestJson(config, transaction, "Test Merchant"))
 
@@ -668,25 +675,6 @@ class PaymentRequestTest {
             listOf("SHIPPING_ADDRESS", "SHIPPING_OPTION"),
             (0 until intents.length()).map { intents.getString(it) },
         )
-    }
-
-    @Test
-    fun `shipping callbacks do not fire without shipping options on the transaction`() {
-        // Every recompute resolves a selected shipping option (see
-        // GooglePayShippingCoordinator.recompute), so a callback would reject every
-        // time without shipping options to resolve against - even an address-only one.
-        val json = JSONObject(
-            buildPaymentRequestJson(
-                config.copy(
-                    shippingAddress = ShippingAddressConfig.Enabled(),
-                    googlePayShipping = GooglePayShippingConfig(TestShippingHandler::class.java),
-                ),
-                transaction,
-                "Test Merchant",
-            )
-        )
-
-        assertFalse(json.has("callbackIntents"))
     }
 
     @Test
