@@ -271,7 +271,13 @@ internal object GooglePayShippingCoordinator {
                 }
 
                 val updatedTransaction = if (handlerResult is GooglePayShippingUpdateResult.Accept) {
-                    mergedTransaction(state.current, handlerResult).also(GooglePayShippingStateStore::updateCurrent)
+                    mergedTransaction(state.current, handlerResult, selectedShippingOption.id).also { merged ->
+                        GooglePayShippingStateStore.updateCurrent(merged)
+                        // Only re-sync the selection when the shippin options list actually changed.
+                        if (handlerResult.shippingOptions != null) {
+                            merged.defaultShippingOptionId?.let(GooglePayShippingStateStore::updateSelectedShippingOptionId)
+                        }
+                    }
                 } else {
                     state.current
                 }
@@ -328,12 +334,30 @@ internal fun extractIntermediateShippingAddress(address: JSONObject): ShippingAd
         sortingCode = null,
     )
 
-/** Folds an accepted update into [current], so a later partial update builds on it rather than the original transaction. */
-internal fun mergedTransaction(current: Transaction, accept: GooglePayShippingUpdateResult.Accept): Transaction =
-    current.copy(
+/**
+ * Merges [accept] into [current]. If the shipping list changes, the new selection is:
+ * buyer's previous pick (if still valid) > [accept]'s default > first option in the list.
+ */
+internal fun mergedTransaction(
+    current: Transaction,
+    accept: GooglePayShippingUpdateResult.Accept,
+    previousSelectionId: String? = null,
+): Transaction {
+    val shippingOptions = accept.shippingOptions ?: current.shippingOptions
+    val defaultShippingOptionId = when {
+        accept.shippingOptions == null -> current.defaultShippingOptionId
+        previousSelectionId != null && shippingOptions.any { it.id == previousSelectionId } -> previousSelectionId
+        accept.defaultShippingOptionId != null -> accept.defaultShippingOptionId
+        else -> shippingOptions.firstOrNull()?.id
+    }
+
+    return current.copy(
         lineItems = accept.lineItems?.toTypedArray() ?: current.lineItems,
         total = accept.total ?: current.total,
+        shippingOptions = shippingOptions,
+        defaultShippingOptionId = defaultShippingOptionId,
     )
+}
 
 internal fun shippingUpdate(
     result: GooglePayShippingUpdateResult,
@@ -358,6 +382,14 @@ internal fun shippingUpdate(
                         .put("countryCode", transaction.country)
                         .put("currencyCode", transaction.currency),
                 )
+                .apply {
+                    if (result.shippingOptions != null) {
+                        put(
+                            "newShippingOptionParameters",
+                            shippingOptionParametersJson(transaction.shippingOptions, transaction.defaultShippingOptionId),
+                        )
+                    }
+                }
                 .toString(),
         )
 

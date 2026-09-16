@@ -82,21 +82,24 @@ private fun shippingAddressParameters(shippingAddress: ShippingAddressConfig.Ena
 //
 // Sent once, before the buyer has entered a destination, and never resent -
 // see ShippingOption.label.
-private fun shippingOptionParameters(transaction: Transaction): JSONObject {
+internal fun shippingOptionParametersJson(options: List<ShippingOption>, defaultShippingOptionId: String?): JSONObject {
     val parameters = JSONObject()
-        .put("shippingOptions", JSONArray(transaction.shippingOptions.map {
+        .put("shippingOptions", JSONArray(options.map {
             JSONObject()
                 .put("id", it.id)
                 .put("label", it.label)
                 .apply { if (it.description != null) put("description", it.description) }
         }))
 
-    if (transaction.defaultShippingOptionId != null) {
-        parameters.put("defaultSelectedOptionId", transaction.defaultShippingOptionId)
+    if (defaultShippingOptionId != null) {
+        parameters.put("defaultSelectedOptionId", defaultShippingOptionId)
     }
 
     return parameters
 }
+
+private fun shippingOptionParameters(transaction: Transaction): JSONObject =
+    shippingOptionParametersJson(transaction.shippingOptions, transaction.defaultShippingOptionId)
 
 // https://developers.google.com/pay/api/android/reference/request-objects#TransactionInfo
 internal fun buildPaymentRequestJson(
