@@ -254,6 +254,40 @@ class GooglePayShippingTest {
         assertEquals(transaction, state?.transaction)
         assertEquals("Test Merchant", state?.merchantName)
         assertEquals("standard", state?.selectedShippingOptionId)
+        assertEquals(transaction, state?.current)
+    }
+
+    @Test
+    fun `mergedTransaction applies the accepted line items and total`() {
+        val accept = GooglePayShippingUpdateResult.Accept(
+            lineItems = listOf(LineItem("Shell Jacket", Amount("50.00")), LineItem("Standard", Amount("5.00"))),
+            total = Amount("55.00"),
+        )
+
+        val merged = mergedTransaction(transaction, accept)
+
+        assertEquals(accept.lineItems, merged.lineItems.toList())
+        assertEquals(Amount("55.00"), merged.total)
+    }
+
+    @Test
+    fun `mergedTransaction keeps the current line items and total when the accept omits them`() {
+        val merged = mergedTransaction(transaction, GooglePayShippingUpdateResult.Accept())
+
+        assertEquals(transaction.lineItems.toList(), merged.lineItems.toList())
+        assertEquals(transaction.total, merged.total)
+    }
+
+    @Test
+    fun `state store tracks the working transaction snapshot separately from the original`() {
+        GooglePayShippingStateStore.start(transaction, "Test Merchant")
+
+        val updated = transaction.copy(total = Amount("99.99"))
+        GooglePayShippingStateStore.updateCurrent(updated)
+
+        val state = GooglePayShippingStateStore.current()
+        assertEquals(updated, state?.current)
+        assertEquals(transaction, state?.transaction)
     }
 
     @Test

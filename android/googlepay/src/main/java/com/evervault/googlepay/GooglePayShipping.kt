@@ -156,6 +156,7 @@ internal object GooglePayShippingStateStore {
         val transaction: Transaction,
         val merchantName: String,
         val selectedShippingOptionId: String?,
+        val current: Transaction = transaction,
     )
 
     @Synchronized
@@ -173,6 +174,11 @@ internal object GooglePayShippingStateStore {
     @Synchronized
     fun updateSelectedShippingOptionId(id: String) {
         state = state?.copy(selectedShippingOptionId = id)
+    }
+
+    @Synchronized
+    fun updateCurrent(transaction: Transaction) {
+        state = state?.copy(current = transaction)
     }
 
     @Synchronized
@@ -216,9 +222,9 @@ internal object GooglePayShippingCoordinator {
 
                 val optionId = callback.optJSONObject("shippingOptionData")?.optString("id")?.takeIf { it.isNotEmpty() }
                     ?: state.selectedShippingOptionId
-                    ?: state.transaction.shippingOptions.firstOrNull()?.id
+                    ?: state.current.shippingOptions.firstOrNull()?.id
 
-                val selectedShippingOption = state.transaction.shippingOptions.find { it.id == optionId }
+                val selectedShippingOption = state.current.shippingOptions.find { it.id == optionId }
                     ?: throw ShippingRejection(
                         "Select a shipping option to continue",
                         GooglePayShippingIntent.ShippingOption,
@@ -230,19 +236,23 @@ internal object GooglePayShippingCoordinator {
                 val shippingAddress = callback.optJSONObject("shippingAddress")?.let(::extractIntermediateShippingAddress)
 
                 val request = GooglePayShippingUpdateRequest(
-                    transaction = state.transaction,
+                    transaction = state.current,
                     selectedShippingOption = selectedShippingOption,
                     shippingAddress = shippingAddress,
                     trigger = intent,
                 )
 
-                shippingUpdate(
-                    withTimeout(config.timeoutMillis) {
-                        createHandler(config.handlerName).recompute(request)
-                    },
-                    state.transaction,
-                    state.merchantName,
-                )
+                val handlerResult = withTimeout(config.timeoutMillis) {
+                    createHandler(config.handlerName).recompute(request)
+                }
+
+                val updatedTransaction = if (handlerResult is GooglePayShippingUpdateResult.Accept) {
+                    mergedTransaction(state.current, handlerResult).also(GooglePayShippingStateStore::updateCurrent)
+                } else {
+                    state.current
+                }
+
+                shippingUpdate(handlerResult, updatedTransaction, state.merchantName)
             } catch (rejection: ShippingRejection) {
                 shippingError(rejection.message ?: "Invalid shipping selection", rejection.intent, rejection.reason)
             } catch (error: CancellationException) {
@@ -292,6 +302,13 @@ internal fun extractIntermediateShippingAddress(address: JSONObject): ShippingAd
         locality = address.optString("locality").takeIf { it.isNotEmpty() },
         administrativeArea = address.optString("administrativeArea").takeIf { it.isNotEmpty() },
         sortingCode = null,
+    )
+
+/** Folds an accepted update into [current], so a later partial update builds on it rather than the original transaction. */
+internal fun mergedTransaction(current: Transaction, accept: GooglePayShippingUpdateResult.Accept): Transaction =
+    current.copy(
+        lineItems = accept.lineItems?.toTypedArray() ?: current.lineItems,
+        total = accept.total ?: current.total,
     )
 
 internal fun shippingUpdate(
