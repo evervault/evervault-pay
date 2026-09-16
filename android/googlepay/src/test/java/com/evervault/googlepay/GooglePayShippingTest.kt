@@ -305,7 +305,6 @@ class GooglePayShippingTest {
         assertEquals(transaction, state?.transaction)
         assertEquals("Test Merchant", state?.merchantName)
         assertEquals("standard", state?.selectedShippingOptionId)
-        assertEquals(transaction, state?.current)
     }
 
     @Test
@@ -391,15 +390,13 @@ class GooglePayShippingTest {
     }
 
     @Test
-    fun `state store tracks the working transaction snapshot separately from the original`() {
+    fun `state store tracks the working transaction snapshot`() {
         GooglePayShippingStateStore.start(transaction, "Test Merchant")
 
         val updated = transaction.copy(total = Amount("99.99"))
-        GooglePayShippingStateStore.updateCurrent(updated)
+        GooglePayShippingStateStore.updateTransaction(updated)
 
-        val state = GooglePayShippingStateStore.current()
-        assertEquals(updated, state?.current)
-        assertEquals(transaction, state?.transaction)
+        assertEquals(updated, GooglePayShippingStateStore.current()?.transaction)
     }
 
     @Test

@@ -180,7 +180,6 @@ internal object GooglePayShippingStateStore {
         val transaction: Transaction,
         val merchantName: String,
         val selectedShippingOptionId: String?,
-        val current: Transaction = transaction,
     )
 
     @Synchronized
@@ -201,8 +200,8 @@ internal object GooglePayShippingStateStore {
     }
 
     @Synchronized
-    fun updateCurrent(transaction: Transaction) {
-        state = state?.copy(current = transaction)
+    fun updateTransaction(transaction: Transaction) {
+        state = state?.copy(transaction = transaction)
     }
 
     @Synchronized
@@ -246,9 +245,9 @@ internal object GooglePayShippingCoordinator {
 
                 val optionId = callback.optJSONObject("shippingOptionData")?.optString("id")?.takeIf { it.isNotEmpty() }
                     ?: state.selectedShippingOptionId
-                    ?: state.current.shippingOptions.firstOrNull()?.id
+                    ?: state.transaction.shippingOptions.firstOrNull()?.id
 
-                val selectedShippingOption = state.current.shippingOptions.find { it.id == optionId }
+                val selectedShippingOption = state.transaction.shippingOptions.find { it.id == optionId }
                     ?: throw ShippingRejection(
                         "Select a shipping option to continue",
                         GooglePayShippingIntent.ShippingOption,
@@ -260,7 +259,7 @@ internal object GooglePayShippingCoordinator {
                 val shippingAddress = callback.optJSONObject("shippingAddress")?.let(::extractIntermediateShippingAddress)
 
                 val request = GooglePayShippingUpdateRequest(
-                    transaction = state.current,
+                    transaction = state.transaction,
                     selectedShippingOption = selectedShippingOption,
                     shippingAddress = shippingAddress,
                     trigger = intent,
@@ -271,15 +270,15 @@ internal object GooglePayShippingCoordinator {
                 }
 
                 val updatedTransaction = if (handlerResult is GooglePayShippingUpdateResult.Accept) {
-                    mergedTransaction(state.current, handlerResult, selectedShippingOption.id).also { merged ->
-                        GooglePayShippingStateStore.updateCurrent(merged)
+                    mergedTransaction(state.transaction, handlerResult, selectedShippingOption.id).also { merged ->
+                        GooglePayShippingStateStore.updateTransaction(merged)
                         // Only re-sync the selection when the shippin options list actually changed.
                         if (handlerResult.shippingOptions != null) {
                             merged.defaultShippingOptionId?.let(GooglePayShippingStateStore::updateSelectedShippingOptionId)
                         }
                     }
                 } else {
-                    state.current
+                    state.transaction
                 }
 
                 shippingUpdate(handlerResult, updatedTransaction, state.merchantName)

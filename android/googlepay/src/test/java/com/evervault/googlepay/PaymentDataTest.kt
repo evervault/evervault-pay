@@ -143,6 +143,30 @@ class PaymentDataTest {
     }
 
     @Test
+    fun `resolves the selected shipping option against a replaced shipping options list`() {
+        val transaction = Transaction(
+            country = "IE",
+            currency = "EUR",
+            total = Amount("54.99"),
+            lineItems = arrayOf(LineItem("Shell Jacket", Amount("50.00"))),
+            shippingOptions = listOf(ShippingOption("standard", "Standard", Amount("5.00"))),
+            defaultShippingOptionId = "standard",
+        )
+        GooglePayShippingStateStore.start(transaction, "Test Merchant")
+        GooglePayShippingStateStore.updateTransaction(
+            transaction.copy(
+                shippingOptions = listOf(ShippingOption("pickup", "Local Pickup", Amount("0.00"))),
+                defaultShippingOptionId = "pickup",
+            ),
+        )
+        GooglePayShippingStateStore.updateSelectedShippingOptionId("pickup")
+
+        val option = extractPaymentShippingOption()
+
+        assertEquals("pickup", option?.id)
+    }
+
+    @Test
     fun `attaches last four and display name from card details to the token response`() {
         val response = attachPaymentCardDisplayDetails(
             networkTokenResponse(),
