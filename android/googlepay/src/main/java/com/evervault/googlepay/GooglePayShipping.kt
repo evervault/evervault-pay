@@ -63,8 +63,12 @@ enum class GooglePayShippingErrorReason(internal val googlePayValue: String) {
 
 /** The merchant decision returned from [GooglePayShippingHandler]. */
 sealed interface GooglePayShippingUpdateResult {
-    /** Accepts the current selection with a recomputed total, e.g. a destination-specific rate. */
-    data class Accept(val lineItems: List<LineItem>, val total: Amount) : GooglePayShippingUpdateResult
+    /**
+     * Accepts the current selection with a recomputed total, e.g. a destination-specific rate.
+     *
+     * [lineItems] and [total] are optional - omit either to leave it unchanged.
+     */
+    data class Accept(val lineItems: List<LineItem>? = null, val total: Amount? = null) : GooglePayShippingUpdateResult
 
     /** Rejects the current selection, e.g. an unserviceable country. */
     data class Reject(
@@ -300,7 +304,7 @@ internal fun shippingUpdate(
             JSONObject()
                 .put(
                     "newTransactionInfo", JSONObject()
-                        .put("displayItems", JSONArray(result.lineItems.map {
+                        .put("displayItems", JSONArray((result.lineItems ?: transaction.lineItems.toList()).map {
                             JSONObject()
                                 .put("label", it.label)
                                 .put("type", it.type.name)
@@ -308,7 +312,7 @@ internal fun shippingUpdate(
                                 .put("status", "FINAL")
                         }))
                         .put("totalPriceLabel", transaction.priceLabel ?: defaultPriceLabel(merchantName))
-                        .put("totalPrice", result.total.format(transaction.currency))
+                        .put("totalPrice", (result.total ?: transaction.total).format(transaction.currency))
                         .put("totalPriceStatus", "FINAL")
                         .put("countryCode", transaction.country)
                         .put("currencyCode", transaction.currency),

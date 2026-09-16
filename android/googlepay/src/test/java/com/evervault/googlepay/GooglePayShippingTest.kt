@@ -57,6 +57,45 @@ class GooglePayShippingTest {
     }
 
     @Test
+    fun `acceptance keeps the original line items when omitted`() {
+        val result = shippingUpdate(
+            GooglePayShippingUpdateResult.Accept(total = Amount("55.00")),
+            transaction,
+            "Test Merchant",
+        )
+
+        val displayItems = JSONObject(result.toJson())
+            .getJSONObject("newTransactionInfo")
+            .getJSONArray("displayItems")
+
+        assertEquals(1, displayItems.length())
+        assertEquals("Shell Jacket", displayItems.getJSONObject(0).getString("label"))
+    }
+
+    @Test
+    fun `acceptance keeps the original total when omitted`() {
+        val result = shippingUpdate(
+            GooglePayShippingUpdateResult.Accept(
+                lineItems = listOf(LineItem("Shell Jacket", Amount("50.00"))),
+            ),
+            transaction,
+            "Test Merchant",
+        )
+
+        val info = JSONObject(result.toJson()).getJSONObject("newTransactionInfo")
+        assertEquals("54.99", info.getString("totalPrice"))
+    }
+
+    @Test
+    fun `acceptance with nothing set is a no-op`() {
+        val result = shippingUpdate(GooglePayShippingUpdateResult.Accept(), transaction, "Test Merchant")
+
+        val info = JSONObject(result.toJson()).getJSONObject("newTransactionInfo")
+        assertEquals("54.99", info.getString("totalPrice"))
+        assertEquals(1, info.getJSONArray("displayItems").length())
+    }
+
+    @Test
     fun `acceptance preserves each line item's original type`() {
         val result = shippingUpdate(
             GooglePayShippingUpdateResult.Accept(
