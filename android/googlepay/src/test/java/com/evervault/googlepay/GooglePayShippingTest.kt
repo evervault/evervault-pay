@@ -149,6 +149,29 @@ class GooglePayShippingTest {
     }
 
     @Test
+    fun `extracts the shipping option trigger from a callback`() {
+        val trigger = extractShippingTrigger(JSONObject().put("callbackTrigger", "SHIPPING_OPTION"))
+
+        assertEquals(GooglePayShippingIntent.ShippingOption, trigger)
+    }
+
+    @Test
+    fun `extracts the shipping address trigger from a callback`() {
+        val trigger = extractShippingTrigger(JSONObject().put("callbackTrigger", "SHIPPING_ADDRESS"))
+
+        assertEquals(GooglePayShippingIntent.ShippingAddress, trigger)
+    }
+
+    @Test
+    fun `treats an initialize callback as a shipping address trigger`() {
+        // Google Pay's first callback, before the buyer changes anything - there's no
+        // distinct GooglePayShippingIntent case for it, see extractShippingTrigger.
+        val trigger = extractShippingTrigger(JSONObject().put("callbackTrigger", "INITIALIZE"))
+
+        assertEquals(GooglePayShippingIntent.ShippingAddress, trigger)
+    }
+
+    @Test
     fun `extracts the redacted mid-flow shipping address`() {
         val address = extractIntermediateShippingAddress(
             JSONObject()
