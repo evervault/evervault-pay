@@ -397,6 +397,36 @@ class PaymentRequestTest {
     }
 
     @Test
+    fun `shipping options must have a non-blank id`() {
+        assertThrows(IllegalArgumentException::class.java) {
+            transaction.copy(
+                shippingOptions = listOf(ShippingOption(" ", "Standard", Amount("5.00"))),
+            )
+        }
+    }
+
+    @Test
+    fun `shipping options must have a non-blank label`() {
+        assertThrows(IllegalArgumentException::class.java) {
+            transaction.copy(
+                shippingOptions = listOf(ShippingOption("standard", " ", Amount("5.00"))),
+            )
+        }
+    }
+
+    @Test
+    fun `shipping option ids must be unique`() {
+        assertThrows(IllegalArgumentException::class.java) {
+            transaction.copy(
+                shippingOptions = listOf(
+                    ShippingOption("standard", "Standard", Amount("5.00")),
+                    ShippingOption("standard", "Express", Amount("15.00")),
+                ),
+            )
+        }
+    }
+
+    @Test
     fun `shipping options take part in transaction equality`() {
         assertEquals(shippableTransaction, shippableTransaction.copy())
         assertNotEquals(transaction, shippableTransaction)
@@ -527,6 +557,13 @@ class PaymentRequestTest {
     }
 
     @Test
+    fun `building a request fails when a shipping handler is configured without shipping options`() {
+        assertThrows(IllegalArgumentException::class.java) {
+            buildPaymentRequestJson(shippingHandlerConfig, transaction, "Test Merchant")
+        }
+    }
+
+    @Test
     fun `shipping option is not requested without shippingOptions on the transaction`() {
         val json = JSONObject(buildPaymentRequestJson(config, transaction, "Test Merchant"))
 
@@ -613,7 +650,18 @@ class PaymentRequestTest {
     }
 
     @Test
-    fun `shipping option callback fires even without shipping address collection`() {
+    fun `shipping options auto-enable address collection even when shippingAddress is Disabled`() {
+        val json = JSONObject(
+            buildPaymentRequestJson(shippingHandlerConfig, shippableTransaction, "Test Merchant")
+        )
+
+        assertTrue(json.getBoolean("shippingAddressRequired"))
+    }
+
+    @Test
+    fun `both shipping callbacks fire even when shippingAddress is Disabled`() {
+        // Address collection auto-enables (see the test above), so both callbacks fire
+        // exactly as they would if shippingAddress had been explicitly Enabled.
         val json = JSONObject(
             buildPaymentRequestJson(
                 config.copy(googlePayShipping = GooglePayShippingConfig(TestShippingHandler::class.java)),
@@ -623,26 +671,10 @@ class PaymentRequestTest {
         )
 
         val intents = json.getJSONArray("callbackIntents")
-        assertEquals(listOf("SHIPPING_OPTION"), (0 until intents.length()).map { intents.getString(it) })
-    }
-
-    @Test
-    fun `shipping callbacks do not fire without shipping options on the transaction`() {
-        // Every recompute resolves a selected shipping option (see
-        // GooglePayShippingCoordinator.recompute), so a callback would reject every
-        // time without shipping options to resolve against - even an address-only one.
-        val json = JSONObject(
-            buildPaymentRequestJson(
-                config.copy(
-                    shippingAddress = ShippingAddressConfig.Enabled(),
-                    googlePayShipping = GooglePayShippingConfig(TestShippingHandler::class.java),
-                ),
-                transaction,
-                "Test Merchant",
-            )
+        assertEquals(
+            listOf("SHIPPING_ADDRESS", "SHIPPING_OPTION"),
+            (0 until intents.length()).map { intents.getString(it) },
         )
-
-        assertFalse(json.has("callbackIntents"))
     }
 
     @Test

@@ -17,6 +17,7 @@ data class Config(
      */
     val existingPaymentMethodRequired: Boolean = false,
     val shippingAddress: ShippingAddressConfig = ShippingAddressConfig.Disabled,
+    /** Requires [Transaction.shippingOptions] to be set - otherwise there's nothing for the callback to report. */
     val googlePayShipping: GooglePayShippingConfig? = null,
 ) {
     /** Retains the constructor signature from releases before this config batch. */

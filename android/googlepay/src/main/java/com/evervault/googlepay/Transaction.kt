@@ -14,7 +14,8 @@ data class Transaction(
      * The fixed shipping options offered for this transaction, if any.
      *
      * Requires [Config.googlePayShipping] to be set, as Google Pay only reports the
-     * buyer's selected option via that callback.
+     * buyer's selected option via that callback. Also requires shipping address
+     * collection, even if [Config.shippingAddress] is [ShippingAddressConfig.Disabled].
      */
     val shippingOptions: List<ShippingOption> = emptyList(),
     /** Must match the `id` of one of [shippingOptions] when set. */
@@ -65,6 +66,15 @@ data class Transaction(
     )
 
     init {
+        require(shippingOptions.all { it.id.isNotBlank() }) {
+            "shippingOptions must have non-blank ids"
+        }
+        require(shippingOptions.all { it.label.isNotBlank() }) {
+            "shippingOptions must have non-blank labels"
+        }
+        require(shippingOptions.map { it.id }.distinct().size == shippingOptions.size) {
+            "shippingOptions ids must be unique"
+        }
         if (defaultShippingOptionId != null) {
             require(shippingOptions.any { it.id == defaultShippingOptionId }) {
                 "defaultShippingOptionId \"$defaultShippingOptionId\" must match the id of one of shippingOptions"

@@ -37,11 +37,14 @@ interface GooglePayShippingHandler {
  * [ShippingAddress.administrativeArea] and [ShippingAddress.postalCode] are ever
  * populated here (no name or street lines, unlike the final [TokenResponse]).
  * Null if shipping address collection is disabled.
+ * @param trigger which part of the selection changed to cause this callback. 
+ * Google Pay's initial callback is reported as [GooglePayShippingIntent.ShippingAddress].
  */
 data class GooglePayShippingUpdateRequest(
     val transaction: Transaction,
     val selectedShippingOption: ShippingOption,
     val shippingAddress: ShippingAddress?,
+    val trigger: GooglePayShippingIntent,
 )
 
 /** Which part of the buyer's shipping selection triggered the callback. */
@@ -199,11 +202,7 @@ internal object GooglePayShippingCoordinator {
                 return@launch
             }
 
-            val intent = if (callback.optString("callbackTrigger") == "SHIPPING_OPTION") {
-                GooglePayShippingIntent.ShippingOption
-            } else {
-                GooglePayShippingIntent.ShippingAddress
-            }
+            val intent = extractShippingTrigger(callback)
 
             val result = try {
                 val config = GooglePayShippingConfigStore.load(context)
@@ -230,6 +229,7 @@ internal object GooglePayShippingCoordinator {
                     transaction = state.transaction,
                     selectedShippingOption = selectedShippingOption,
                     shippingAddress = shippingAddress,
+                    trigger = intent,
                 )
 
                 shippingUpdate(
@@ -263,6 +263,18 @@ internal object GooglePayShippingCoordinator {
             .getDeclaredConstructor()
             .newInstance()
 }
+
+/**
+ * Which part of the buyer's selection triggered this callback.
+ * Per Google Pay's `callbackTrigger`, only SHIPPING_OPTION and SHIPPING_ADDRESS 
+ * map to a real intent here. Anything else defaults to ShippingAddress.
+ */
+internal fun extractShippingTrigger(callback: JSONObject): GooglePayShippingIntent =
+    if (callback.optString("callbackTrigger") == "SHIPPING_OPTION") {
+        GooglePayShippingIntent.ShippingOption
+    } else {
+        GooglePayShippingIntent.ShippingAddress
+    }
 
 /** Google Pay's shipping address as it appears mid-flow: redacted, no name or street lines. */
 internal fun extractIntermediateShippingAddress(address: JSONObject): ShippingAddress =
