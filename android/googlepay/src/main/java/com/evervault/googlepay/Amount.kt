@@ -27,7 +27,12 @@ sealed class Amount {
 
     private data class MinorUnits(val value: Long) : Amount()
 
-    internal fun format(currency: String): String =
+    /**
+     * This amount as a decimal string in [currency]'s major units.
+     * Public so a [GooglePayShippingHandler] can read it to compute a new total.
+     * `Amount` has no arithmetic of its own.
+     */
+    fun format(currency: String): String =
         when (this) {
             is Decimal -> value
             is MinorUnits -> formatMinorUnits(value, currency)
