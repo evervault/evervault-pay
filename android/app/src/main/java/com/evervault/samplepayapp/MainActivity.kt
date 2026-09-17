@@ -38,6 +38,7 @@ import com.evervault.googlepay.ShippingAddressConfig
 import com.evervault.googlepay.ShippingOption
 import com.evervault.googlepay.Transaction
 import com.evervault.googlepay.TokenResponse
+import java.util.Locale
 
 /** Shared with SampleGooglePayShippingHandler, which needs the full catalog independent of whatever's currently offered mid-flow. */
 private val SHIPPING_OPTIONS = listOf(
@@ -125,8 +126,12 @@ class SampleGooglePayShippingHandler : GooglePayShippingHandler {
 
         return GooglePayShippingUpdateResult.Accept(
             lineItems = baseLineItems +
-                LineItem(selectedOption.label, Amount("%.2f".format(shippingCost)), LineItemType.SHIPPING_OPTION),
-            total = Amount("%.2f".format(baseTotal + shippingCost)),
+                LineItem(
+                    selectedOption.label,
+                    Amount(String.format(Locale.ROOT, "%.2f", shippingCost)),
+                    LineItemType.SHIPPING_OPTION,
+                ),
+            total = Amount(String.format(Locale.ROOT, "%.2f", baseTotal + shippingCost)),
             shippingOptions = availableOptions,
             defaultShippingOptionId = selectedOption.id,
         )
