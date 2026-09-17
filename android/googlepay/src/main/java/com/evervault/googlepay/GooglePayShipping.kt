@@ -63,8 +63,36 @@ enum class GooglePayShippingErrorReason(internal val googlePayValue: String) {
 
 /** The merchant decision returned from [GooglePayShippingHandler]. */
 sealed interface GooglePayShippingUpdateResult {
-    /** Accepts the current selection with a recomputed total, e.g. a destination-specific rate. */
-    data class Accept(val lineItems: List<LineItem>, val total: Amount) : GooglePayShippingUpdateResult
+    /**
+     * Accepts the current selection with a recomputed total, e.g. a destination-specific rate.
+     *
+     * [lineItems] and [total] are optional - omit either to leave it unchanged.
+     *
+     * [shippingOptions] is also optional and, when set, replaces the sheet's shipping-option
+     * list for the rest of this attempt - e.g. offering pickup only in certain destinations.
+     * [defaultShippingOptionId] picks which of [shippingOptions] to preselect; if omitted, the
+     * buyer's previous selection carries over when it still exists in the new list.
+     */
+    data class Accept(
+        val lineItems: List<LineItem>? = null,
+        val total: Amount? = null,
+        val shippingOptions: List<ShippingOption>? = null,
+        val defaultShippingOptionId: String? = null,
+    ) : GooglePayShippingUpdateResult {
+        init {
+            if (shippingOptions != null) {
+                require(shippingOptions.isNotEmpty()) { "A replacement shippingOptions list must not be empty" }
+            }
+            if (defaultShippingOptionId != null) {
+                require(shippingOptions != null) {
+                    "defaultShippingOptionId requires a replacement shippingOptions list"
+                }
+                require(shippingOptions.any { it.id == defaultShippingOptionId }) {
+                    "defaultShippingOptionId \"$defaultShippingOptionId\" must match the id of one of shippingOptions"
+                }
+            }
+        }
+    }
 
     /** Rejects the current selection, e.g. an unserviceable country. */
     data class Reject(
@@ -172,6 +200,11 @@ internal object GooglePayShippingStateStore {
     }
 
     @Synchronized
+    fun updateTransaction(transaction: Transaction) {
+        state = state?.copy(transaction = transaction)
+    }
+
+    @Synchronized
     fun clear() {
         state = null
     }
@@ -232,13 +265,23 @@ internal object GooglePayShippingCoordinator {
                     trigger = intent,
                 )
 
-                shippingUpdate(
-                    withTimeout(config.timeoutMillis) {
-                        createHandler(config.handlerName).recompute(request)
-                    },
-                    state.transaction,
-                    state.merchantName,
-                )
+                val handlerResult = withTimeout(config.timeoutMillis) {
+                    createHandler(config.handlerName).recompute(request)
+                }
+
+                val updatedTransaction = if (handlerResult is GooglePayShippingUpdateResult.Accept) {
+                    mergedTransaction(state.transaction, handlerResult, selectedShippingOption.id).also { merged ->
+                        GooglePayShippingStateStore.updateTransaction(merged)
+                        // Only re-sync the selection when the shippin options list actually changed.
+                        if (handlerResult.shippingOptions != null) {
+                            merged.defaultShippingOptionId?.let(GooglePayShippingStateStore::updateSelectedShippingOptionId)
+                        }
+                    }
+                } else {
+                    state.transaction
+                }
+
+                shippingUpdate(handlerResult, updatedTransaction, state.merchantName)
             } catch (rejection: ShippingRejection) {
                 shippingError(rejection.message ?: "Invalid shipping selection", rejection.intent, rejection.reason)
             } catch (error: CancellationException) {
@@ -290,6 +333,31 @@ internal fun extractIntermediateShippingAddress(address: JSONObject): ShippingAd
         sortingCode = null,
     )
 
+/**
+ * Merges [accept] into [current]. If the shipping list changes, the new selection is:
+ * buyer's previous pick (if still valid) > [accept]'s default > first option in the list.
+ */
+internal fun mergedTransaction(
+    current: Transaction,
+    accept: GooglePayShippingUpdateResult.Accept,
+    previousSelectionId: String? = null,
+): Transaction {
+    val shippingOptions = accept.shippingOptions ?: current.shippingOptions
+    val defaultShippingOptionId = when {
+        accept.shippingOptions == null -> current.defaultShippingOptionId
+        previousSelectionId != null && shippingOptions.any { it.id == previousSelectionId } -> previousSelectionId
+        accept.defaultShippingOptionId != null -> accept.defaultShippingOptionId
+        else -> shippingOptions.firstOrNull()?.id
+    }
+
+    return current.copy(
+        lineItems = accept.lineItems?.toTypedArray() ?: current.lineItems,
+        total = accept.total ?: current.total,
+        shippingOptions = shippingOptions,
+        defaultShippingOptionId = defaultShippingOptionId,
+    )
+}
+
 internal fun shippingUpdate(
     result: GooglePayShippingUpdateResult,
     transaction: Transaction,
@@ -300,7 +368,7 @@ internal fun shippingUpdate(
             JSONObject()
                 .put(
                     "newTransactionInfo", JSONObject()
-                        .put("displayItems", JSONArray(result.lineItems.map {
+                        .put("displayItems", JSONArray((result.lineItems ?: transaction.lineItems.toList()).map {
                             JSONObject()
                                 .put("label", it.label)
                                 .put("type", it.type.name)
@@ -308,11 +376,19 @@ internal fun shippingUpdate(
                                 .put("status", "FINAL")
                         }))
                         .put("totalPriceLabel", transaction.priceLabel ?: defaultPriceLabel(merchantName))
-                        .put("totalPrice", result.total.format(transaction.currency))
+                        .put("totalPrice", (result.total ?: transaction.total).format(transaction.currency))
                         .put("totalPriceStatus", "FINAL")
                         .put("countryCode", transaction.country)
                         .put("currencyCode", transaction.currency),
                 )
+                .apply {
+                    if (result.shippingOptions != null) {
+                        put(
+                            "newShippingOptionParameters",
+                            shippingOptionParametersJson(transaction.shippingOptions, transaction.defaultShippingOptionId),
+                        )
+                    }
+                }
                 .toString(),
         )
 

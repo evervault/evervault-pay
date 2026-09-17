@@ -31,12 +31,22 @@ import com.evervault.googlepay.GooglePayShippingUpdateRequest
 import com.evervault.googlepay.GooglePayShippingUpdateResult
 import com.evervault.googlepay.NetworkTokenResponse
 import com.evervault.googlepay.LineItem
+import com.evervault.googlepay.LineItemType
 import com.evervault.googlepay.PaymentState
 import com.evervault.googlepay.ShippingAddress
 import com.evervault.googlepay.ShippingAddressConfig
 import com.evervault.googlepay.ShippingOption
 import com.evervault.googlepay.Transaction
 import com.evervault.googlepay.TokenResponse
+import java.util.Locale
+
+/** Shared with SampleGooglePayShippingHandler, which needs the full catalog independent of whatever's currently offered mid-flow. */
+private val SHIPPING_OPTIONS = listOf(
+    // No price: rate varies by destination, see SampleGooglePayShippingHandler.
+    ShippingOption("standard", "Standard Shipping", Amount("0.00")),
+    // Price baked in: rate never varies, so it's safe to show up front.
+    ShippingOption("express", "Express Shipping: £9.99", Amount("9.99")),
+)
 
 /** All non-null parts of a [ShippingAddress], for display - the SDK doesn't format one for you. */
 private fun formatAddress(address: ShippingAddress): String =
@@ -75,9 +85,9 @@ class SampleGooglePayAuthorizationHandler : GooglePayAuthorizationHandler {
 }
 
 /**
- * Demonstrates the callback contract: rejects unserviceable destinations,
- * charges a flat rate for some, and otherwise recomputes the total for the
- * selected shipping option.
+ * Demonstrates the callback contract: rejects unserviceable destinations, narrows the
+ * shipping-option list itself for destinations with restricted shipping, and otherwise
+ * recomputes the total for the selected shipping option.
  */
 class SampleGooglePayShippingHandler : GooglePayShippingHandler {
     override suspend fun recompute(request: GooglePayShippingUpdateRequest): GooglePayShippingUpdateResult {
@@ -93,27 +103,37 @@ class SampleGooglePayShippingHandler : GooglePayShippingHandler {
             )
         }
 
+        // request.transaction.shippingOptions reflects our own last replacement, not the
+        // original list - always resolve against the canonical SHIPPING_OPTIONS above,
+        // or a restriction can never be lifted once applied.
         val standardOnly = countryCode in STANDARD_ONLY_COUNTRIES
-        if (standardOnly && request.selectedShippingOption.id != "standard") {
-            return GooglePayShippingUpdateResult.Reject(
-                message = "Only Standard shipping is available for this destination.",
-                intent = GooglePayShippingIntent.ShippingOption,
-                reason = GooglePayShippingErrorReason.ShippingOptionInvalid,
-            )
+        val availableOptions = if (standardOnly) {
+            SHIPPING_OPTIONS.filter { it.id == "standard" }
+        } else {
+            SHIPPING_OPTIONS
         }
+
+        // Keep the buyer's existing pick if it's still offered, else fall back to the first option.
+        val selectedOption = availableOptions.find { it.id == request.selectedShippingOption.id } ?: availableOptions.first()
 
         val currency = request.transaction.currency
-        val baseTotal = request.transaction.total.format(currency).toDouble()
-        val shippingCost = if (standardOnly) {
-            STANDARD_ONLY_SHIPPING_COST
-        } else {
-            request.selectedShippingOption.amount.format(currency).toDouble()
-        }
+
+        // request.transaction may already include our own shipping line item from a
+        // prior call - filter it out before recomputing, or it'll stack up.
+        val baseLineItems = request.transaction.lineItems.filterNot { it.type == LineItemType.SHIPPING_OPTION }
+        val baseTotal = baseLineItems.sumOf { it.amount.format(currency).toDouble() }
+        val shippingCost = if (standardOnly) STANDARD_ONLY_SHIPPING_COST else selectedOption.amount.format(currency).toDouble()
 
         return GooglePayShippingUpdateResult.Accept(
-            lineItems = request.transaction.lineItems.toList() +
-                LineItem(request.selectedShippingOption.label, Amount("%.2f".format(shippingCost))),
-            total = Amount("%.2f".format(baseTotal + shippingCost)),
+            lineItems = baseLineItems +
+                LineItem(
+                    selectedOption.label,
+                    Amount(String.format(Locale.ROOT, "%.2f", shippingCost)),
+                    LineItemType.SHIPPING_OPTION,
+                ),
+            total = Amount(String.format(Locale.ROOT, "%.2f", baseTotal + shippingCost)),
+            shippingOptions = availableOptions,
+            defaultShippingOptionId = selectedOption.id,
         )
     }
 
@@ -170,12 +190,7 @@ class MainActivity : AppCompatActivity() {
                 LineItem("Something small", Amount("04.99")),
             ),
             shippingOptions = if (BuildConfig.ENABLE_GOOGLE_PAY_SHIPPING) {
-                listOf(
-                    // No price: rate varies by destination, see SampleGooglePayShippingHandler.
-                    ShippingOption("standard", "Standard Shipping", Amount("0.00")),
-                    // Price baked in: rate never varies, so it's safe to show up front.
-                    ShippingOption("express", "Express Shipping: £9.99", Amount("9.99")),
-                )
+                SHIPPING_OPTIONS
             } else {
                 emptyList()
             },

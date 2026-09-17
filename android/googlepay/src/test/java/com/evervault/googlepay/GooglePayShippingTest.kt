@@ -57,6 +57,45 @@ class GooglePayShippingTest {
     }
 
     @Test
+    fun `acceptance keeps the original line items when omitted`() {
+        val result = shippingUpdate(
+            GooglePayShippingUpdateResult.Accept(total = Amount("55.00")),
+            transaction,
+            "Test Merchant",
+        )
+
+        val displayItems = JSONObject(result.toJson())
+            .getJSONObject("newTransactionInfo")
+            .getJSONArray("displayItems")
+
+        assertEquals(1, displayItems.length())
+        assertEquals("Shell Jacket", displayItems.getJSONObject(0).getString("label"))
+    }
+
+    @Test
+    fun `acceptance keeps the original total when omitted`() {
+        val result = shippingUpdate(
+            GooglePayShippingUpdateResult.Accept(
+                lineItems = listOf(LineItem("Shell Jacket", Amount("50.00"))),
+            ),
+            transaction,
+            "Test Merchant",
+        )
+
+        val info = JSONObject(result.toJson()).getJSONObject("newTransactionInfo")
+        assertEquals("54.99", info.getString("totalPrice"))
+    }
+
+    @Test
+    fun `acceptance with nothing set is a no-op`() {
+        val result = shippingUpdate(GooglePayShippingUpdateResult.Accept(), transaction, "Test Merchant")
+
+        val info = JSONObject(result.toJson()).getJSONObject("newTransactionInfo")
+        assertEquals("54.99", info.getString("totalPrice"))
+        assertEquals(1, info.getJSONArray("displayItems").length())
+    }
+
+    @Test
     fun `acceptance preserves each line item's original type`() {
         val result = shippingUpdate(
             GooglePayShippingUpdateResult.Accept(
@@ -93,6 +132,23 @@ class GooglePayShippingTest {
         )
 
         assertFalse(JSONObject(result.toJson()).has("newShippingOptionParameters"))
+    }
+
+    @Test
+    fun `acceptance emits newShippingOptionParameters when replacing the shipping option list`() {
+        val pickup = ShippingOption("pickup", "Local Pickup", Amount("0.00"))
+        val replaced = transaction.copy(shippingOptions = listOf(pickup), defaultShippingOptionId = "pickup")
+
+        val result = shippingUpdate(
+            GooglePayShippingUpdateResult.Accept(shippingOptions = listOf(pickup), defaultShippingOptionId = "pickup"),
+            replaced,
+            "Test Merchant",
+        )
+
+        val params = JSONObject(result.toJson()).getJSONObject("newShippingOptionParameters")
+        assertEquals(1, params.getJSONArray("shippingOptions").length())
+        assertEquals("pickup", params.getJSONArray("shippingOptions").getJSONObject(0).getString("id"))
+        assertEquals("pickup", params.getString("defaultSelectedOptionId"))
     }
 
     @Test
@@ -138,6 +194,40 @@ class GooglePayShippingTest {
     fun `shipping config requires a positive timeout`() {
         assertThrows(IllegalArgumentException::class.java) {
             GooglePayShippingConfig(TestShippingHandler::class.java, timeoutMillis = 0L)
+        }
+    }
+
+    @Test
+    fun `accept allows a replacement shipping options list with a matching default`() {
+        val accept = GooglePayShippingUpdateResult.Accept(
+            shippingOptions = listOf(ShippingOption("pickup", "Local Pickup", Amount("0.00"))),
+            defaultShippingOptionId = "pickup",
+        )
+
+        assertEquals("pickup", accept.defaultShippingOptionId)
+    }
+
+    @Test
+    fun `accept's replacement shipping options list must not be empty`() {
+        assertThrows(IllegalArgumentException::class.java) {
+            GooglePayShippingUpdateResult.Accept(shippingOptions = emptyList())
+        }
+    }
+
+    @Test
+    fun `accept's default shipping option id requires a replacement shipping options list`() {
+        assertThrows(IllegalArgumentException::class.java) {
+            GooglePayShippingUpdateResult.Accept(defaultShippingOptionId = "pickup")
+        }
+    }
+
+    @Test
+    fun `accept's default shipping option id must match one of the replacement options`() {
+        assertThrows(IllegalArgumentException::class.java) {
+            GooglePayShippingUpdateResult.Accept(
+                shippingOptions = listOf(ShippingOption("pickup", "Local Pickup", Amount("0.00"))),
+                defaultShippingOptionId = "standard",
+            )
         }
     }
 
@@ -215,6 +305,98 @@ class GooglePayShippingTest {
         assertEquals(transaction, state?.transaction)
         assertEquals("Test Merchant", state?.merchantName)
         assertEquals("standard", state?.selectedShippingOptionId)
+    }
+
+    @Test
+    fun `mergedTransaction applies the accepted line items and total`() {
+        val accept = GooglePayShippingUpdateResult.Accept(
+            lineItems = listOf(LineItem("Shell Jacket", Amount("50.00")), LineItem("Standard", Amount("5.00"))),
+            total = Amount("55.00"),
+        )
+
+        val merged = mergedTransaction(transaction, accept)
+
+        assertEquals(accept.lineItems, merged.lineItems.toList())
+        assertEquals(Amount("55.00"), merged.total)
+    }
+
+    @Test
+    fun `mergedTransaction keeps the current line items and total when the accept omits them`() {
+        val merged = mergedTransaction(transaction, GooglePayShippingUpdateResult.Accept())
+
+        assertEquals(transaction.lineItems.toList(), merged.lineItems.toList())
+        assertEquals(transaction.total, merged.total)
+    }
+
+    @Test
+    fun `mergedTransaction keeps the current shipping options when the accept omits them`() {
+        val merged = mergedTransaction(transaction, GooglePayShippingUpdateResult.Accept(), previousSelectionId = "express")
+
+        assertEquals(transaction.shippingOptions, merged.shippingOptions)
+        assertEquals(transaction.defaultShippingOptionId, merged.defaultShippingOptionId)
+    }
+
+    @Test
+    fun `mergedTransaction replaces the shipping options list`() {
+        val pickup = ShippingOption("pickup", "Local Pickup", Amount("0.00"))
+
+        val merged = mergedTransaction(
+            transaction,
+            GooglePayShippingUpdateResult.Accept(shippingOptions = listOf(pickup)),
+        )
+
+        assertEquals(listOf(pickup), merged.shippingOptions)
+    }
+
+    @Test
+    fun `mergedTransaction keeps the buyer's previous selection when it survives the replacement`() {
+        val pickup = ShippingOption("pickup", "Local Pickup", Amount("0.00"))
+
+        val merged = mergedTransaction(
+            transaction,
+            GooglePayShippingUpdateResult.Accept(shippingOptions = listOf(pickup, ShippingOption("express", "Express", Amount("15.00")))),
+            previousSelectionId = "express",
+        )
+
+        assertEquals("express", merged.defaultShippingOptionId)
+    }
+
+    @Test
+    fun `mergedTransaction falls back to the accept's default when the previous selection doesn't survive`() {
+        val pickup = ShippingOption("pickup", "Local Pickup", Amount("0.00"))
+        val courier = ShippingOption("courier", "Courier", Amount("20.00"))
+
+        val merged = mergedTransaction(
+            transaction,
+            GooglePayShippingUpdateResult.Accept(shippingOptions = listOf(pickup, courier), defaultShippingOptionId = "courier"),
+            previousSelectionId = "standard",
+        )
+
+        assertEquals("courier", merged.defaultShippingOptionId)
+    }
+
+    @Test
+    fun `mergedTransaction falls back to the replacement list's first option as a last resort`() {
+        val pickup = ShippingOption("pickup", "Local Pickup", Amount("0.00"))
+        val courier = ShippingOption("courier", "Courier", Amount("20.00"))
+
+        val merged = mergedTransaction(
+            transaction,
+            GooglePayShippingUpdateResult.Accept(shippingOptions = listOf(pickup, courier)),
+            previousSelectionId = "standard",
+        )
+
+        assertEquals("pickup", merged.defaultShippingOptionId)
+    }
+
+    @Test
+    fun `state store tracks the working transaction snapshot`() {
+        GooglePayShippingStateStore.start(transaction, "Test Merchant")
+
+        val updated = transaction.copy(total = Amount("99.99"))
+        GooglePayShippingStateStore.updateTransaction(updated)
+
+        assertEquals(updated, GooglePayShippingStateStore.current()?.transaction)
     }
 
     @Test
