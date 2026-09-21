@@ -16,14 +16,12 @@ import org.json.JSONObject
 
 /**
  * Called when the buyer changes their shipping address or selected shipping
- * option in the Google Pay sheet.
+ * option in the Google Pay sheet. Can accept the selection (with a recomputed
+ * total), reject it, or replace the shipping-option list itself - see
+ * [GooglePayShippingUpdateResult].
  *
- * The shipping option list ([Transaction.shippingOptions]) can't change here.
- * The current selection can be accepted (with a recomputed total) or rejected.
- * See [GooglePayShippingUpdateResult].
- *
- * The handler must have a public no-argument constructor. Google Pay creates it
- * through a service. Do not retain an Activity, ViewModel, or composable in it.
+ * Must have a public no-argument constructor: Google Pay creates it through a
+ * service, so don't retain an Activity, ViewModel, or composable in it.
  */
 interface GooglePayShippingHandler {
     suspend fun recompute(request: GooglePayShippingUpdateRequest): GooglePayShippingUpdateResult
@@ -32,12 +30,14 @@ interface GooglePayShippingHandler {
 /**
  * The buyer's in-progress shipping selection, passed to [GooglePayShippingHandler.recompute].
  *
- * @param shippingAddress the buyer's address as Google Pay redacts it before the
- * buyer authorizes payment: only [ShippingAddress.countryCode], [ShippingAddress.locality],
- * [ShippingAddress.administrativeArea] and [ShippingAddress.postalCode] are ever
- * populated here (no name or street lines, unlike the final [TokenResponse]).
+ * @param transaction the transaction as of the last accepted update, not the original -
+ * resolve against it idempotently (e.g. by recomputing a replacement list from a canonical
+ * source) rather than assuming it matches what the buyer first saw.
+ * @param shippingAddress redacted until the buyer authorizes payment: only
+ * [ShippingAddress.countryCode], [ShippingAddress.locality],
+ * [ShippingAddress.administrativeArea] and [ShippingAddress.postalCode] are populated.
  * Null if shipping address collection is disabled.
- * @param trigger which part of the selection changed to cause this callback. 
+ * @param trigger which part of the selection changed to cause this callback.
  * Google Pay's initial callback is reported as [GooglePayShippingIntent.ShippingAddress].
  */
 data class GooglePayShippingUpdateRequest(
@@ -94,7 +94,12 @@ sealed interface GooglePayShippingUpdateResult {
         }
     }
 
-    /** Rejects the current selection, e.g. an unserviceable country. */
+    /**
+     * Rejects the current selection, e.g. an unserviceable country.
+     *
+     * This is UX guidance, not a hard gate: Google Pay shows the error but doesn't
+     * reliably block the buyer from pressing Pay anyway. Re-validate server-side.
+     */
     data class Reject(
         val message: String,
         val intent: GooglePayShippingIntent,
@@ -105,14 +110,13 @@ sealed interface GooglePayShippingUpdateResult {
 /**
  * Enables Google Pay's dynamic shipping callback with [handler].
  *
- * Google Pay invokes the handler every time the buyer changes their shipping
- * address or selected shipping option, so totals can be recomputed against the
- * fixed [Transaction.shippingOptions] list while the sheet stays open. Requires
- * [Transaction.shippingOptions] to be non-empty; every recompute is rejected
- * otherwise.
+ * Google Pay invokes [handler] on every address or shipping-option change so
+ * the total, line items, and the [Transaction.shippingOptions] list itself
+ * can be recomputed while the sheet stays open.
  *
- * This is required whenever [Transaction.shippingOptions] is set, as Google Pay
- * uses this callback to provide the buyer's selected shipping option.
+ * Required whenever [Transaction.shippingOptions] is non-empty - that's how
+ * Google Pay reports the buyer's selection back to you. Without a handler,
+ * every recompute is rejected.
  */
 data class GooglePayShippingConfig(
     val handler: Class<out GooglePayShippingHandler>,

@@ -11,7 +11,9 @@ data class Transaction(
     /** A unique identifier for this Google Pay facilitation attempt. */
     val transactionId: String? = null,
     /**
-     * The fixed shipping options offered for this transaction, if any.
+     * The shipping options initially offered for this transaction, if any. A
+     * [GooglePayShippingHandler] can replace this list per destination - see
+     * [GooglePayShippingUpdateResult.Accept.shippingOptions].
      *
      * Requires [Config.googlePayShipping] to be set, as Google Pay only reports the
      * buyer's selected option via that callback. Also requires shipping address

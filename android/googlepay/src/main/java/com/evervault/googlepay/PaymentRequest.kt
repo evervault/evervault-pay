@@ -80,8 +80,8 @@ private fun shippingAddressParameters(shippingAddress: ShippingAddressConfig.Ena
 
 // https://developers.google.com/pay/api/web/reference/request-objects#ShippingOptionParameters
 //
-// Sent once, before the buyer has entered a destination, and never resent -
-// see ShippingOption.label.
+// Sent with the initial request, and again as newShippingOptionParameters
+// whenever a GooglePayShippingHandler replaces the list - see ShippingOption.label.
 internal fun shippingOptionParametersJson(options: List<ShippingOption>, defaultShippingOptionId: String?): JSONObject {
     val parameters = JSONObject()
         .put("shippingOptions", JSONArray(options.map {
