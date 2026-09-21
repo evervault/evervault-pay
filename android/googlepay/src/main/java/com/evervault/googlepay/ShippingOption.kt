@@ -8,10 +8,10 @@ data class ShippingOption(
      * its own for a shipping option, so bake one in yourself if you want it
      * shown, e.g. "Standard: €5.00".
      *
-     * Leave the price out if a [GooglePayShippingHandler] charges this
-     * option differently by destination: the label is set once, before the
-     * buyer picks a destination, and never updates - a baked-in price would
-     * go stale.
+     * A label never updates on its own. To show a different one per
+     * destination, replace the whole list via
+     * [GooglePayShippingUpdateResult.Accept.shippingOptions], reusing the
+     * same `id` with a new label.
      */
     val label: String,
     val amount: Amount,
