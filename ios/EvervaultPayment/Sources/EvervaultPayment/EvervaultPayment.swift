@@ -128,6 +128,15 @@ public class EvervaultPaymentView: UIView {
         )
     }
 
+    /// Returns whether the device/OS supports Apple Pay disbursements (requires iOS 17+).
+    public static func supportsDisbursements() -> Bool {
+        if #available(iOS 17.0, *) {
+            return PKPaymentAuthorizationViewController.supportsDisbursements()
+        } else {
+            return false
+        }
+    }
+
     nonisolated static func evaluateAvailability(deviceSupportsApplePay: Bool, hasCardForSupportedNetworks: Bool) -> ApplePayAvailability {
         if !deviceSupportsApplePay {
             return .unsupported
