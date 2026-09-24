@@ -71,11 +71,7 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
     }
 
     public static func supportsDisbursements() -> Bool {
-        if #available(iOS 17.0, *) {
-            return PKPaymentAuthorizationViewController.supportsDisbursements()
-        } else {
-            return false
-        }
+        return EvervaultPaymentView.supportsDisbursements()
     }
 
     // MARK: UIViewRepresentable
@@ -96,7 +92,9 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
     }
 
     public func updateUIView(_ uiView: EvervaultPaymentView, context: Context) {
-        // You could update merchantIdentifier/transaction here if you expose setters
+        uiView.appUuid = appUuid
+        uiView.appleMerchantIdentifier = appleMerchantIdentifier
+        uiView.transaction = transaction
     }
 
     public func makeCoordinator() -> Coordinator {
