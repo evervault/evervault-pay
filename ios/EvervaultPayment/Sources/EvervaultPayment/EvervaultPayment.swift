@@ -53,7 +53,7 @@ public enum ApplePayAvailability: String, Codable, Sendable, Equatable {
 public class EvervaultPaymentView: UIView {
     public var appUuid: String
     public var appleMerchantIdentifier: String
-    public var transaction: Transaction
+    public internal(set) var transaction: Transaction
     public let supportedNetworks: [Network]
     public let buttonType: ButtonType
     public let buttonStyle: ButtonStyle
