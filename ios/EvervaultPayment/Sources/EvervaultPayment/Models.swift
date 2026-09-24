@@ -41,11 +41,38 @@ public struct ApplePayCard: Codable, Sendable, Equatable {
     public let country: String?
     public let currency: String?
     public let issuer: String?
+    public let lastFour: String?
+    public let displayName: String?
+
+    /// Retains the memberwise initializer signature from before `lastFour`/`displayName` were added.
+    init(brand: String?, funding: String?, segment: String?, country: String?, currency: String?, issuer: String?, lastFour: String? = nil, displayName: String? = nil) {
+        self.brand = brand
+        self.funding = funding
+        self.segment = segment
+        self.country = country
+        self.currency = currency
+        self.issuer = issuer
+        self.lastFour = lastFour
+        self.displayName = displayName
+    }
+
+    /// Returns a copy with `displayName` set, and `lastFour` derived from it (e.g. "Visa 1234" -> "1234").
+    /// Leaves the backend-sourced fields untouched.
+    func withCardDisplayDetails(from displayName: String?) -> ApplePayCard {
+        ApplePayCard(brand: brand, funding: funding, segment: segment, country: country, currency: currency, issuer: issuer, lastFour: extractLastFour(from: displayName), displayName: displayName)
+    }
 }
 
 private func nilIfEmpty(_ value: String?) -> String? {
     guard let value, !value.isEmpty else { return nil }
     return value
+}
+
+/// Extracts the trailing 4 digits from Apple Pay's `PKPaymentMethod.displayName` (e.g. "Visa 1234").
+/// Apple Pay has no separate "card details" source, so this is the only place these digits can come from.
+func extractLastFour(from displayName: String?) -> String? {
+    guard let displayName, let match = displayName.range(of: "\\d{4}$", options: .regularExpression) else { return nil }
+    return String(displayName[match])
 }
 
 public struct ApplePayPostalAddress: Codable, Sendable, Equatable {
@@ -236,10 +263,12 @@ public struct ApplePayResponse: Codable, Sendable, Equatable {
         self.transactionType = transactionType
     }
 
-    func enriched(billingContact: ApplePayContact?, shippingContact: ApplePayContact?, transactionType: ApplePayTransactionType) -> ApplePayResponse {
+    /// - Parameter displayName: Apple Pay's `PKPaymentMethod.displayName`. Sets `card.displayName` and,
+    ///   since Apple Pay exposes no separate card-details field, is also the source `card.lastFour` is derived from.
+    func enriched(billingContact: ApplePayContact?, shippingContact: ApplePayContact?, transactionType: ApplePayTransactionType, displayName: String?) -> ApplePayResponse {
         ApplePayResponse(
             networkToken: networkToken,
-            card: card,
+            card: card.withCardDisplayDetails(from: displayName),
             cryptogram: cryptogram,
             eci: eci,
             paymentDataType: paymentDataType,
