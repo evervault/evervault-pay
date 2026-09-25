@@ -192,7 +192,7 @@ fileprivate func regionalRecurringBilling(base: PKRecurringPaymentSummaryItem, c
 
 fileprivate func getShippingAddressUpdate(_ newAddress: ShippingContact, transaction: EvervaultPayment.Transaction) -> PKPaymentRequestShippingContactUpdate {
     // Get the country for the new address
-    let countryCode = newAddress.postalAddress?.country
+    let countryCode = newAddress.postalAddress?.isoCountryCode
 
     // Calculate the shipping cost based on the new address
     let shippingCost = countryCode == "IE" ? Amount("2.99") : Amount("9.99")
