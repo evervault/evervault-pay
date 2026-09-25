@@ -50,6 +50,7 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
     /// Called when the sheet is dismissed
     private var onResultCallback: (_ result: Result<Void, EvervaultError>) -> Void
     private var onShippingAddressChangeCallback: ((_ shippingContact: PKContact) -> [SummaryItem])?
+    private var onShippingContactChangeCallback: ((_ shippingContact: PKContact) -> PKPaymentRequestShippingContactUpdate)?
     private var onPaymentMethodChangeCallback: ((_ paymentMethod: PKPaymentMethod) -> PKPaymentRequestPaymentMethodUpdate)?
     private var onCouponCodeChangeCallback: ((_ couponCode: String) -> PKPaymentRequestCouponCodeUpdate)?
     private var onShippingMethodChangeCallback: ((_ shippingMethod: PKShippingMethod) -> PKPaymentRequestShippingMethodUpdate)?
@@ -142,6 +143,10 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
         }
 
         nonisolated public func evervaultPaymentView(_ view: EvervaultPaymentView, didSelectShippingContact contact: PKContact) async -> PKPaymentRequestShippingContactUpdate? {
+            if let handler = await self.parent.onShippingContactChangeCallback {
+                return handler(contact)
+            }
+
             if let handler = await self.parent.onShippingAddressChangeCallback {
                 let updatedLineItems = handler(contact)
                 return PKPaymentRequestShippingContactUpdate(
@@ -211,9 +216,19 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
         return copy
     }
 
+    @available(*, deprecated, message: "Use the onShippingAddressChange(_:) overload returning PKPaymentRequestShippingContactUpdate instead. Returning [SummaryItem] can't represent PKAutomaticReloadPaymentSummaryItem.thresholdAmount or a per-region PKRecurringPaymentRequest update.")
     public func onShippingAddressChange(_ action: @escaping (PKContact) -> [SummaryItem]) -> EvervaultPaymentViewRepresentable {
         var copy = self
         copy.onShippingAddressChangeCallback = action
+        return copy
+    }
+
+    /// Called when the buyer changes their shipping address on the Apple Pay sheet. 
+    /// Return the update directly so you retain full control over its summary items (e.g. `PKAutomaticReloadPaymentSummaryItem.thresholdAmount`) 
+    /// and, for recurring/automatic-reload transactions, `recurringPaymentRequest`/`automaticReloadPaymentRequest`.
+    public func onShippingAddressChange(_ action: @escaping (PKContact) -> PKPaymentRequestShippingContactUpdate) -> EvervaultPaymentViewRepresentable {
+        var copy = self
+        copy.onShippingContactChangeCallback = action
         return copy
     }
 
