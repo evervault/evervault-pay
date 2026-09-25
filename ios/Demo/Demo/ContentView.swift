@@ -299,7 +299,8 @@ fileprivate func getCouponCodeUpdate(_ couponCode: String, transaction: Evervaul
 }
 
 /// Example shipping-method handling: recomputes the total to include the selected method's cost.
-/// Not wired up for recurring/disbursement transactions - shipping methods are only modeled for one-off purchases.
+/// Not wired up for recurring/disbursement/automaticReload transactions - shipping methods are only
+/// modeled for one-off purchases.
 fileprivate func getShippingMethodUpdate(_ shippingMethod: PKShippingMethod, transaction: EvervaultPayment.Transaction) -> PKPaymentRequestShippingMethodUpdate {
     let formatter = NumberFormatter()
     formatter.numberStyle = .decimal
@@ -330,6 +331,11 @@ fileprivate func getShippingMethodUpdate(_ shippingMethod: PKShippingMethod, tra
     case .disbursement(let disbursement):
         return PKPaymentRequestShippingMethodUpdate(
             paymentSummaryItems: disbursement.paymentSummaryItems.map { PKPaymentSummaryItem(label: $0.label, amount: $0.amount.amount, type: $0.type) }
+        )
+
+    case .automaticReload(let automaticReload):
+        return PKPaymentRequestShippingMethodUpdate(
+            paymentSummaryItems: automaticReload.paymentSummaryItems.map { PKPaymentSummaryItem(label: $0.label, amount: $0.amount.amount, type: $0.type) }
         )
     }
 }
