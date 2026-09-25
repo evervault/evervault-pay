@@ -174,12 +174,33 @@ fileprivate func buildTransaction(type: TransactionType) -> EvervaultPayment.Tra
     }
 }
 
-fileprivate func getUpdatedTransaction(_ newAddress: ShippingContact, transaction: EvervaultPayment.Transaction) -> [SummaryItem] {
+/// Demo rule: +10% surcharge outside Ireland.
+fileprivate func regionalRecurringBilling(base: PKRecurringPaymentSummaryItem, countryCode: String?) -> PKRecurringPaymentSummaryItem {
+    let isInternational = countryCode != "IE"
+    let amount = isInternational ? (base.amount as Decimal) * Decimal(1.1) : (base.amount as Decimal)
+
+    let billing = PKRecurringPaymentSummaryItem(
+        label: isInternational ? base.label + " (international surcharge)" : base.label,
+        amount: NSDecimalNumber(decimal: amount)
+    )
+    billing.intervalUnit = base.intervalUnit
+    billing.intervalCount = base.intervalCount
+    billing.startDate = base.startDate
+    billing.endDate = base.endDate
+    return billing
+}
+
+fileprivate func getShippingAddressUpdate(_ newAddress: ShippingContact, transaction: EvervaultPayment.Transaction) -> PKPaymentRequestShippingContactUpdate {
     // Get the country for the new address
-    let country = newAddress.postalAddress?.country
-    
+    let countryCode = newAddress.postalAddress?.country
+
     // Calculate the shipping cost based on the new address
-    let shippingCost = country == "IE" ? Amount("2.99") : Amount("9.99")
+    let shippingCost = countryCode == "IE" ? Amount("2.99") : Amount("9.99")
+
+    let formatter = NumberFormatter()
+    formatter.numberStyle = .decimal
+    formatter.minimumFractionDigits = 2
+    formatter.maximumFractionDigits = 2
 
     switch transaction {
     case .oneOffPayment(let oneOff):
@@ -192,22 +213,22 @@ fileprivate func getUpdatedTransaction(_ newAddress: ShippingContact, transactio
         let newTotal = summaryItems
             .map { $0.amount.amount as Decimal }
             .reduce(Decimal.zero, +)
-        
-        // Format for currency
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        formatter.minimumFractionDigits = 2
-        formatter.maximumFractionDigits = 2
+
         let formattedTotal = formatter.string(
             from: newTotal as NSDecimalNumber
         ) ?? newTotal.description
-        
+
         // Add the new "Total" line item to the end
         summaryItems.append(
             SummaryItem(label: "Total", amount: Amount(formattedTotal))
         )
 
-        return summaryItems
+        return PKPaymentRequestShippingContactUpdate(
+            errors: nil,
+            paymentSummaryItems: summaryItems.map { PKPaymentSummaryItem(label: $0.label, amount: $0.amount.amount, type: $0.type) },
+            shippingMethods: oneOff.shippingMethods
+        )
+
     case .disbursement(let disbursement):
         var summaryItems = disbursement.paymentSummaryItems
         if disbursement.merchantCapability == .instantFundsOut,
@@ -215,28 +236,77 @@ fileprivate func getUpdatedTransaction(_ newAddress: ShippingContact, transactio
             summaryItems.append(instantOutFee)
         }
         summaryItems.append(disbursement.disbursementItem)
-        return summaryItems
+        return PKPaymentRequestShippingContactUpdate(
+            errors: nil,
+            paymentSummaryItems: summaryItems.map { PKPaymentSummaryItem(label: $0.label, amount: $0.amount.amount, type: $0.type) },
+            shippingMethods: []
+        )
+
     case .recurringPayment(let recurring):
-        // regularBilling/trialBilling are the real PKRecurringPaymentSummaryItem type (unlike
-        // disbursementItem/automaticReloadBilling below), so they need converting to SummaryItem first.
-        var summaryItems = recurring.paymentSummaryItems
-        summaryItems.append(SummaryItem(label: recurring.regularBilling.label, amount: Amount(recurring.regularBilling.amount.stringValue)))
-        if let trial = recurring.trialBilling {
-            summaryItems.append(SummaryItem(label: trial.label, amount: Amount(trial.amount.stringValue)))
-        }
-        return summaryItems
+        let regularBilling = regionalRecurringBilling(base: recurring.regularBilling, countryCode: countryCode)
+
+        var items = recurring.paymentSummaryItems.map { PKPaymentSummaryItem(label: $0.label, amount: $0.amount.amount, type: $0.type) }
+        items.append(regularBilling)
+        if let trial = recurring.trialBilling { items.append(trial) }
+
+        let update = PKPaymentRequestShippingContactUpdate(errors: nil, paymentSummaryItems: items, shippingMethods: [])
+
+        let recurringRequest = PKRecurringPaymentRequest(
+            paymentDescription: recurring.paymentDescription,
+            regularBilling: regularBilling,
+            managementURL: recurring.managementURL
+        )
+        recurringRequest.trialBilling = recurring.trialBilling
+        recurringRequest.billingAgreement = recurring.billingAgreement
+        update.recurringPaymentRequest = recurringRequest
+        return update
+
     case .automaticReload(let automaticReload):
-        // Note: thresholdAmount can't be preserved here - onShippingAddressChange's [SummaryItem]
-        // return type has no field for it, and this always maps to a plain PKPaymentSummaryItem
-        // rather than the real PKAutomaticReloadPaymentSummaryItem (see EvervaultPayment+SwiftUI.swift).
-        return automaticReload.paymentSummaryItems + [automaticReload.automaticReloadBilling]
+        let automaticReloadBilling = PKAutomaticReloadPaymentSummaryItem(
+            label: automaticReload.automaticReloadBilling.label,
+            amount: automaticReload.automaticReloadBilling.amount.amount
+        )
+        if let threshold = automaticReload.automaticReloadThresholdAmount {
+            automaticReloadBilling.thresholdAmount = threshold.amount
+        }
+
+        var items = automaticReload.paymentSummaryItems.map { PKPaymentSummaryItem(label: $0.label, amount: $0.amount.amount, type: $0.type) }
+        items.append(automaticReloadBilling)
+
+        let update = PKPaymentRequestShippingContactUpdate(errors: nil, paymentSummaryItems: items, shippingMethods: [])
+
+        let automaticReloadRequest = PKAutomaticReloadPaymentRequest(
+            paymentDescription: automaticReload.paymentDescription,
+            automaticReloadBilling: automaticReloadBilling,
+            managementURL: automaticReload.managementURL
+        )
+        automaticReloadRequest.billingAgreement = automaticReload.billingAgreement
+        update.automaticReloadPaymentRequest = automaticReloadRequest
+        return update
+
     case .deferredPayment(let deferred):
-        // Same conversion as regularBilling/trialBilling above - deferredBilling is the real
-        // PKDeferredPaymentSummaryItem type, so only label/amount survive here; deferredDate
-        // can't be preserved for the same reason automaticReload's thresholdAmount can't be (see above).
-        var summaryItems = deferred.paymentSummaryItems
-        summaryItems.append(SummaryItem(label: deferred.deferredBilling.label, amount: Amount(deferred.deferredBilling.amount.stringValue)))
-        return summaryItems
+        let deferredBilling = PKDeferredPaymentSummaryItem(
+            label: deferred.deferredBilling.label,
+            amount: deferred.deferredBilling.amount
+        )
+        deferredBilling.deferredDate = deferred.deferredBilling.deferredDate
+
+        var items = deferred.paymentSummaryItems.map { PKPaymentSummaryItem(label: $0.label, amount: $0.amount.amount, type: $0.type) }
+        items.append(deferredBilling)
+
+        let update = PKPaymentRequestShippingContactUpdate(errors: nil, paymentSummaryItems: items, shippingMethods: [])
+
+        let deferredRequest = PKDeferredPaymentRequest(
+            paymentDescription: deferred.paymentDescription,
+            deferredBilling: deferredBilling,
+            managementURL: deferred.managementURL
+        )
+        deferredRequest.billingAgreement = deferred.billingAgreement
+        deferredRequest.tokenNotificationURL = deferred.tokenNotificationURL
+        deferredRequest.freeCancellationDate = deferred.freeCancellationDate
+        deferredRequest.freeCancellationDateTimeZone = deferred.freeCancellationDateTimeZone
+        update.deferredPaymentRequest = deferredRequest
+        return update
     }
 }
 
@@ -463,7 +533,7 @@ struct TransactionHandler : View {
                         }
                     }
                     .onShippingAddressChange { newAddress in
-                        return getUpdatedTransaction(newAddress, transaction: self.transaction)
+                        return getShippingAddressUpdate(newAddress, transaction: self.transaction)
                     }.onCouponCodeChange { couponCode in
                         return getCouponCodeUpdate(couponCode, transaction: self.transaction)
                     }.onShippingMethodChange { shippingMethod in
