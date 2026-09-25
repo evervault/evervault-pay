@@ -315,6 +315,7 @@ final class TransactionPrefillFieldsTests: XCTestCase {
         XCTAssertNil(transaction.shippingContact)
         XCTAssertEqual(transaction.shippingType, .shipping)
         XCTAssertTrue(transaction.requiredShippingContactFields.isEmpty)
+        XCTAssertNil(transaction.billingAgreement)
     }
 
     func testRecurringStoresProvidedBillingShippingAndShippingFields() throws {
@@ -324,6 +325,7 @@ final class TransactionPrefillFieldsTests: XCTestCase {
             paymentDescription: "Subscription",
             regularBilling: PKRecurringPaymentSummaryItem(label: "Monthly", amount: NSDecimalNumber(string: "10.00")),
             managementURL: URL(string: "https://example.com/manage")!,
+            billingAgreement: "https://example.com/billing-agreement",
             billingContact: makeBillingContact(),
             shippingType: .delivery,
             requiredShippingContactFields: [.postalAddress],
@@ -334,6 +336,7 @@ final class TransactionPrefillFieldsTests: XCTestCase {
         XCTAssertEqual(transaction.shippingContact?.givenName, "Jane")
         XCTAssertEqual(transaction.shippingType, .delivery)
         XCTAssertEqual(transaction.requiredShippingContactFields, [.postalAddress])
+        XCTAssertEqual(transaction.billingAgreement, "https://example.com/billing-agreement")
     }
 
     func testAutomaticReloadDefaultsBillingContactAndShippingFieldsToNilOrEmpty() throws {
@@ -349,6 +352,7 @@ final class TransactionPrefillFieldsTests: XCTestCase {
         XCTAssertNil(transaction.shippingContact)
         XCTAssertEqual(transaction.shippingType, .shipping)
         XCTAssertTrue(transaction.requiredShippingContactFields.isEmpty)
+        XCTAssertNil(transaction.billingAgreement)
     }
 
     func testAutomaticReloadStoresProvidedBillingShippingAndShippingFields() throws {
@@ -358,6 +362,7 @@ final class TransactionPrefillFieldsTests: XCTestCase {
             paymentDescription: "Gift Card Reload",
             automaticReloadBilling: SummaryItem(label: "Reload", amount: Amount("20.00")),
             managementURL: URL(string: "https://example.com/manage")!,
+            billingAgreement: "https://example.com/billing-agreement",
             billingContact: makeBillingContact(),
             shippingType: .delivery,
             requiredShippingContactFields: [.postalAddress],
@@ -368,6 +373,7 @@ final class TransactionPrefillFieldsTests: XCTestCase {
         XCTAssertEqual(transaction.shippingContact?.givenName, "Jane")
         XCTAssertEqual(transaction.shippingType, .delivery)
         XCTAssertEqual(transaction.requiredShippingContactFields, [.postalAddress])
+        XCTAssertEqual(transaction.billingAgreement, "https://example.com/billing-agreement")
     }
 
     func testDeferredDefaultsBillingContactAndShippingFieldsToNilOrEmpty() throws {
