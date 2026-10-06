@@ -42,8 +42,9 @@ fileprivate func makeSampleShippingContact() -> ApplePayPaymentContact {
     )
 }
 
-fileprivate func makeSampleShippingMethods() -> [PKShippingMethod] {
-    let standard = PKShippingMethod(label: "Standard Shipping", amount: NSDecimalNumber(string: "0.00"))
+/// Standard Shipping costs less to Ireland than everywhere else; Express is a flat rate.
+fileprivate func makeShippingMethods(countryCode: String?) -> [PKShippingMethod] {
+    let standard = PKShippingMethod(label: "Standard Shipping", amount: NSDecimalNumber(string: countryCode == "IE" ? "0.00" : "2.99"))
     standard.identifier = "standard"
     standard.detail = "Delivered in 5-7 business days"
 
@@ -85,7 +86,7 @@ fileprivate func buildTransaction(type: TransactionType) -> EvervaultPayment.Tra
                  SummaryItem(label: "Total", amount: Amount("37.50"))
              ],
              shippingType: .shipping,
-             shippingMethods: makeSampleShippingMethods(),
+             shippingMethods: makeShippingMethods(countryCode: nil),
              requiredShippingContactFields: [.postalAddress, .name, .emailAddress, .phoneNumber],
              requestPayerDetails: [.postalAddress, .name, .emailAddress, .phoneNumber],
              supportsCouponCode: true,
@@ -174,40 +175,83 @@ fileprivate func buildTransaction(type: TransactionType) -> EvervaultPayment.Tra
     }
 }
 
-fileprivate func getUpdatedTransaction(_ newAddress: ShippingContact, transaction: EvervaultPayment.Transaction) -> [SummaryItem] {
-    // Get the country for the new address
-    let country = newAddress.postalAddress?.country
-    
-    // Calculate the shipping cost based on the new address
-    let shippingCost = country == "IE" ? Amount("2.99") : Amount("9.99")
+/// Tracks the buyer's in-progress choices on the sheet so any one change (address, coupon,
+/// shipping method) can be applied on top of the others instead of overwriting them.
+fileprivate struct CheckoutCart {
+    var shippingCountryCode: String? = nil
+    var appliedCouponCode: String? = nil
+    var shippingMethod: PKShippingMethod? = nil
+}
+
+fileprivate extension Array where Element == SummaryItem {
+    func asPKSummaryItems() -> [PKPaymentSummaryItem] {
+        map { PKPaymentSummaryItem(label: $0.label, amount: $0.amount.amount, type: $0.type) }
+    }
+}
+
+/// Rebuilds One-Off's summary items from the transaction's pristine base items plus every
+/// choice currently on `cart`, so applying one doesn't drop the others.
+fileprivate func buildOneOffSummaryItems(_ oneOff: OneOffPaymentTransaction, cart: CheckoutCart) -> [SummaryItem] {
+    let formatter = NumberFormatter()
+    formatter.numberStyle = .decimal
+    formatter.minimumFractionDigits = 2
+    formatter.maximumFractionDigits = 2
+
+    var items = oneOff.paymentSummaryItems
+    _ = items.popLast() // drop the pristine "Total"; recomputed below
+
+    if let method = cart.shippingMethod {
+        items.append(SummaryItem(label: method.label, amount: Amount(formatter.string(from: method.amount) ?? method.amount.stringValue)))
+    }
+
+    var subtotal = items.map { $0.amount.amount as Decimal }.reduce(Decimal.zero, +)
+
+    if cart.appliedCouponCode?.uppercased() == "SAVE20" {
+        let discount = subtotal * Decimal(0.2)
+        items.append(SummaryItem(label: "Discount (SAVE20)", amount: Amount("-" + (formatter.string(from: discount as NSDecimalNumber) ?? discount.description))))
+        subtotal -= discount
+    }
+
+    items.append(SummaryItem(label: "Total", amount: Amount(formatter.string(from: subtotal as NSDecimalNumber) ?? subtotal.description)))
+    return items
+}
+
+/// Demo rule: 20% off (coupon) then +10% surcharge outside Ireland (address), both from `cart`.
+fileprivate func recurringRegularBilling(base: PKRecurringPaymentSummaryItem, cart: CheckoutCart) -> PKRecurringPaymentSummaryItem {
+    let isDiscounted = cart.appliedCouponCode?.uppercased() == "SAVE20"
+    let isInternational = cart.shippingCountryCode != "IE"
+
+    var amount = base.amount as Decimal
+    var label = base.label
+    if isDiscounted {
+        amount *= Decimal(0.8)
+        label += " (20% off)"
+    }
+    if isInternational {
+        amount *= Decimal(1.1)
+        label += " (international surcharge)"
+    }
+
+    let billing = PKRecurringPaymentSummaryItem(label: label, amount: NSDecimalNumber(decimal: amount))
+    billing.intervalUnit = base.intervalUnit
+    billing.intervalCount = base.intervalCount
+    billing.startDate = base.startDate
+    billing.endDate = base.endDate
+    return billing
+}
+
+fileprivate func getShippingAddressUpdate(_ newAddress: ShippingContact, cart: inout CheckoutCart, transaction: EvervaultPayment.Transaction) -> PKPaymentRequestShippingContactUpdate {
+    cart.shippingCountryCode = newAddress.postalAddress?.isoCountryCode
 
     switch transaction {
     case .oneOffPayment(let oneOff):
-        var summaryItems = [SummaryItem(label: "Shipping", amount: shippingCost)] + oneOff.paymentSummaryItems
-
-        // Remove the old "Total" line item
-        _ = summaryItems.popLast()
-
-        // Calculate the new total
-        let newTotal = summaryItems
-            .map { $0.amount.amount as Decimal }
-            .reduce(Decimal.zero, +)
-        
-        // Format for currency
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        formatter.minimumFractionDigits = 2
-        formatter.maximumFractionDigits = 2
-        let formattedTotal = formatter.string(
-            from: newTotal as NSDecimalNumber
-        ) ?? newTotal.description
-        
-        // Add the new "Total" line item to the end
-        summaryItems.append(
-            SummaryItem(label: "Total", amount: Amount(formattedTotal))
+        let items = buildOneOffSummaryItems(oneOff, cart: cart)
+        return PKPaymentRequestShippingContactUpdate(
+            errors: nil,
+            paymentSummaryItems: items.asPKSummaryItems(),
+            shippingMethods: makeShippingMethods(countryCode: cart.shippingCountryCode)
         )
 
-        return summaryItems
     case .disbursement(let disbursement):
         var summaryItems = disbursement.paymentSummaryItems
         if disbursement.merchantCapability == .instantFundsOut,
@@ -215,116 +259,117 @@ fileprivate func getUpdatedTransaction(_ newAddress: ShippingContact, transactio
             summaryItems.append(instantOutFee)
         }
         summaryItems.append(disbursement.disbursementItem)
-        return summaryItems
+        return PKPaymentRequestShippingContactUpdate(
+            errors: nil,
+            paymentSummaryItems: summaryItems.asPKSummaryItems(),
+            shippingMethods: []
+        )
+
     case .recurringPayment(let recurring):
-        // regularBilling/trialBilling are the real PKRecurringPaymentSummaryItem type (unlike
-        // disbursementItem/automaticReloadBilling below), so they need converting to SummaryItem first.
-        var summaryItems = recurring.paymentSummaryItems
-        summaryItems.append(SummaryItem(label: recurring.regularBilling.label, amount: Amount(recurring.regularBilling.amount.stringValue)))
-        if let trial = recurring.trialBilling {
-            summaryItems.append(SummaryItem(label: trial.label, amount: Amount(trial.amount.stringValue)))
-        }
-        return summaryItems
+        let regularBilling = recurringRegularBilling(base: recurring.regularBilling, cart: cart)
+
+        var items = recurring.paymentSummaryItems.asPKSummaryItems()
+        items.append(regularBilling)
+        if let trial = recurring.trialBilling { items.append(trial) }
+
+        let update = PKPaymentRequestShippingContactUpdate(errors: nil, paymentSummaryItems: items, shippingMethods: [])
+
+        let recurringRequest = PKRecurringPaymentRequest(
+            paymentDescription: recurring.paymentDescription,
+            regularBilling: regularBilling,
+            managementURL: recurring.managementURL
+        )
+        recurringRequest.trialBilling = recurring.trialBilling
+        recurringRequest.billingAgreement = recurring.billingAgreement
+        update.recurringPaymentRequest = recurringRequest
+        return update
+
     case .automaticReload(let automaticReload):
-        // Note: thresholdAmount can't be preserved here - onShippingAddressChange's [SummaryItem]
-        // return type has no field for it, and this always maps to a plain PKPaymentSummaryItem
-        // rather than the real PKAutomaticReloadPaymentSummaryItem (see EvervaultPayment+SwiftUI.swift).
-        return automaticReload.paymentSummaryItems + [automaticReload.automaticReloadBilling]
+        let automaticReloadBilling = PKAutomaticReloadPaymentSummaryItem(
+            label: automaticReload.automaticReloadBilling.label,
+            amount: automaticReload.automaticReloadBilling.amount.amount
+        )
+        if let threshold = automaticReload.automaticReloadThresholdAmount {
+            automaticReloadBilling.thresholdAmount = threshold.amount
+        }
+
+        var items = automaticReload.paymentSummaryItems.asPKSummaryItems()
+        items.append(automaticReloadBilling)
+
+        let update = PKPaymentRequestShippingContactUpdate(errors: nil, paymentSummaryItems: items, shippingMethods: [])
+
+        let automaticReloadRequest = PKAutomaticReloadPaymentRequest(
+            paymentDescription: automaticReload.paymentDescription,
+            automaticReloadBilling: automaticReloadBilling,
+            managementURL: automaticReload.managementURL
+        )
+        automaticReloadRequest.billingAgreement = automaticReload.billingAgreement
+        update.automaticReloadPaymentRequest = automaticReloadRequest
+        return update
+
     case .deferredPayment(let deferred):
-        // Same conversion as regularBilling/trialBilling above - deferredBilling is the real
-        // PKDeferredPaymentSummaryItem type, so only label/amount survive here; deferredDate
-        // can't be preserved for the same reason automaticReload's thresholdAmount can't be (see above).
-        var summaryItems = deferred.paymentSummaryItems
-        summaryItems.append(SummaryItem(label: deferred.deferredBilling.label, amount: Amount(deferred.deferredBilling.amount.stringValue)))
-        return summaryItems
+        let deferredBilling = PKDeferredPaymentSummaryItem(
+            label: deferred.deferredBilling.label,
+            amount: deferred.deferredBilling.amount
+        )
+        deferredBilling.deferredDate = deferred.deferredBilling.deferredDate
+
+        var items = deferred.paymentSummaryItems.asPKSummaryItems()
+        items.append(deferredBilling)
+
+        let update = PKPaymentRequestShippingContactUpdate(errors: nil, paymentSummaryItems: items, shippingMethods: [])
+
+        let deferredRequest = PKDeferredPaymentRequest(
+            paymentDescription: deferred.paymentDescription,
+            deferredBilling: deferredBilling,
+            managementURL: deferred.managementURL
+        )
+        deferredRequest.billingAgreement = deferred.billingAgreement
+        deferredRequest.tokenNotificationURL = deferred.tokenNotificationURL
+        deferredRequest.freeCancellationDate = deferred.freeCancellationDate
+        deferredRequest.freeCancellationDateTimeZone = deferred.freeCancellationDateTimeZone
+        update.deferredPaymentRequest = deferredRequest
+        return update
     }
 }
 
 /// Example coupon handling: "SAVE20" takes 20% off, anything else is rejected via PassKit's own
 /// invalid-coupon error. Not wired up for disbursement transactions (payouts, not purchases).
-fileprivate func getCouponCodeUpdate(_ couponCode: String, transaction: EvervaultPayment.Transaction) -> PKPaymentRequestCouponCodeUpdate {
-    let formatter = NumberFormatter()
-    formatter.numberStyle = .decimal
-    formatter.minimumFractionDigits = 2
-    formatter.maximumFractionDigits = 2
+fileprivate func getCouponCodeUpdate(_ couponCode: String, cart: inout CheckoutCart, transaction: EvervaultPayment.Transaction) -> PKPaymentRequestCouponCodeUpdate {
+    let isValid = couponCode.uppercased() == "SAVE20"
+    cart.appliedCouponCode = isValid ? couponCode : nil
+    let invalidCodeError = PKPaymentRequest.paymentCouponCodeInvalidError(localizedDescription: "That coupon code isn't valid.")
 
     switch transaction {
     case .oneOffPayment(let oneOff):
-        var summaryItems = oneOff.paymentSummaryItems
-        // Remove the old "Total" line item; we'll recompute and re-append it below.
-        _ = summaryItems.popLast()
+        let summaryItems = buildOneOffSummaryItems(oneOff, cart: cart).asPKSummaryItems()
 
-        guard couponCode.uppercased() == "SAVE20" else {
-            let subtotal = summaryItems.map { $0.amount.amount as Decimal }.reduce(Decimal.zero, +)
-            summaryItems.append(SummaryItem(label: "Total", amount: Amount(formatter.string(from: subtotal as NSDecimalNumber) ?? subtotal.description)))
-
-            return PKPaymentRequestCouponCodeUpdate(
-                errors: [PKPaymentRequest.paymentCouponCodeInvalidError(localizedDescription: "That coupon code isn't valid.")],
-                paymentSummaryItems: summaryItems.map { PKPaymentSummaryItem(label: $0.label, amount: $0.amount.amount, type: $0.type) },
-                shippingMethods: []
-            )
+        guard isValid else {
+            return PKPaymentRequestCouponCodeUpdate(errors: [invalidCodeError], paymentSummaryItems: summaryItems, shippingMethods: [])
         }
-
-        let subtotal = summaryItems.map { $0.amount.amount as Decimal }.reduce(Decimal.zero, +)
-        let discount = subtotal * Decimal(0.2)
-        let discountedTotal = subtotal - discount
-
-        summaryItems.append(SummaryItem(label: "Discount (SAVE20)", amount: Amount("-" + (formatter.string(from: discount as NSDecimalNumber) ?? discount.description))))
-        summaryItems.append(SummaryItem(label: "Total", amount: Amount(formatter.string(from: discountedTotal as NSDecimalNumber) ?? discountedTotal.description)))
-
-        return PKPaymentRequestCouponCodeUpdate(
-            paymentSummaryItems: summaryItems.map { PKPaymentSummaryItem(label: $0.label, amount: $0.amount.amount, type: $0.type) }
-        )
+        return PKPaymentRequestCouponCodeUpdate(paymentSummaryItems: summaryItems)
 
     case .recurringPayment(let recurring):
-        // Rebuilds the recurring request around a given regularBilling, preserving everything
-        // else (billing agreement, trial, management URL) - used below for both the discounted
-        // and undiscounted cases.
-        func recurringRequest(regularBilling: PKRecurringPaymentSummaryItem) -> PKRecurringPaymentRequest {
-            let request = PKRecurringPaymentRequest(
-                paymentDescription: recurring.paymentDescription,
-                regularBilling: regularBilling,
-                managementURL: recurring.managementURL
-            )
-            request.trialBilling = recurring.trialBilling
-            request.billingAgreement = recurring.billingAgreement
-            return request
-        }
+        let regularBilling = recurringRegularBilling(base: recurring.regularBilling, cart: cart)
 
-        var items = recurring.paymentSummaryItems.map { PKPaymentSummaryItem(label: $0.label, amount: $0.amount.amount, type: $0.type) }
-
-        guard couponCode.uppercased() == "SAVE20" else {
-            items.append(recurring.regularBilling)
-            if let trial = recurring.trialBilling { items.append(trial) }
-
-            let update = PKPaymentRequestCouponCodeUpdate(
-                errors: [PKPaymentRequest.paymentCouponCodeInvalidError(localizedDescription: "That coupon code isn't valid.")],
-                paymentSummaryItems: items,
-                shippingMethods: []
-            )
-            // PassKit treats nil as "no change" for recurring payments. Reset explicitly to
-            // prevent an outdated discount from silently sticking around.
-            update.recurringPaymentRequest = recurringRequest(regularBilling: recurring.regularBilling)
-            return update
-        }
-
-        // Deduct the discount from every billing cycle by replacing regularBilling itself -
-        // a flat one-off summary line wouldn't affect what's actually charged on future cycles.
-        let discountedAmount = (recurring.regularBilling.amount as Decimal) * Decimal(0.8)
-        let discountedBilling = PKRecurringPaymentSummaryItem(
-            label: recurring.regularBilling.label + " (20% off)",
-            amount: NSDecimalNumber(decimal: discountedAmount)
-        )
-        discountedBilling.intervalUnit = recurring.regularBilling.intervalUnit
-        discountedBilling.intervalCount = recurring.regularBilling.intervalCount
-        discountedBilling.startDate = recurring.regularBilling.startDate
-        discountedBilling.endDate = recurring.regularBilling.endDate
-
-        items.append(discountedBilling)
+        var items = recurring.paymentSummaryItems.asPKSummaryItems()
+        items.append(regularBilling)
         if let trial = recurring.trialBilling { items.append(trial) }
 
-        let update = PKPaymentRequestCouponCodeUpdate(paymentSummaryItems: items)
-        update.recurringPaymentRequest = recurringRequest(regularBilling: discountedBilling)
+        let recurringRequest = PKRecurringPaymentRequest(
+            paymentDescription: recurring.paymentDescription,
+            regularBilling: regularBilling,
+            managementURL: recurring.managementURL
+        )
+        recurringRequest.trialBilling = recurring.trialBilling
+        recurringRequest.billingAgreement = recurring.billingAgreement
+
+        let update = isValid
+            ? PKPaymentRequestCouponCodeUpdate(paymentSummaryItems: items)
+            : PKPaymentRequestCouponCodeUpdate(errors: [invalidCodeError], paymentSummaryItems: items, shippingMethods: [])
+        // PassKit treats nil as "no change" for recurring payments, so this is set unconditionally -
+        // otherwise an outdated discount/surcharge could silently stick around after a rejection.
+        update.recurringPaymentRequest = recurringRequest
         return update
 
     case .disbursement:
@@ -343,47 +388,25 @@ fileprivate func getCouponCodeUpdate(_ couponCode: String, transaction: Evervaul
 /// Example shipping-method handling: recomputes the total to include the selected method's cost.
 /// Not wired up for recurring/disbursement/automaticReload/deferredPayment transactions - shipping
 /// methods are only modeled for one-off purchases.
-fileprivate func getShippingMethodUpdate(_ shippingMethod: PKShippingMethod, transaction: EvervaultPayment.Transaction) -> PKPaymentRequestShippingMethodUpdate {
-    let formatter = NumberFormatter()
-    formatter.numberStyle = .decimal
-    formatter.minimumFractionDigits = 2
-    formatter.maximumFractionDigits = 2
+fileprivate func getShippingMethodUpdate(_ shippingMethod: PKShippingMethod, cart: inout CheckoutCart, transaction: EvervaultPayment.Transaction) -> PKPaymentRequestShippingMethodUpdate {
+    cart.shippingMethod = shippingMethod
 
     switch transaction {
     case .oneOffPayment(let oneOff):
-        var summaryItems = oneOff.paymentSummaryItems
-        // Remove the old "Total" line item; we'll recompute and re-append it below.
-        _ = summaryItems.popLast()
-
-        let subtotal = summaryItems.map { $0.amount.amount as Decimal }.reduce(Decimal.zero, +)
-        let total = subtotal + (shippingMethod.amount as Decimal)
-
-        summaryItems.append(SummaryItem(label: shippingMethod.label, amount: Amount(formatter.string(from: shippingMethod.amount) ?? shippingMethod.amount.stringValue)))
-        summaryItems.append(SummaryItem(label: "Total", amount: Amount(formatter.string(from: total as NSDecimalNumber) ?? total.description)))
-
-        return PKPaymentRequestShippingMethodUpdate(
-            paymentSummaryItems: summaryItems.map { PKPaymentSummaryItem(label: $0.label, amount: $0.amount.amount, type: $0.type) }
-        )
+        let items = buildOneOffSummaryItems(oneOff, cart: cart)
+        return PKPaymentRequestShippingMethodUpdate(paymentSummaryItems: items.asPKSummaryItems())
 
     case .recurringPayment(let recurring):
-        return PKPaymentRequestShippingMethodUpdate(
-            paymentSummaryItems: recurring.paymentSummaryItems.map { PKPaymentSummaryItem(label: $0.label, amount: $0.amount.amount, type: $0.type) }
-        )
+        return PKPaymentRequestShippingMethodUpdate(paymentSummaryItems: recurring.paymentSummaryItems.asPKSummaryItems())
 
     case .disbursement(let disbursement):
-        return PKPaymentRequestShippingMethodUpdate(
-            paymentSummaryItems: disbursement.paymentSummaryItems.map { PKPaymentSummaryItem(label: $0.label, amount: $0.amount.amount, type: $0.type) }
-        )
+        return PKPaymentRequestShippingMethodUpdate(paymentSummaryItems: disbursement.paymentSummaryItems.asPKSummaryItems())
 
     case .automaticReload(let automaticReload):
-        return PKPaymentRequestShippingMethodUpdate(
-            paymentSummaryItems: automaticReload.paymentSummaryItems.map { PKPaymentSummaryItem(label: $0.label, amount: $0.amount.amount, type: $0.type) }
-        )
+        return PKPaymentRequestShippingMethodUpdate(paymentSummaryItems: automaticReload.paymentSummaryItems.asPKSummaryItems())
 
     case .deferredPayment(let deferred):
-        return PKPaymentRequestShippingMethodUpdate(
-            paymentSummaryItems: deferred.paymentSummaryItems.map { PKPaymentSummaryItem(label: $0.label, amount: $0.amount.amount, type: $0.type) }
-        )
+        return PKPaymentRequestShippingMethodUpdate(paymentSummaryItems: deferred.paymentSummaryItems.asPKSummaryItems())
     }
 }
 
@@ -416,6 +439,8 @@ struct TransactionHandler : View {
     private var applePayResponse: ApplePayResponse? = nil
     @State
     private var errorMessage: String? = nil
+    @State
+    private var cart = CheckoutCart()
     private let transaction: EvervaultPayment.Transaction
 
     init(name: String, type: TransactionType) {
@@ -463,11 +488,11 @@ struct TransactionHandler : View {
                         }
                     }
                     .onShippingAddressChange { newAddress in
-                        return getUpdatedTransaction(newAddress, transaction: self.transaction)
+                        getShippingAddressUpdate(newAddress, cart: &cart, transaction: self.transaction)
                     }.onCouponCodeChange { couponCode in
-                        return getCouponCodeUpdate(couponCode, transaction: self.transaction)
+                        getCouponCodeUpdate(couponCode, cart: &cart, transaction: self.transaction)
                     }.onShippingMethodChange { shippingMethod in
-                        return getShippingMethodUpdate(shippingMethod, transaction: self.transaction)
+                        getShippingMethodUpdate(shippingMethod, cart: &cart, transaction: self.transaction)
                     }.prepareTransaction { transaction in
                         print("Preparing transaction")
                     }.onCancel {

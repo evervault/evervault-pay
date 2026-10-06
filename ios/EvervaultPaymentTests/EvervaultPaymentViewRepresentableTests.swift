@@ -81,3 +81,82 @@ final class EvervaultPaymentViewRepresentableUpdateUIViewTests: XCTestCase {
         )
     }
 }
+
+@MainActor
+final class EvervaultPaymentViewRepresentableShippingContactUpdateTests: XCTestCase {
+
+    private func makeRepresentable(transaction: EvervaultPayment.Transaction) -> EvervaultPaymentViewRepresentable {
+        EvervaultPaymentViewRepresentable(
+            appId: "app_test",
+            appleMerchantId: "merchant.test",
+            transaction: transaction,
+            supportedNetworks: [.visa],
+            authorizedResponse: .constant(nil),
+            onResult: { _ in }
+        )
+    }
+
+    private func makeView(transaction: EvervaultPayment.Transaction) -> EvervaultPaymentView {
+        EvervaultPaymentView(
+            appId: "app_test",
+            appleMerchantId: "merchant.test",
+            transaction: transaction,
+            supportedNetworks: [.visa],
+            buttonStyle: .automatic,
+            buttonType: .buy
+        )
+    }
+
+    private func makeTransaction(total: String) throws -> EvervaultPayment.Transaction {
+        .oneOffPayment(try OneOffPaymentTransaction(
+            country: "US",
+            currency: "USD",
+            paymentSummaryItems: [SummaryItem(label: "Total", amount: Amount(total))]
+        ))
+    }
+
+    func testNewCallbackIsForwardedUnmodifiedWhenOnlyItIsRegistered() async throws {
+        let transaction = try makeTransaction(total: "10.00")
+        let expectedUpdate = PKPaymentRequestShippingContactUpdate(
+            errors: nil,
+            paymentSummaryItems: [PKPaymentSummaryItem(label: "New Handler Total", amount: NSDecimalNumber(string: "42.00"))],
+            shippingMethods: []
+        )
+        let representable = makeRepresentable(transaction: transaction)
+            .onShippingAddressChange { _ in expectedUpdate }
+        let coordinator = representable.makeCoordinator()
+
+        let result = await coordinator.evervaultPaymentView(makeView(transaction: transaction), didSelectShippingContact: PKContact())
+
+        XCTAssertTrue(result === expectedUpdate, "the new callback's return value should be forwarded unmodified")
+    }
+
+    func testOldCallbackConvertsSummaryItemsWhenOnlyItIsRegistered() async throws {
+        let transaction = try makeTransaction(total: "10.00")
+        let representable = makeRepresentable(transaction: transaction)
+            .onShippingAddressChange { _ in [SummaryItem(label: "Old Handler Total", amount: Amount("12.00"))] }
+        let coordinator = representable.makeCoordinator()
+
+        let result = await coordinator.evervaultPaymentView(makeView(transaction: transaction), didSelectShippingContact: PKContact())
+
+        XCTAssertEqual(result?.paymentSummaryItems.first?.label, "Old Handler Total")
+        XCTAssertEqual(result?.paymentSummaryItems.first?.amount, NSDecimalNumber(string: "12.00"))
+    }
+
+    func testNewCallbackTakesPriorityWhenBothAreRegistered() async throws {
+        let transaction = try makeTransaction(total: "10.00")
+        let expectedUpdate = PKPaymentRequestShippingContactUpdate(
+            errors: nil,
+            paymentSummaryItems: [PKPaymentSummaryItem(label: "New Handler Total", amount: NSDecimalNumber(string: "42.00"))],
+            shippingMethods: []
+        )
+        let representable = makeRepresentable(transaction: transaction)
+            .onShippingAddressChange { _ in [SummaryItem(label: "Old Handler Total", amount: Amount("12.00"))] }
+            .onShippingAddressChange { _ in expectedUpdate }
+        let coordinator = representable.makeCoordinator()
+
+        let result = await coordinator.evervaultPaymentView(makeView(transaction: transaction), didSelectShippingContact: PKContact())
+
+        XCTAssertTrue(result === expectedUpdate, "the new callback should take priority when both are registered")
+    }
+}
