@@ -459,13 +459,14 @@ public struct RecurringPaymentTransaction {
     /// Restrict payments to cards issued in these ISO 3166 country codes.
     public var supportedCountries: Set<String>?
 
-    public init(country: String, currency: String, paymentSummaryItems: [SummaryItem] = [], paymentDescription: String, regularBilling: PKRecurringPaymentSummaryItem, managementURL: URL, requestPayerDetails: Set<ContactField> = [], supportsCouponCode: Bool = false, couponCode: String? = nil, billingContact: ApplePayPaymentContact? = nil, shippingType: PKShippingType = .shipping, requiredShippingContactFields: Set<ContactField> = [], shippingContact: ApplePayPaymentContact? = nil, applicationData: Data? = nil, supportedCountries: Set<String>? = nil) throws {
+    public init(country: String, currency: String, paymentSummaryItems: [SummaryItem] = [], paymentDescription: String, regularBilling: PKRecurringPaymentSummaryItem, managementURL: URL, billingAgreement: String? = nil, requestPayerDetails: Set<ContactField> = [], supportsCouponCode: Bool = false, couponCode: String? = nil, billingContact: ApplePayPaymentContact? = nil, shippingType: PKShippingType = .shipping, requiredShippingContactFields: Set<ContactField> = [], shippingContact: ApplePayPaymentContact? = nil, applicationData: Data? = nil, supportedCountries: Set<String>? = nil) throws {
         self.country = country
         self.currency = currency
         self.paymentSummaryItems = paymentSummaryItems
         self.paymentDescription = paymentDescription
         self.regularBilling = regularBilling
         self.managementURL = managementURL
+        self.billingAgreement = billingAgreement
         self.requestPayerDetails = requestPayerDetails
         self.supportsCouponCode = supportsCouponCode
         self.couponCode = couponCode
@@ -478,13 +479,14 @@ public struct RecurringPaymentTransaction {
     }
 
     @available(iOS 16.0, *)
-    public init(country: Locale.Region, currency: Locale.Currency, paymentSummaryItems: [SummaryItem] = [], paymentDescription: String, regularBilling: PKRecurringPaymentSummaryItem, managementURL: URL, requestPayerDetails: Set<ContactField> = [], supportsCouponCode: Bool = false, couponCode: String? = nil, billingContact: ApplePayPaymentContact? = nil, shippingType: PKShippingType = .shipping, requiredShippingContactFields: Set<ContactField> = [], shippingContact: ApplePayPaymentContact? = nil, applicationData: Data? = nil, supportedCountries: Set<String>? = nil) throws {
+    public init(country: Locale.Region, currency: Locale.Currency, paymentSummaryItems: [SummaryItem] = [], paymentDescription: String, regularBilling: PKRecurringPaymentSummaryItem, managementURL: URL, billingAgreement: String? = nil, requestPayerDetails: Set<ContactField> = [], supportsCouponCode: Bool = false, couponCode: String? = nil, billingContact: ApplePayPaymentContact? = nil, shippingType: PKShippingType = .shipping, requiredShippingContactFields: Set<ContactField> = [], shippingContact: ApplePayPaymentContact? = nil, applicationData: Data? = nil, supportedCountries: Set<String>? = nil) throws {
         self.country = country.identifier
         self.currency = currency.identifier
         self.paymentSummaryItems = paymentSummaryItems
         self.paymentDescription = paymentDescription
         self.regularBilling = regularBilling
         self.managementURL = managementURL
+        self.billingAgreement = billingAgreement
         self.requestPayerDetails = requestPayerDetails
         self.supportsCouponCode = supportsCouponCode
         self.couponCode = couponCode
@@ -521,7 +523,7 @@ public struct AutomaticReloadPaymentTransaction {
     public var billingContact: ApplePayPaymentContact?
     public var shippingContact: ApplePayPaymentContact?
 
-    public init(country: String, currency: String, paymentSummaryItems: [SummaryItem] = [], paymentDescription: String, automaticReloadBilling: SummaryItem, automaticReloadThresholdAmount: Amount? = nil, managementURL: URL, requestPayerDetails: Set<ContactField> = [], supportsCouponCode: Bool = false, couponCode: String? = nil, billingContact: ApplePayPaymentContact? = nil, shippingType: PKShippingType = .shipping, requiredShippingContactFields: Set<ContactField> = [], shippingContact: ApplePayPaymentContact? = nil) throws {
+    public init(country: String, currency: String, paymentSummaryItems: [SummaryItem] = [], paymentDescription: String, automaticReloadBilling: SummaryItem, automaticReloadThresholdAmount: Amount? = nil, managementURL: URL, billingAgreement: String? = nil, requestPayerDetails: Set<ContactField> = [], supportsCouponCode: Bool = false, couponCode: String? = nil, billingContact: ApplePayPaymentContact? = nil, shippingType: PKShippingType = .shipping, requiredShippingContactFields: Set<ContactField> = [], shippingContact: ApplePayPaymentContact? = nil) throws {
         self.country = country
         self.currency = currency
         self.paymentSummaryItems = paymentSummaryItems
@@ -529,6 +531,7 @@ public struct AutomaticReloadPaymentTransaction {
         self.automaticReloadBilling = automaticReloadBilling
         self.automaticReloadThresholdAmount = automaticReloadThresholdAmount
         self.managementURL = managementURL
+        self.billingAgreement = billingAgreement
         self.requestPayerDetails = requestPayerDetails
         self.supportsCouponCode = supportsCouponCode
         self.couponCode = couponCode
@@ -539,7 +542,7 @@ public struct AutomaticReloadPaymentTransaction {
     }
 
     @available(iOS 16.0, *)
-    public init(country: Locale.Region, currency: Locale.Currency, paymentSummaryItems: [SummaryItem] = [], paymentDescription: String, automaticReloadBilling: SummaryItem, automaticReloadThresholdAmount: Amount? = nil, managementURL: URL, requestPayerDetails: Set<ContactField> = [], supportsCouponCode: Bool = false, couponCode: String? = nil, billingContact: ApplePayPaymentContact? = nil, shippingType: PKShippingType = .shipping, requiredShippingContactFields: Set<ContactField> = [], shippingContact: ApplePayPaymentContact? = nil) throws {
+    public init(country: Locale.Region, currency: Locale.Currency, paymentSummaryItems: [SummaryItem] = [], paymentDescription: String, automaticReloadBilling: SummaryItem, automaticReloadThresholdAmount: Amount? = nil, managementURL: URL, billingAgreement: String? = nil, requestPayerDetails: Set<ContactField> = [], supportsCouponCode: Bool = false, couponCode: String? = nil, billingContact: ApplePayPaymentContact? = nil, shippingType: PKShippingType = .shipping, requiredShippingContactFields: Set<ContactField> = [], shippingContact: ApplePayPaymentContact? = nil) throws {
         self.country = country.identifier
         self.currency = currency.identifier
         self.paymentSummaryItems = paymentSummaryItems
@@ -547,6 +550,7 @@ public struct AutomaticReloadPaymentTransaction {
         self.automaticReloadBilling = automaticReloadBilling
         self.automaticReloadThresholdAmount = automaticReloadThresholdAmount
         self.managementURL = managementURL
+        self.billingAgreement = billingAgreement
         self.requestPayerDetails = requestPayerDetails
         self.supportsCouponCode = supportsCouponCode
         self.couponCode = couponCode

@@ -115,6 +115,7 @@ fileprivate func buildTransaction(type: TransactionType) -> EvervaultPayment.Tra
             paymentDescription: "Recurring payment example.",
             regularBilling: recurringBilling,
             managementURL: URL(string: "https://www.merchant.com/manage-subscriptions")!,
+            billingAgreement: "https://www.merchant.com/billing-agreement",
             requestPayerDetails: [.postalAddress, .name, .emailAddress, .phoneNumber],
             billingContact: makeSampleBillingContact(),
             shippingType: .shipping,
@@ -123,7 +124,6 @@ fileprivate func buildTransaction(type: TransactionType) -> EvervaultPayment.Tra
             applicationData: Data("order_123".utf8),
             supportedCountries: ["IE", "GB", "US"]
         )
-        recurringBillingRequest.billingAgreement = "https://www.merchant.com/billing-agreement"
         recurringBillingRequest.trialBilling = trialBilling
         recurringBillingRequest.supportsCouponCode = true
         return .recurringPayment(recurringBillingRequest)
@@ -135,6 +135,7 @@ fileprivate func buildTransaction(type: TransactionType) -> EvervaultPayment.Tra
             automaticReloadBilling: SummaryItem(label: "Wallet Top-Up", amount: Amount("20.00")),
             automaticReloadThresholdAmount: Amount("5.00"),
             managementURL: URL(string: "https://www.merchant.com/manage-wallet")!,
+            billingAgreement: "https://www.merchant.com/billing-agreement",
             requestPayerDetails: [.postalAddress, .name, .emailAddress, .phoneNumber],
             billingContact: makeSampleBillingContact(),
             shippingContact: makeSampleShippingContact()
@@ -162,6 +163,7 @@ fileprivate func buildTransaction(type: TransactionType) -> EvervaultPayment.Tra
             paymentDescription: "Hotel reservation deposit example.",
             deferredBilling: deferredBilling,
             managementURL: URL(string: "https://www.merchant.com/manage-reservation")!,
+            billingAgreement: "https://www.merchant.com/billing-agreement",
             freeCancellationDate: freeCancellationDate,
             freeCancellationDateTimeZone: TimeZone(identifier: "Europe/Dublin"),
             requestPayerDetails: [.postalAddress, .name, .emailAddress, .phoneNumber],
