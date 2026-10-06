@@ -5,7 +5,8 @@ Pod::Spec.new do |spec|
   spec.description  = <<-DESC
     The Evervault Pay SDK for iOS provides a secure way to integrate Apple Pay into your iOS applications.
     It handles the complete payment flow including token encryption and decryption through Evervault's
-    secure infrastructure, supporting one-off payments, recurring payments, and disbursements.
+    secure infrastructure, supporting one-off payments, recurring payments, automatic reload (top-up)
+    payments, and disbursements.
   DESC
   
   spec.homepage     = "https://evervault.com"

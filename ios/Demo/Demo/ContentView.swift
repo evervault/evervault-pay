@@ -127,6 +127,19 @@ fileprivate func buildTransaction(type: TransactionType) -> EvervaultPayment.Tra
         recurringBillingRequest.trialBilling = trialBilling
         recurringBillingRequest.supportsCouponCode = true
         return .recurringPayment(recurringBillingRequest)
+    case .automaticReload:
+        let automaticReloadRequest = try! AutomaticReloadPaymentTransaction(
+            country: "IE",
+            currency: "EUR",
+            paymentDescription: "Automatic reload example.",
+            automaticReloadBilling: SummaryItem(label: "Wallet Top-Up", amount: Amount("20.00")),
+            automaticReloadThresholdAmount: Amount("5.00"),
+            managementURL: URL(string: "https://www.merchant.com/manage-wallet")!,
+            requestPayerDetails: [.postalAddress, .name, .emailAddress, .phoneNumber],
+            billingContact: makeSampleBillingContact(),
+            shippingContact: makeSampleShippingContact()
+        )
+        return .automaticReload(automaticReloadRequest)
     }
 }
 
@@ -165,10 +178,27 @@ fileprivate func getUpdatedTransaction(_ newAddress: ShippingContact, transactio
 
         return summaryItems
     case .disbursement(let disbursement):
-        // Calculate new line items and total for address change
-        return disbursement.paymentSummaryItems
+        var summaryItems = disbursement.paymentSummaryItems
+        if disbursement.merchantCapability == .instantFundsOut,
+           let instantOutFee = disbursement.instantOutFee {
+            summaryItems.append(instantOutFee)
+        }
+        summaryItems.append(disbursement.disbursementItem)
+        return summaryItems
     case .recurringPayment(let recurring):
-        return recurring.paymentSummaryItems
+        // regularBilling/trialBilling are the real PKRecurringPaymentSummaryItem type (unlike
+        // disbursementItem/automaticReloadBilling below), so they need converting to SummaryItem first.
+        var summaryItems = recurring.paymentSummaryItems
+        summaryItems.append(SummaryItem(label: recurring.regularBilling.label, amount: Amount(recurring.regularBilling.amount.stringValue)))
+        if let trial = recurring.trialBilling {
+            summaryItems.append(SummaryItem(label: trial.label, amount: Amount(trial.amount.stringValue)))
+        }
+        return summaryItems
+    case .automaticReload(let automaticReload):
+        // Note: thresholdAmount can't be preserved here - onShippingAddressChange's [SummaryItem]
+        // return type has no field for it, and this always maps to a plain PKPaymentSummaryItem
+        // rather than the real PKAutomaticReloadPaymentSummaryItem (see EvervaultPayment+SwiftUI.swift).
+        return automaticReload.paymentSummaryItems + [automaticReload.automaticReloadBilling]
     }
 }
 
@@ -261,11 +291,16 @@ fileprivate func getCouponCodeUpdate(_ couponCode: String, transaction: Evervaul
 
     case .disbursement:
         return PKPaymentRequestCouponCodeUpdate(paymentSummaryItems: [])
+
+    case .automaticReload:
+        // Coupon codes aren't the primary use case for a wallet top-up, so no discount logic here.
+        return PKPaymentRequestCouponCodeUpdate(paymentSummaryItems: [])
     }
 }
 
 /// Example shipping-method handling: recomputes the total to include the selected method's cost.
-/// Not wired up for recurring/disbursement transactions - shipping methods are only modeled for one-off purchases.
+/// Not wired up for recurring/disbursement/automaticReload transactions - shipping methods are only
+/// modeled for one-off purchases.
 fileprivate func getShippingMethodUpdate(_ shippingMethod: PKShippingMethod, transaction: EvervaultPayment.Transaction) -> PKPaymentRequestShippingMethodUpdate {
     let formatter = NumberFormatter()
     formatter.numberStyle = .decimal
@@ -297,6 +332,11 @@ fileprivate func getShippingMethodUpdate(_ shippingMethod: PKShippingMethod, tra
         return PKPaymentRequestShippingMethodUpdate(
             paymentSummaryItems: disbursement.paymentSummaryItems.map { PKPaymentSummaryItem(label: $0.label, amount: $0.amount.amount, type: $0.type) }
         )
+
+    case .automaticReload(let automaticReload):
+        return PKPaymentRequestShippingMethodUpdate(
+            paymentSummaryItems: automaticReload.paymentSummaryItems.map { PKPaymentSummaryItem(label: $0.label, amount: $0.amount.amount, type: $0.type) }
+        )
     }
 }
 
@@ -304,6 +344,7 @@ enum TransactionType {
     case oneOff
     case recurring
     case disbursement
+    case automaticReload
 }
 
 // Example merchant-owned error type, passed to `shouldAuthorize`'s `.failure(_:)`.
@@ -421,6 +462,11 @@ struct ContentView: View {
             TransactionHandler(name: "Recurring", type: .recurring)
                 .tabItem {
                     Label("Recurring", systemImage: "person.crop.circle")
+                }
+
+            TransactionHandler(name: "Automatic Reload", type: .automaticReload)
+                .tabItem {
+                    Label("Automatic Reload", systemImage: "arrow.clockwise")
                 }
         }
     }
