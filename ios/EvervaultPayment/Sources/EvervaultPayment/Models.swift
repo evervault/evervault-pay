@@ -459,13 +459,14 @@ public struct RecurringPaymentTransaction {
     /// Restrict payments to cards issued in these ISO 3166 country codes.
     public var supportedCountries: Set<String>?
 
-    public init(country: String, currency: String, paymentSummaryItems: [SummaryItem] = [], paymentDescription: String, regularBilling: PKRecurringPaymentSummaryItem, managementURL: URL, billingAgreement: String? = nil, requestPayerDetails: Set<ContactField> = [], supportsCouponCode: Bool = false, couponCode: String? = nil, billingContact: ApplePayPaymentContact? = nil, shippingType: PKShippingType = .shipping, requiredShippingContactFields: Set<ContactField> = [], shippingContact: ApplePayPaymentContact? = nil, applicationData: Data? = nil, supportedCountries: Set<String>? = nil) throws {
+    public init(country: String, currency: String, paymentSummaryItems: [SummaryItem] = [], paymentDescription: String, regularBilling: PKRecurringPaymentSummaryItem, managementURL: URL, trialBilling: PKRecurringPaymentSummaryItem? = nil, billingAgreement: String? = nil, requestPayerDetails: Set<ContactField> = [], supportsCouponCode: Bool = false, couponCode: String? = nil, billingContact: ApplePayPaymentContact? = nil, shippingType: PKShippingType = .shipping, requiredShippingContactFields: Set<ContactField> = [], shippingContact: ApplePayPaymentContact? = nil, applicationData: Data? = nil, supportedCountries: Set<String>? = nil) throws {
         self.country = country
         self.currency = currency
         self.paymentSummaryItems = paymentSummaryItems
         self.paymentDescription = paymentDescription
         self.regularBilling = regularBilling
         self.managementURL = managementURL
+        self.trialBilling = trialBilling
         self.billingAgreement = billingAgreement
         self.requestPayerDetails = requestPayerDetails
         self.supportsCouponCode = supportsCouponCode
@@ -479,13 +480,14 @@ public struct RecurringPaymentTransaction {
     }
 
     @available(iOS 16.0, *)
-    public init(country: Locale.Region, currency: Locale.Currency, paymentSummaryItems: [SummaryItem] = [], paymentDescription: String, regularBilling: PKRecurringPaymentSummaryItem, managementURL: URL, billingAgreement: String? = nil, requestPayerDetails: Set<ContactField> = [], supportsCouponCode: Bool = false, couponCode: String? = nil, billingContact: ApplePayPaymentContact? = nil, shippingType: PKShippingType = .shipping, requiredShippingContactFields: Set<ContactField> = [], shippingContact: ApplePayPaymentContact? = nil, applicationData: Data? = nil, supportedCountries: Set<String>? = nil) throws {
+    public init(country: Locale.Region, currency: Locale.Currency, paymentSummaryItems: [SummaryItem] = [], paymentDescription: String, regularBilling: PKRecurringPaymentSummaryItem, managementURL: URL, trialBilling: PKRecurringPaymentSummaryItem? = nil, billingAgreement: String? = nil, requestPayerDetails: Set<ContactField> = [], supportsCouponCode: Bool = false, couponCode: String? = nil, billingContact: ApplePayPaymentContact? = nil, shippingType: PKShippingType = .shipping, requiredShippingContactFields: Set<ContactField> = [], shippingContact: ApplePayPaymentContact? = nil, applicationData: Data? = nil, supportedCountries: Set<String>? = nil) throws {
         self.country = country.identifier
         self.currency = currency.identifier
         self.paymentSummaryItems = paymentSummaryItems
         self.paymentDescription = paymentDescription
         self.regularBilling = regularBilling
         self.managementURL = managementURL
+        self.trialBilling = trialBilling
         self.billingAgreement = billingAgreement
         self.requestPayerDetails = requestPayerDetails
         self.supportsCouponCode = supportsCouponCode
