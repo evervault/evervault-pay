@@ -109,15 +109,17 @@ fileprivate func buildTransaction(type: TransactionType) -> EvervaultPayment.Tra
         let trialBilling = PKRecurringPaymentSummaryItem(label: "Trial", amount: 0)
         trialBilling.startDate = nil // Now
 
-        var recurringBillingRequest = try! RecurringPaymentTransaction(
+        let recurringBillingRequest = try! RecurringPaymentTransaction(
             country: "IE",
             currency: "EUR",
             paymentSummaryItems: [],
             paymentDescription: "Recurring payment example.",
             regularBilling: recurringBilling,
             managementURL: URL(string: "https://www.merchant.com/manage-subscriptions")!,
+            trialBilling: trialBilling,
             billingAgreement: "https://www.merchant.com/billing-agreement",
             requestPayerDetails: [.postalAddress, .name, .emailAddress, .phoneNumber],
+            supportsCouponCode: true,
             billingContact: makeSampleBillingContact(),
             shippingType: .shipping,
             requiredShippingContactFields: [.postalAddress, .name, .emailAddress, .phoneNumber],
@@ -125,8 +127,6 @@ fileprivate func buildTransaction(type: TransactionType) -> EvervaultPayment.Tra
             applicationData: Data("order_123".utf8),
             supportedCountries: ["IE", "GB", "US"]
         )
-        recurringBillingRequest.trialBilling = trialBilling
-        recurringBillingRequest.supportsCouponCode = true
         return .recurringPayment(recurringBillingRequest)
     case .automaticReload:
         let automaticReloadRequest = try! AutomaticReloadPaymentTransaction(

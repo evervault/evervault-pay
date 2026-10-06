@@ -316,6 +316,7 @@ final class TransactionPrefillFieldsTests: XCTestCase {
         XCTAssertEqual(transaction.shippingType, .shipping)
         XCTAssertTrue(transaction.requiredShippingContactFields.isEmpty)
         XCTAssertNil(transaction.billingAgreement)
+        XCTAssertNil(transaction.trialBilling)
     }
 
     func testRecurringStoresProvidedBillingShippingAndShippingFields() throws {
@@ -325,6 +326,7 @@ final class TransactionPrefillFieldsTests: XCTestCase {
             paymentDescription: "Subscription",
             regularBilling: PKRecurringPaymentSummaryItem(label: "Monthly", amount: NSDecimalNumber(string: "10.00")),
             managementURL: URL(string: "https://example.com/manage")!,
+            trialBilling: PKRecurringPaymentSummaryItem(label: "Trial", amount: NSDecimalNumber(string: "0.00")),
             billingAgreement: "https://example.com/billing-agreement",
             billingContact: makeBillingContact(),
             shippingType: .delivery,
@@ -337,6 +339,8 @@ final class TransactionPrefillFieldsTests: XCTestCase {
         XCTAssertEqual(transaction.shippingType, .delivery)
         XCTAssertEqual(transaction.requiredShippingContactFields, [.postalAddress])
         XCTAssertEqual(transaction.billingAgreement, "https://example.com/billing-agreement")
+        XCTAssertEqual(transaction.trialBilling?.label, "Trial")
+        XCTAssertEqual(transaction.trialBilling?.amount, NSDecimalNumber(string: "0.00"))
     }
 
     func testAutomaticReloadDefaultsBillingContactAndShippingFieldsToNilOrEmpty() throws {
@@ -1083,15 +1087,15 @@ final class CouponCodeDelegateTests: XCTestCase {
 
     func testFallsBackToSummaryItemsIncludingTrialBillingWhenSetForRecurringPayment() async throws {
         let spy = SpyDelegate()
-        var recurringTransaction = try RecurringPaymentTransaction(
+        let recurringTransaction = try RecurringPaymentTransaction(
             country: "IE",
             currency: "EUR",
             paymentSummaryItems: [SummaryItem(label: "Total", amount: Amount("10.00"))],
             paymentDescription: "Subscription",
             regularBilling: PKRecurringPaymentSummaryItem(label: "Monthly", amount: NSDecimalNumber(string: "9.99")),
-            managementURL: URL(string: "https://example.com/manage")!
+            managementURL: URL(string: "https://example.com/manage")!,
+            trialBilling: PKRecurringPaymentSummaryItem(label: "Free Trial", amount: NSDecimalNumber(string: "0.00"))
         )
-        recurringTransaction.trialBilling = PKRecurringPaymentSummaryItem(label: "Free Trial", amount: NSDecimalNumber(string: "0.00"))
         let view = makeViewForDispositionTests(delegate: spy, transaction: .recurringPayment(recurringTransaction))
         // didChangeCouponCodeHandler left unset - exercises the SDK's getPaymentSummaryItems() fallback.
 
