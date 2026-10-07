@@ -210,6 +210,7 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
         }
     }
 
+    /// Called after the user taps the Apple Pay button, but before the sheet is presented, letting you modify the transaction in-place.
     public func prepareTransaction(_ action: @escaping (inout Transaction) -> Void) -> EvervaultPaymentViewRepresentable {
         var copy = self
         copy.prepareTransactionCallback = action
@@ -232,6 +233,7 @@ public struct EvervaultPaymentViewRepresentable: UIViewRepresentable {
         return copy
     }
 
+    /// Called when the buyer selects or changes their payment method (e.g. switching cards) on the Apple Pay sheet.
     public func onPaymentMethodChange(_ action: @escaping (PKPaymentMethod) -> PKPaymentRequestPaymentMethodUpdate) -> EvervaultPaymentViewRepresentable {
         var copy = self
         copy.onPaymentMethodChangeCallback = action
