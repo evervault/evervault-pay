@@ -666,6 +666,7 @@ struct ApplePayTokenHeader: Codable {
     let publicKeyHash: String
     let ephemeralPublicKey: String
     let transactionId: String
+    let applicationData: String?
 }
 
 struct ApplePayToken: Codable {
