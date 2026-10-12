@@ -15,6 +15,22 @@
 </plist>
 ```
 
+## ServerSideDecryptHarness
+
+`Demo.xcodeproj` has a second app target, **ServerSideDecryptHarness** ([`Demo/ServerSideDecryptHarness`](Demo/ServerSideDecryptHarness)). It takes a real Apple Pay payment and forwards the encrypted `PKPaymentToken.paymentData` straight to `POST /payments/apple-pay/decrypt` with an API key — standing in for a merchant's own server receiving a token outside any Evervault SDK (e.g. Apple Messages for Business). It deliberately doesn't link `EvervaultPayment`, and isn't part of the published package.
+
+It signs with the same `Demo/Demo.entitlements` as the Demo app, under its own bundle ID (`com.evervault.testios.ServerSideDecryptHarness`).
+
+Set these on the **ServerSideDecryptHarness** scheme (Edit Scheme → Run → Arguments → Environment Variables). `xcshareddata` is gitignored, so they stay local. Xcode only passes these variables when it launches the app, so always run it from Xcode — opening it from the home screen will just show which variables are missing:
+
+| Variable                          | Value                                                                                                            |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `SERVER_SIDE_DECRYPT_API_KEY`     | An API key with the `applePay:decrypt` grant, on an app with the `apple_pay_server_side_decryption` flag enabled |
+| `SERVER_SIDE_DECRYPT_MERCHANT_ID` | The merchant ID from your `Demo.entitlements`, whose Evervault app has the payment-processing certificate        |
+| `SERVER_SIDE_DECRYPT_BASE_URL`    | Optional. API host to call; defaults to `https://api.evervault.com`                 |
+
+Run it on a physical iPhone with a sandbox tester signed in and a sandbox test card in Wallet — the Simulator can't produce a real encrypted token. The decrypted response (or the HTTP status and error body) is shown on screen.
+
 ## Releasing a new version
 
 1. Bump `spec.version` in [`EvervaultPayment.podspec`](../EvervaultPayment.podspec) (could be done in the same PR as your change, or as its own separate version-bump PR — there's no technical requirement either way; a separate PR just lets you batch several merged changes into one release instead of releasing on every merge)
