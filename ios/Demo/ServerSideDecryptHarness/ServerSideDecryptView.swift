@@ -106,7 +106,7 @@ struct ServerSideDecryptView: View {
     var body: some View {
         VStack(spacing: 20) {
             Text("Server-Side Decrypt")
-            Text("Forwards the raw Apple Pay token to POST /payments/apple-pay/decrypt with an API key, as a merchant's own server would.")
+            Text("Forwards the raw Apple Pay token to POST /payments/apple-pay/decrypt with an app ID and API key, as a merchant's own server would.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)

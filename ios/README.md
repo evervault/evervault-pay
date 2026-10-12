@@ -17,7 +17,7 @@
 
 ## ServerSideDecryptHarness
 
-`Demo.xcodeproj` has a second app target, **ServerSideDecryptHarness** ([`Demo/ServerSideDecryptHarness`](Demo/ServerSideDecryptHarness)). It takes a real Apple Pay payment and forwards the encrypted `PKPaymentToken.paymentData` straight to `POST /payments/apple-pay/decrypt` with an API key — standing in for a merchant's own server receiving a token outside any Evervault SDK (e.g. Apple Messages for Business). It deliberately doesn't link `EvervaultPayment`, and isn't part of the published package.
+`Demo.xcodeproj` has a second app target, **ServerSideDecryptHarness** ([`Demo/ServerSideDecryptHarness`](Demo/ServerSideDecryptHarness)). It takes a real Apple Pay payment and forwards the encrypted `PKPaymentToken.paymentData` straight to `POST /payments/apple-pay/decrypt` with an app ID and API key (Basic auth) — standing in for a merchant's own server receiving a token outside any Evervault SDK (e.g. Apple Messages for Business). It deliberately doesn't link `EvervaultPayment`, and isn't part of the published package.
 
 It signs with the same `Demo/Demo.entitlements` as the Demo app, under its own bundle ID (`com.evervault.testios.ServerSideDecryptHarness`).
 
@@ -25,6 +25,7 @@ Set these on the **ServerSideDecryptHarness** scheme (Edit Scheme → Run → Ar
 
 | Variable                          | Value                                                                                                            |
 | --------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `SERVER_SIDE_DECRYPT_APP_ID`      | The ID of the Evervault app the API key belongs to (`app_...`)                                                   |
 | `SERVER_SIDE_DECRYPT_API_KEY`     | An API key with the `applePay:decrypt` grant, on an app with the `apple_pay_server_side_decryption` flag enabled |
 | `SERVER_SIDE_DECRYPT_MERCHANT_ID` | The merchant ID from your `Demo.entitlements`, whose Evervault app has the payment-processing certificate        |
 | `SERVER_SIDE_DECRYPT_BASE_URL`    | Optional. API host to call; defaults to `https://api.evervault.com`                 |

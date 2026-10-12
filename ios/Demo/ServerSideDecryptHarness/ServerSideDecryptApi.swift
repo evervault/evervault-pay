@@ -3,7 +3,7 @@
 //  ServerSideDecryptHarness
 //
 //  Test harness for server-side Apple Pay decryption.
-//  Sends the Apple Pay token straight to `POST /payments/apple-pay/decrypt` with an API key,
+//  Sends the Apple Pay token straight to `POST /payments/apple-pay/decrypt` with an app ID and API key,
 //  like a merchant's own server would after getting the token without our SDK
 //  (e.g. through Apple Messages for Business). Doesn't use the SDK's `EvervaultApi` on purpose.
 //
@@ -15,28 +15,31 @@ import PassKit
 /// Xcode only passes these when it launches the app, so always run it from Xcode.
 struct ServerSideDecryptConfig {
     static let baseUrlKey = "SERVER_SIDE_DECRYPT_BASE_URL"
+    static let appIdKey = "SERVER_SIDE_DECRYPT_APP_ID"
     static let apiKeyKey = "SERVER_SIDE_DECRYPT_API_KEY"
     static let merchantIdKey = "SERVER_SIDE_DECRYPT_MERCHANT_ID"
 
     private static let defaultBaseUrl = "https://api.evervault.com"
 
     let baseUrl: String
+    let appId: String
     let apiKey: String
     let merchantId: String
 
     /// Returns the config, or the names of the variables still missing from the scheme.
     static func load(from environment: [String: String] = ProcessInfo.processInfo.environment) -> Result<ServerSideDecryptConfig, MissingConfig> {
         let baseUrl = nonEmpty(environment[baseUrlKey]) ?? defaultBaseUrl
+        let appId = nonEmpty(environment[appIdKey])
         let apiKey = nonEmpty(environment[apiKeyKey])
         let merchantId = nonEmpty(environment[merchantIdKey])
 
-        guard let apiKey, let merchantId else {
-            let missing = [(apiKeyKey, apiKey), (merchantIdKey, merchantId)]
+        guard let appId, let apiKey, let merchantId else {
+            let missing = [(appIdKey, appId), (apiKeyKey, apiKey), (merchantIdKey, merchantId)]
                 .filter { $0.1 == nil }
                 .map { $0.0 }
             return .failure(MissingConfig(variables: missing))
         }
-        return .success(ServerSideDecryptConfig(baseUrl: baseUrl, apiKey: apiKey, merchantId: merchantId))
+        return .success(ServerSideDecryptConfig(baseUrl: baseUrl, appId: appId, apiKey: apiKey, merchantId: merchantId))
     }
 
     struct MissingConfig: Error {
@@ -106,8 +109,10 @@ struct ServerSideDecryptApi {
         request.timeoutInterval = 25
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "content-type")
-        // No x-evervault-app-id header needed: the backend works out the app from the API key.
-        request.setValue(config.apiKey, forHTTPHeaderField: "api-key")
+        // This endpoint only accepts Basic auth (app ID as the username, API key as the password).
+        // The plain `api-key` header is turned off for it, so a request with only that gets a 401.
+        let credentials = Data("\(config.appId):\(config.apiKey)".utf8).base64EncodedString()
+        request.setValue("Basic \(credentials)", forHTTPHeaderField: "authorization")
         request.httpBody = try JSONEncoder().encode(DecryptRequestBody(paymentData: paymentData))
 
         let (data, response) = try await URLSession.shared.data(for: request)
