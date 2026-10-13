@@ -13,6 +13,7 @@
 
 import SwiftUI
 import PassKit
+import CryptoKit
 
 private let supportedNetworks: [PKPaymentNetwork] = [.visa, .masterCard, .amex]
 
@@ -31,8 +32,9 @@ final class ServerSideDecryptModel: NSObject, ObservableObject {
     private var controller: PKPaymentAuthorizationController?
     private var api: ServerSideDecryptApi?
     private var pendingOutcome: Outcome?
+    private var expectedApplicationDataHash: String?
 
-    func pay(config: ServerSideDecryptConfig) {
+    func pay(config: ServerSideDecryptConfig, includeApplicationData: Bool) {
         let request = PKPaymentRequest()
         request.merchantIdentifier = config.merchantId
         request.countryCode = "IE"
@@ -43,6 +45,11 @@ final class ServerSideDecryptModel: NSObject, ObservableObject {
             PKPaymentSummaryItem(label: "Test Item", amount: NSDecimalNumber(string: "1.00")),
             PKPaymentSummaryItem(label: "Evervault Demo", amount: NSDecimalNumber(string: "1.00")),
         ]
+        // Apple puts a SHA-256 hash of this in the token header and includes it in the signature.
+        // Apple Messages for Business tokens have it, so test both with and without.
+        let applicationData = includeApplicationData ? Data("evervault-harness-\(UUID().uuidString)".utf8) : nil
+        request.applicationData = applicationData
+        expectedApplicationDataHash = applicationData.map { hexSHA256($0) }
 
         let api = ServerSideDecryptApi(config: config)
         let controller = PKPaymentAuthorizationController(paymentRequest: request)
@@ -66,7 +73,27 @@ final class ServerSideDecryptModel: NSObject, ObservableObject {
         controller = nil
         api = nil
         pendingOutcome = nil
+        expectedApplicationDataHash = nil
     }
+
+    /// Says whether the token had `applicationData`, and whether it's the hash of what the request sent.
+    fileprivate func applicationDataSummary(tokenHash: String?) -> String {
+        switch (expectedApplicationDataHash, tokenHash) {
+        case (nil, nil):
+            return "applicationData: not set, not in token"
+        case let (expected?, actual?):
+            let matches = expected.caseInsensitiveCompare(actual) == .orderedSame
+            return "applicationData: in token, \(matches ? "matches" : "DOESN'T match") request hash\n\(actual)"
+        case (_?, nil):
+            return "applicationData: set on request but MISSING from token"
+        case let (nil, actual?):
+            return "applicationData: not set, but token has one\n\(actual)"
+        }
+    }
+}
+
+private func hexSHA256(_ data: Data) -> String {
+    SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
 }
 
 extension ServerSideDecryptModel: PKPaymentAuthorizationControllerDelegate {
@@ -81,11 +108,13 @@ extension ServerSideDecryptModel: PKPaymentAuthorizationControllerDelegate {
                 return
             }
             do {
-                let body = try await api.decrypt(payment.token)
-                self.pendingOutcome = .success(body)
+                let result = try await api.decrypt(payment.token)
+                let summary = self.applicationDataSummary(tokenHash: result.applicationDataHash)
+                self.pendingOutcome = .success("\(summary)\n\n\(result.body)")
                 completion(PKPaymentAuthorizationResult(status: .success, errors: nil))
             } catch {
-                self.pendingOutcome = .failure(error.localizedDescription)
+                let mode = self.expectedApplicationDataHash == nil ? "not set" : "set on request"
+                self.pendingOutcome = .failure("applicationData: \(mode)\n\n\(error.localizedDescription)")
                 completion(PKPaymentAuthorizationResult(status: .failure, errors: nil))
             }
         }
@@ -101,6 +130,7 @@ extension ServerSideDecryptModel: PKPaymentAuthorizationControllerDelegate {
 
 struct ServerSideDecryptView: View {
     @StateObject private var model = ServerSideDecryptModel()
+    @State private var includeApplicationData = false
     private let config = ServerSideDecryptConfig.load()
 
     var body: some View {
@@ -121,6 +151,9 @@ struct ServerSideDecryptView: View {
                 Text(config.baseUrl)
                     .font(.footnote.monospaced())
                     .foregroundStyle(.secondary)
+                Toggle("Include applicationData", isOn: $includeApplicationData)
+                    .font(.footnote)
+                    .disabled(model.isRunning)
                 payButton(config: config)
             }
 
@@ -140,7 +173,7 @@ struct ServerSideDecryptView: View {
 #else
         if PKPaymentAuthorizationController.canMakePayments(usingNetworks: supportedNetworks) {
             PayWithApplePayButton(.checkout) {
-                model.pay(config: config)
+                model.pay(config: config, includeApplicationData: includeApplicationData)
             }
             .frame(height: 45)
             .disabled(model.isRunning)

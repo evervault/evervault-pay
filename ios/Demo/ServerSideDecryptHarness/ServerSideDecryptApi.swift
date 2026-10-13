@@ -58,6 +58,9 @@ struct ServerSideApplePayToken: Codable {
         let ephemeralPublicKey: String
         let publicKeyHash: String
         let transactionId: String
+        /// SHA-256 hash (hex) of the request's `applicationData`. Only present when the request set it.
+        /// Apple signs it, so dropping it here would break signature verification.
+        let applicationData: String?
     }
 
     let data: String
@@ -87,11 +90,18 @@ enum ServerSideDecryptError: LocalizedError {
     }
 }
 
+struct ServerSideDecryptResult {
+    /// The decrypt response as formatted JSON.
+    let body: String
+    /// The `applicationData` hash from the token header, or nil if the token didn't have one.
+    let applicationDataHash: String?
+}
+
 struct ServerSideDecryptApi {
     let config: ServerSideDecryptConfig
 
-    /// Sends the token to the decrypt endpoint and returns the response as formatted JSON.
-    func decrypt(_ token: PKPaymentToken) async throws -> String {
+    /// Sends the token to the decrypt endpoint and returns the response.
+    func decrypt(_ token: PKPaymentToken) async throws -> ServerSideDecryptResult {
         guard let url = URL(string: "\(config.baseUrl)/payments/apple-pay/decrypt") else {
             throw ServerSideDecryptError.invalidBaseUrl(config.baseUrl)
         }
@@ -124,7 +134,7 @@ struct ServerSideDecryptApi {
         guard (200...299).contains(http.statusCode) else {
             throw ServerSideDecryptError.httpError(status: http.statusCode, body: body)
         }
-        return body
+        return ServerSideDecryptResult(body: body, applicationDataHash: paymentData.header.applicationData)
     }
 
     private func prettyPrinted(_ data: Data) -> String {

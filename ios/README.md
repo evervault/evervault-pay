@@ -32,6 +32,8 @@ Set these on the **ServerSideDecryptHarness** scheme (Edit Scheme → Run → Ar
 
 Run it on a physical iPhone with a sandbox tester signed in and a sandbox test card in Wallet — the Simulator can't produce a real encrypted token. The decrypted response (or the HTTP status and error body) is shown on screen.
 
+The **Include applicationData** toggle sets `applicationData` on the payment request. Apple then adds its SHA-256 hash to the token header and includes it in the signature (Apple Messages for Business tokens have it). Run the payment once with the toggle on and once with it off. The result says whether the token had the hash and whether it matches the request.
+
 ## Releasing a new version
 
 1. Bump `spec.version` in [`EvervaultPayment.podspec`](../EvervaultPayment.podspec) (could be done in the same PR as your change, or as its own separate version-bump PR — there's no technical requirement either way; a separate PR just lets you batch several merged changes into one release instead of releasing on every merge)
